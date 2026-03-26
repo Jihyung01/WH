@@ -1,5 +1,5 @@
 import * as Notifications from 'expo-notifications';
-import * as Linking from 'expo-linking';
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import api from './api';
 import { useNotificationStore } from '../stores/notificationStore';
@@ -29,43 +29,55 @@ export const notificationService = {
    * Returns the push token string or null if denied.
    */
   async registerPushToken(): Promise<string | null> {
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-
-    useNotificationStore.getState().setPermission(
-      finalStatus === 'granted' ? 'granted' : 'denied',
-    );
-
-    if (finalStatus !== 'granted') return null;
-
-    if (Platform.OS === 'android') {
-      await Notifications.setNotificationChannelAsync('default', {
-        name: 'WhereHere',
-        importance: Notifications.AndroidImportance.HIGH,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#2DD4A8',
-      });
-    }
-
-    const tokenData = await Notifications.getExpoPushTokenAsync({
-      projectId: undefined, // uses Constants.expoConfig.extra.eas.projectId at build time
-    });
-    const token = tokenData.data;
-
-    useNotificationStore.getState().setPushToken(token);
-
     try {
-      await api.post('/users/me/push-token', { token });
-    } catch {
-      // server unreachable — token is saved locally for later retry
-    }
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
 
-    return token;
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+
+      useNotificationStore.getState().setPermission(
+        finalStatus === 'granted' ? 'granted' : 'denied',
+      );
+
+      if (finalStatus !== 'granted') return null;
+
+      if (Platform.OS === 'android') {
+        await Notifications.setNotificationChannelAsync('default', {
+          name: 'WhereHere',
+          importance: Notifications.AndroidImportance.HIGH,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#2DD4A8',
+        });
+      }
+
+      const projectId =
+        Constants.expoConfig?.extra?.eas?.projectId ??
+        Constants.easConfig?.projectId;
+
+      if (!projectId) {
+        console.warn('Push tokens unavailable: no EAS projectId (expected in Expo Go)');
+        return null;
+      }
+
+      const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
+      const token = tokenData.data;
+
+      useNotificationStore.getState().setPushToken(token);
+
+      try {
+        await api.post('/users/me/push-token', { token });
+      } catch {
+        // server unreachable — token saved locally for retry
+      }
+
+      return token;
+    } catch (err) {
+      console.warn('Push token registration skipped:', err);
+      return null;
+    }
   },
 
   // ── Nearby Event Alert ──

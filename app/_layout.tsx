@@ -20,22 +20,26 @@ function AppContent() {
 
   useEffect(() => {
     async function bootstrap() {
-      await useThemeStore.getState().loadOverride();
+      try {
+        await useThemeStore.getState().loadOverride();
+        await useNotificationStore.getState().loadPrefs();
 
-      notificationService.configure();
-      await useNotificationStore.getState().loadPrefs();
-      await notificationService.registerPushToken();
-      await notificationService.scheduleDailyReminder();
-      await notificationService.scheduleStreakWarning(
-        useNotificationStore.getState().prefs.streakWarning ? 7 : 0,
-      );
+        notificationService.configure();
+        await notificationService.registerPushToken().catch(() => {});
+        await notificationService.scheduleDailyReminder().catch(() => {});
+        await notificationService.scheduleStreakWarning(
+          useNotificationStore.getState().prefs.streakWarning ? 7 : 0,
+        ).catch(() => {});
 
-      const { backgroundLocationEnabled, powerSaveMode } = useNotificationStore.getState();
-      if (backgroundLocationEnabled && !powerSaveMode) {
-        await backgroundLocationService.start();
+        const { backgroundLocationEnabled, powerSaveMode } = useNotificationStore.getState();
+        if (backgroundLocationEnabled && !powerSaveMode) {
+          await backgroundLocationService.start().catch(() => {});
+        }
+      } catch (err) {
+        console.warn('Bootstrap error (non-fatal):', err);
+      } finally {
+        SplashScreen.hideAsync();
       }
-
-      SplashScreen.hideAsync();
     }
 
     bootstrap();
