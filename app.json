@@ -1,0 +1,64 @@
+{
+  "expo": {
+    "name": "WhereHere",
+    "slug": "wherehere-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "wherehere",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0F172A"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.wherehere.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "WhereHere needs your location to discover nearby events and verify check-ins.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "WhereHere uses background location to notify you of nearby events."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#1AAD8A",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "package": "com.wherehere.app",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-secure-store",
+      "expo-task-manager",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "WhereHere uses your location to show nearby events and verify check-ins."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#2DD4A8"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
