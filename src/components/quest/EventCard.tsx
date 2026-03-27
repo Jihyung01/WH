@@ -4,19 +4,19 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
-import type { Event, GeoPoint } from '../../types';
-import { EventCategory, RewardType, ItemRarity } from '../../types/enums';
+import type { Event, NearbyEvent, GeoPoint } from '../../types';
+import { EventCategory } from '../../types/enums';
 import { formatDistance, formatNumber } from '../../utils/format';
 import { COLORS, SPACING, FONT_SIZE, FONT_WEIGHT, BORDER_RADIUS, SHADOWS } from '../../config/theme';
 
 interface EventCardProps {
-  event: Event;
+  event: Event | NearbyEvent;
   userLocation?: GeoPoint | null;
   index?: number;
-  onPress?: (event: Event) => void;
+  onPress?: (event: Event | NearbyEvent) => void;
 }
 
-const CATEGORY_META: Record<EventCategory, { emoji: string; label: string; color: string }> = {
+const CATEGORY_META: Record<string, { emoji: string; label: string; color: string }> = {
   [EventCategory.ACTIVITY]:   { emoji: '🏃', label: '탐험', color: '#00D68F' },
   [EventCategory.CAFE]:       { emoji: '☕', label: '카페', color: '#F0C040' },
   [EventCategory.CULTURE]:    { emoji: '🏛️', label: '문화', color: '#A29BFE' },
@@ -25,15 +25,14 @@ const CATEGORY_META: Record<EventCategory, { emoji: string; label: string; color
   [EventCategory.NIGHTLIFE]:  { emoji: '🌙', label: '야경', color: '#48DBFB' },
   [EventCategory.SHOPPING]:   { emoji: '🛍️', label: '쇼핑', color: '#F0C040' },
   [EventCategory.HIDDEN_GEM]: { emoji: '💎', label: '숨은명소', color: '#A29BFE' },
+  [EventCategory.PHOTO]:      { emoji: '📸', label: '포토', color: '#3B82F6' },
+  [EventCategory.QUIZ]:       { emoji: '🧩', label: '퀴즈', color: '#8B5CF6' },
+  [EventCategory.PARTNERSHIP]:{ emoji: '🤝', label: '제휴', color: '#F59E0B' },
 };
 
-const RARITY_COLORS: Record<string, string> = {
-  [ItemRarity.COMMON]: COLORS.common,
-  [ItemRarity.UNCOMMON]: COLORS.uncommon,
-  [ItemRarity.RARE]: COLORS.rare,
-  [ItemRarity.EPIC]: COLORS.epic,
-  [ItemRarity.LEGENDARY]: COLORS.legendary,
-};
+function isNearbyEvent(e: Event | NearbyEvent): e is NearbyEvent {
+  return 'lat' in e && 'lng' in e;
+}
 
 function haversineDistance(a: GeoPoint, b: GeoPoint): number {
   const R = 6371000;
@@ -53,9 +52,10 @@ function EventCard({ event, userLocation, index = 0, onPress }: EventCardProps) 
   const meta = CATEGORY_META[event.category] ?? CATEGORY_META[EventCategory.ACTIVITY];
 
   const distanceMeters = useMemo(() => {
+    if (isNearbyEvent(event)) return event.distance_meters;
     if (!userLocation) return null;
-    return haversineDistance(userLocation, event.location);
-  }, [userLocation, event.location]);
+    return null;
+  }, [userLocation, event]);
 
   const walkMin = distanceMeters != null ? estimateWalkMinutes(distanceMeters) : null;
 
@@ -68,14 +68,11 @@ function EventCard({ event, userLocation, index = 0, onPress }: EventCardProps) 
           onPress?.(event);
         }}
       >
-        {/* Thumbnail placeholder */}
         <View style={[styles.thumbnail, { backgroundColor: meta.color + '20' }]}>
           <Text style={styles.thumbnailEmoji}>{meta.emoji}</Text>
         </View>
 
-        {/* Content */}
         <View style={styles.content}>
-          {/* Top row — category + difficulty + distance */}
           <View style={styles.topRow}>
             <View style={[styles.categoryBadge, { backgroundColor: meta.color + '20' }]}>
               <Text style={[styles.categoryText, { color: meta.color }]}>{meta.label}</Text>
@@ -95,14 +92,12 @@ function EventCard({ event, userLocation, index = 0, onPress }: EventCardProps) 
             )}
           </View>
 
-          {/* Title */}
           <Text style={styles.title} numberOfLines={1}>{event.title}</Text>
 
-          {/* Location + walk time */}
           <View style={styles.locationRow}>
             <Ionicons name="location-outline" size={12} color={COLORS.textMuted} />
             <Text style={styles.locationText} numberOfLines={1}>
-              {event.address}
+              {event.address ?? event.district ?? ''}
             </Text>
             {walkMin != null && (
               <>
@@ -113,32 +108,14 @@ function EventCard({ event, userLocation, index = 0, onPress }: EventCardProps) 
             )}
           </View>
 
-          {/* Reward row */}
           <View style={styles.rewardRow}>
             <View style={styles.rewardChip}>
               <Text style={styles.rewardEmoji}>⚡</Text>
-              <Text style={styles.rewardText}>{formatNumber(event.xpReward)} XP</Text>
+              <Text style={styles.rewardText}>{formatNumber(event.reward_xp)} XP</Text>
             </View>
-            {event.coinReward > 0 && (
-              <View style={styles.rewardChip}>
-                <Text style={styles.rewardEmoji}>🪙</Text>
-                <Text style={styles.rewardText}>{formatNumber(event.coinReward)}</Text>
-              </View>
-            )}
-            {event.rewards.map((r, i) => (
-              <View key={i} style={[styles.rewardChip, { borderColor: RARITY_COLORS[r.rarity] + '60' }]}>
-                <Text style={styles.rewardEmoji}>
-                  {r.type === RewardType.BADGE ? '🏅' : r.type === RewardType.ITEM ? '🎁' : '✨'}
-                </Text>
-                <Text style={[styles.rewardText, { color: RARITY_COLORS[r.rarity] }]} numberOfLines={1}>
-                  {r.name}
-                </Text>
-              </View>
-            ))}
           </View>
         </View>
 
-        {/* CTA arrow */}
         <View style={styles.ctaColumn}>
           <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
         </View>

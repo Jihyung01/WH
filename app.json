@@ -15,9 +15,13 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.wherehere.app",
+      "config": {
+        "googleMapsApiKey": "AIzaSyCNloDZuWrMK_TYx-0HD_ip_LBegmGypOg"
+      },
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "WhereHere needs your location to discover nearby events and verify check-ins.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "WhereHere uses background location to notify you of nearby events."
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "WhereHere uses background location to notify you of nearby events.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -28,10 +32,35 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "package": "com.wherehere.app",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyCNloDZuWrMK_TYx-0HD_ip_LBegmGypOg"
+        }
+      },
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
-        "ACCESS_BACKGROUND_LOCATION"
+        "ACCESS_BACKGROUND_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "wherehere"
+            }
+          ],
+          "category": [
+            "DEFAULT",
+            "BROWSABLE"
+          ]
+        }
       ]
     },
     "web": {
@@ -42,11 +71,14 @@
       "expo-router",
       "expo-font",
       "expo-secure-store",
+      "expo-dev-client",
       "expo-task-manager",
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "WhereHere uses your location to show nearby events and verify check-ins."
+          "locationAlwaysAndWhenInUsePermission": "WhereHere uses your location to show nearby events and verify check-ins.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
         }
       ],
       [
@@ -59,6 +91,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "ff328bbb-ad49-47b0-809a-aebfbf70bb8b"
+      }
     }
   }
 }

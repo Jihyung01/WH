@@ -1,32 +1,60 @@
 import { create } from 'zustand';
-import type { InventoryItem, Badge } from '../types';
+import type { UserBadge, Badge, InventoryItem } from '../types/models';
+import { getMyBadges, getAllBadges, getMyInventory } from '../lib/api';
 
 interface InventoryState {
+  userBadges: UserBadge[];
+  allBadges: Badge[];
   items: InventoryItem[];
-  badges: Badge[];
   isLoading: boolean;
+  error: string | null;
 
-  // Actions
-  setItems: (items: InventoryItem[]) => void;
-  addItem: (item: InventoryItem) => void;
-  removeItem: (itemId: string) => void;
-  setBadges: (badges: Badge[]) => void;
-  addBadge: (badge: Badge) => void;
-  setLoading: (loading: boolean) => void;
+  fetchBadges: () => Promise<void>;
+  fetchAllBadges: () => Promise<void>;
+  fetchItems: () => Promise<void>;
+  fetchAll: () => Promise<void>;
   clear: () => void;
 }
 
-export const useInventoryStore = create<InventoryState>((set) => ({
+export const useInventoryStore = create<InventoryState>((set, get) => ({
+  userBadges: [],
+  allBadges: [],
   items: [],
-  badges: [],
   isLoading: false,
+  error: null,
 
-  setItems: (items) => set({ items }),
-  addItem: (item) => set((state) => ({ items: [...state.items, item] })),
-  removeItem: (itemId) =>
-    set((state) => ({ items: state.items.filter((i) => i.id !== itemId) })),
-  setBadges: (badges) => set({ badges }),
-  addBadge: (badge) => set((state) => ({ badges: [...state.badges, badge] })),
-  setLoading: (loading) => set({ isLoading: loading }),
-  clear: () => set({ items: [], badges: [] }),
+  fetchBadges: async () => {
+    try {
+      const data = await getMyBadges();
+      set({ userBadges: data });
+    } catch (err: any) {
+      set({ error: err.message });
+    }
+  },
+
+  fetchAllBadges: async () => {
+    try {
+      const data = await getAllBadges();
+      set({ allBadges: data });
+    } catch (err: any) {
+      set({ error: err.message });
+    }
+  },
+
+  fetchItems: async () => {
+    try {
+      const data = await getMyInventory();
+      set({ items: data });
+    } catch (err: any) {
+      set({ error: err.message });
+    }
+  },
+
+  fetchAll: async () => {
+    set({ isLoading: true, error: null });
+    await Promise.all([get().fetchBadges(), get().fetchAllBadges(), get().fetchItems()]);
+    set({ isLoading: false });
+  },
+
+  clear: () => set({ userBadges: [], allBadges: [], items: [], error: null }),
 }));

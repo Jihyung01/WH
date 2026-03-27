@@ -8,46 +8,51 @@ import Animated, {
   withTiming,
   Easing,
 } from 'react-native-reanimated';
-import { EventCategory, EventStatus } from '../../types/enums';
-import type { Event, GeoPoint } from '../../types';
+import { EventCategory } from '../../types/enums';
+import type { NearbyEvent, GeoPoint } from '../../types';
 import { getDistance } from '../../utils/geo';
 import { CHECK_IN_RADIUS_METERS } from '../../utils/constants';
 import { COLORS } from '../../config/theme';
 
 interface EventMarkerProps {
-  event: Event;
+  event: NearbyEvent;
   userLocation: GeoPoint | null;
-  onPress: (event: Event) => void;
+  onPress: (event: NearbyEvent) => void;
 }
 
 const MARKER_CONFIG: Record<string, { color: string; icon: string; label: string }> = {
-  [EventCategory.ACTIVITY]: { color: '#00D68F', icon: '🏃', label: '탐험' },
-  [EventCategory.CULTURE]: { color: '#48DBFB', icon: '📸', label: '인증' },
+  [EventCategory.ACTIVITY]:   { color: '#00D68F', icon: '🏃', label: '탐험' },
+  [EventCategory.CULTURE]:    { color: '#48DBFB', icon: '📸', label: '인증' },
   [EventCategory.HIDDEN_GEM]: { color: '#A29BFE', icon: '🧩', label: '퀴즈' },
-  [EventCategory.FOOD]: { color: '#F0C040', icon: '⭐', label: '제휴' },
-  [EventCategory.CAFE]: { color: '#F0C040', icon: '☕', label: '카페' },
-  [EventCategory.NATURE]: { color: '#00D68F', icon: '🌿', label: '자연' },
-  [EventCategory.NIGHTLIFE]: { color: '#A29BFE', icon: '🌙', label: '야간' },
-  [EventCategory.SHOPPING]: { color: '#FF6B6B', icon: '🛍️', label: '쇼핑' },
+  [EventCategory.FOOD]:       { color: '#F0C040', icon: '⭐', label: '제휴' },
+  [EventCategory.CAFE]:       { color: '#F0C040', icon: '☕', label: '카페' },
+  [EventCategory.NATURE]:     { color: '#00D68F', icon: '🌿', label: '자연' },
+  [EventCategory.NIGHTLIFE]:  { color: '#A29BFE', icon: '🌙', label: '야간' },
+  [EventCategory.SHOPPING]:   { color: '#FF6B6B', icon: '🛍️', label: '쇼핑' },
+  [EventCategory.PHOTO]:      { color: '#3B82F6', icon: '📸', label: '포토' },
+  [EventCategory.QUIZ]:       { color: '#8B5CF6', icon: '🧩', label: '퀴즈' },
+  [EventCategory.PARTNERSHIP]:{ color: '#F59E0B', icon: '🤝', label: '제휴' },
 };
 
-function getMarkerConfig(category: EventCategory) {
+function getMarkerConfig(category: string) {
   return MARKER_CONFIG[category] ?? { color: COLORS.primary, icon: '📍', label: '이벤트' };
 }
 
 function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps) {
   const config = getMarkerConfig(event.category);
-  const isCompleted = event.status === EventStatus.EXPIRED;
+  const isExpired = !event.is_active || (event.expires_at != null && new Date(event.expires_at) < new Date());
+
+  const coordinate = { latitude: event.lat, longitude: event.lng };
 
   const distance = userLocation
-    ? getDistance(userLocation, event.location)
+    ? getDistance(userLocation, coordinate)
     : Infinity;
   const isInRange = distance <= CHECK_IN_RADIUS_METERS;
 
   const pulseOpacity = useSharedValue(1);
 
   useEffect(() => {
-    if (isInRange && !isCompleted) {
+    if (isInRange && !isExpired) {
       pulseOpacity.value = withRepeat(
         withTiming(0.4, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
         -1,
@@ -56,23 +61,23 @@ function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps
     } else {
       pulseOpacity.value = 1;
     }
-  }, [isInRange, isCompleted]);
+  }, [isInRange, isExpired]);
 
   const pulseStyle = useAnimatedStyle(() => ({
     opacity: pulseOpacity.value,
   }));
 
-  const markerColor = isCompleted ? '#555B6E' : config.color;
-  const markerOpacity = isCompleted ? 0.5 : isInRange ? 1 : 0.7;
+  const markerColor = isExpired ? '#555B6E' : config.color;
+  const markerOpacity = isExpired ? 0.5 : isInRange ? 1 : 0.7;
 
   return (
     <Marker
-      coordinate={event.location}
+      coordinate={coordinate}
       onPress={() => onPress(event)}
       tracksViewChanges={Platform.OS === 'ios'}
     >
       <View style={[styles.container, { opacity: markerOpacity }]}>
-        {isInRange && !isCompleted && (
+        {isInRange && !isExpired && (
           <Animated.View
             style={[
               styles.pulseRing,
@@ -84,7 +89,7 @@ function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps
 
         <View style={[styles.bubble, { backgroundColor: markerColor }]}>
           <Text style={styles.icon}>
-            {isCompleted ? '✓' : config.icon}
+            {isExpired ? '✓' : config.icon}
           </Text>
         </View>
 

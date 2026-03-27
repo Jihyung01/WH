@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 
-import { eventService } from '../services/eventService';
+import { generateNarrative } from '../lib/api';
 import { EventCategory } from '../types/enums';
 
 const CACHE_PREFIX = 'narrative_';
@@ -17,7 +17,7 @@ interface UseNarrativeResult {
   retry: () => void;
 }
 
-const FALLBACK_NARRATIVES: Partial<Record<EventCategory, string>> = {
+const FALLBACK_NARRATIVES: Record<string, string> = {
   [EventCategory.ACTIVITY]: '이 골목에는 오래된 비밀이 숨겨져 있습니다. 지도에 표시되지 않는 이 길을 따라가면, 도시의 숨겨진 이야기를 만날 수 있을 거예요...',
   [EventCategory.FOOD]: '"진짜 맛집은 사람들이 줄을 서지 않는 곳에 있다." 이 거리의 오래된 주민이 전해준 말입니다. 골목 안쪽, 작은 간판 하나가 당신을 기다리고 있어요...',
   [EventCategory.CULTURE]: '1970년대, 이 거리를 걸었던 예술가들의 흔적을 찾아보세요. 벽에 남겨진 그림 하나하나에 시대의 이야기가 담겨 있습니다...',
@@ -26,6 +26,9 @@ const FALLBACK_NARRATIVES: Partial<Record<EventCategory, string>> = {
   [EventCategory.NIGHTLIFE]: '해가 지면 이 거리는 전혀 다른 모습으로 변합니다. 네온사인 불빛 아래, 밤의 모험이 시작됩니다...',
   [EventCategory.SHOPPING]: '이 거리에는 보물이 숨겨져 있습니다. 하나하나 가게를 둘러보며 당신만의 특별한 발견을 해보세요...',
   [EventCategory.HIDDEN_GEM]: '대부분의 사람들은 이곳을 그냥 지나칩니다. 하지만 멈춰서 자세히 보면, 이 도시가 감추고 있던 비밀이 서서히 드러납니다...',
+  [EventCategory.PHOTO]: '이 장소에서 담아낼 수 있는 순간들이 있습니다. 카메라를 들어 당신만의 시선으로 이곳을 기록해보세요...',
+  [EventCategory.QUIZ]: '이 장소에 숨겨진 퀴즈를 풀어보세요. 주변을 자세히 관찰하면 답이 보일 거예요...',
+  [EventCategory.PARTNERSHIP]: '특별한 제휴 이벤트가 당신을 기다리고 있습니다. 이 장소에서만 만날 수 있는 특별한 경험을 해보세요...',
 };
 
 async function getCached(eventId: string): Promise<string | null> {
@@ -46,7 +49,7 @@ async function setCache(eventId: string, narrative: string): Promise<void> {
 
 export function useNarrative(
   eventId: string | undefined,
-  category: EventCategory = EventCategory.ACTIVITY,
+  category: string = EventCategory.ACTIVITY,
   existingNarrative?: string | null,
 ): UseNarrativeResult {
   const [fullText, setFullText] = useState('');
@@ -81,14 +84,12 @@ export function useNarrative(
     const thisId = ++fetchId.current;
     setStatus('loading');
 
-    // 1. If event already has a narrative, use it
     if (existingNarrative) {
       setFullText(existingNarrative);
       startTypewriter(existingNarrative);
       return;
     }
 
-    // 2. Check local cache
     const cached = await getCached(eventId);
     if (cached) {
       if (thisId !== fetchId.current) return;
@@ -97,7 +98,6 @@ export function useNarrative(
       return;
     }
 
-    // 3. Check connectivity
     const netState = await NetInfo.fetch();
     if (!netState.isConnected) {
       if (thisId !== fetchId.current) return;
@@ -105,28 +105,17 @@ export function useNarrative(
       return;
     }
 
-    // 4. Try API (POST → FastAPI → Claude)
     try {
-      const narrative = await eventService.generateNarrative(eventId);
+      const result = await generateNarrative(eventId);
       if (thisId !== fetchId.current) return;
-      setFullText(narrative);
-      await setCache(eventId, narrative);
-      startTypewriter(narrative);
+      setFullText(result.narrative);
+      await setCache(eventId, result.narrative);
+      startTypewriter(result.narrative);
     } catch {
-      // 5. Try GET (pre-generated narrative)
-      try {
-        const narrative = await eventService.getNarrative(eventId);
-        if (thisId !== fetchId.current) return;
-        setFullText(narrative);
-        await setCache(eventId, narrative);
-        startTypewriter(narrative);
-      } catch {
-        // 6. Fall back to category-specific local narrative
-        if (thisId !== fetchId.current) return;
-        const fallback = FALLBACK_NARRATIVES[category] ?? FALLBACK_NARRATIVES[EventCategory.ACTIVITY]!;
-        setFullText(fallback);
-        startTypewriter(fallback);
-      }
+      if (thisId !== fetchId.current) return;
+      const fallback = FALLBACK_NARRATIVES[category] ?? FALLBACK_NARRATIVES[EventCategory.ACTIVITY];
+      setFullText(fallback);
+      startTypewriter(fallback);
     }
   }, [eventId, category, existingNarrative, startTypewriter]);
 

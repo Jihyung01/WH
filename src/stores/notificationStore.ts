@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { savePushToken } from '../lib/api';
 
 const PREFS_KEY = 'notification_prefs';
 const BG_LOCATION_KEY = 'bg_location_enabled';
@@ -44,7 +45,12 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   backgroundLocationEnabled: false,
   powerSaveMode: false,
 
-  setPushToken: (token) => set({ pushToken: token }),
+  setPushToken: (token) => {
+    set({ pushToken: token });
+    if (token) {
+      savePushToken(token).catch((err) => console.warn('Failed to sync push token:', err));
+    }
+  },
   setPermission: (perm) => set({ notifPermission: perm }),
 
   updatePref: (key, value) => {

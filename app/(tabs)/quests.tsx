@@ -9,6 +9,8 @@ import {
   RefreshControl,
   Dimensions,
   Modal,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,9 +18,12 @@ import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
 
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { useQuestStore } from '../../src/stores/questStore';
 import { useLocationStore } from '../../src/stores/locationStore';
-import { EventCard, ActiveQuestCard } from '../../src/components/quest';
+import { EventCard } from '../../src/components/quest';
+import { EventCardSkeleton } from '../../src/components/ui';
 import { EventCategory } from '../../src/types/enums';
 import type { Event } from '../../src/types';
 import { formatTimer } from '../../src/utils/format';
@@ -64,6 +69,7 @@ const DIFFICULTY_OPTIONS = [
 
 export default function QuestsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<QuestTab>('nearby');
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -72,7 +78,7 @@ export default function QuestsScreen() {
   const currentPosition = useLocationStore((s) => s.currentPosition);
 
   const {
-    nearbyEvents, activeQuests, recommendedEvents, seasonalEvents,
+    nearbyEvents, activeEvents, recommendedEvents, seasonalEvents,
     dailySummary,
     isLoadingNearby, isLoadingActive, isLoadingRecommended, isLoadingSeasonal,
     searchQuery, setSearchQuery,
@@ -143,12 +149,12 @@ export default function QuestsScreen() {
     activeTab === 'recommended' ? isLoadingRecommended :
     isLoadingSeasonal;
 
-  const activeCount = activeQuests.length;
+  const activeCount = activeEvents.length;
 
   return (
     <View style={styles.container}>
       {/* ── Header ── */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <Text style={styles.headerTitle}>탐험</Text>
         <Pressable
           style={styles.filterBtn}
@@ -295,7 +301,9 @@ export default function QuestsScreen() {
         {/* ── Nearby Tab ── */}
         {activeTab === 'nearby' && (
           <View style={styles.eventList}>
-            {filteredNearby.length > 0 ? (
+            {isLoadingNearby && nearbyEvents.length === 0 ? (
+              <EventCardSkeleton count={4} />
+            ) : filteredNearby.length > 0 ? (
               filteredNearby.map((event, i) => (
                 <EventCard
                   key={event.id}
@@ -318,16 +326,15 @@ export default function QuestsScreen() {
         {/* ── Active Tab ── */}
         {activeTab === 'active' && (
           <View style={styles.eventList}>
-            {activeQuests.length > 0 ? (
-              activeQuests.map((quest, i) => (
-                <ActiveQuestCard
-                  key={quest.event.id}
-                  quest={quest}
+            {isLoadingActive && activeEvents.length === 0 ? (
+              <EventCardSkeleton count={3} />
+            ) : activeEvents.length > 0 ? (
+              activeEvents.map((event, i) => (
+                <EventCard
+                  key={event.id}
+                  event={event}
                   index={i}
-                  onResume={(q) => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                    router.push(`/event/${q.event.id}`);
-                  }}
+                  onPress={handleEventPress}
                 />
               ))
             ) : (
@@ -349,7 +356,9 @@ export default function QuestsScreen() {
                 당신의 탐험 스타일을 분석해 추천해드려요
               </Text>
             </Animated.View>
-            {filteredRecommended.length > 0 ? (
+            {isLoadingRecommended && recommendedEvents.length === 0 ? (
+              <EventCardSkeleton count={3} />
+            ) : filteredRecommended.length > 0 ? (
               filteredRecommended.map((event, i) => (
                 <EventCard
                   key={event.id}
@@ -379,7 +388,9 @@ export default function QuestsScreen() {
                 <Text style={styles.seasonSubtitle}>기간 한정 특별 이벤트</Text>
               </View>
             </Animated.View>
-            {filteredSeasonal.length > 0 ? (
+            {isLoadingSeasonal && seasonalEvents.length === 0 ? (
+              <EventCardSkeleton count={3} />
+            ) : filteredSeasonal.length > 0 ? (
               filteredSeasonal.map((event, i) => (
                 <EventCard
                   key={event.id}
@@ -497,7 +508,7 @@ const styles = StyleSheet.create({
   // ── Header ──
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingTop: 56, paddingHorizontal: SPACING.xl, paddingBottom: SPACING.sm,
+    paddingHorizontal: SPACING.xl, paddingBottom: SPACING.sm,
   },
   headerTitle: { fontSize: FONT_SIZE.xxl, fontWeight: FONT_WEIGHT.bold, color: COLORS.textPrimary },
   filterBtn: {

@@ -18,34 +18,24 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { useCharacterStore, getEvolutionStage, getEvolutionEmoji, getLevelTitle } from '../../src/stores/characterStore';
-import { ItemRarity, CharacterClass } from '../../src/types/enums';
+import { completeEvent } from '../../src/lib/api';
+import type { CompleteEventResult } from '../../src/types';
 import { COLORS, SPACING, FONT_SIZE, FONT_WEIGHT, BORDER_RADIUS, SHADOWS } from '../../src/config/theme';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
-interface RevealReward {
-  type: 'xp' | 'badge' | 'item';
-  name: string;
-  description: string;
-  rarity: ItemRarity;
-  amount?: number;
-  emoji: string;
-}
-
 const RARITY_GRADIENTS: Record<string, string[]> = {
-  [ItemRarity.COMMON]:    ['#555B6E', '#3A3F52'],
-  [ItemRarity.UNCOMMON]:  ['#00D68F', '#009B6A'],
-  [ItemRarity.RARE]:      ['#48DBFB', '#0ABDE3'],
-  [ItemRarity.EPIC]:      ['#7EE8CA', '#2DD4A8'],
-  [ItemRarity.LEGENDARY]: ['#F0C040', '#FF9500'],
+  common:    ['#555B6E', '#3A3F52'],
+  rare:      ['#48DBFB', '#0ABDE3'],
+  epic:      ['#7EE8CA', '#2DD4A8'],
+  legendary: ['#F0C040', '#FF9500'],
 };
 
 const RARITY_LABELS: Record<string, string> = {
-  [ItemRarity.COMMON]: '일반',
-  [ItemRarity.UNCOMMON]: '고급',
-  [ItemRarity.RARE]: '희귀',
-  [ItemRarity.EPIC]: '영웅',
-  [ItemRarity.LEGENDARY]: '전설',
+  common: '일반',
+  rare: '희귀',
+  epic: '영웅',
+  legendary: '전설',
 };
 
 type Phase = 'gathering' | 'reveal' | 'xp' | 'levelup' | 'done';
@@ -54,20 +44,12 @@ export default function RewardRevealScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
 
-  const { character, addXp, clearLevelUp, levelUpPending } = useCharacterStore();
+  const { character, fetchCharacter } = useCharacterStore();
 
   const [phase, setPhase] = useState<Phase>('gathering');
   const [xpDisplayed, setXpDisplayed] = useState(0);
-
-  // Mock reward based on id
-  const reward: RevealReward = {
-    type: 'badge',
-    name: '홍대 탐험가',
-    description: '홍대 지역 이벤트 3개 완료',
-    rarity: ItemRarity.RARE,
-    amount: 150,
-    emoji: '🗺️',
-  };
+  const [rewardData, setRewardData] = useState<CompleteEventResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Particle animations
   const particleOpacity = useSharedValue(0);
@@ -75,8 +57,6 @@ export default function RewardRevealScreen() {
   // Card animations
   const cardScale = useSharedValue(0);
   const cardRotateY = useSharedValue(180);
-  // XP counter
-  const xpBarWidth = useSharedValue(0);
   // Level up
   const levelUpScale = useSharedValue(0);
 
@@ -85,10 +65,22 @@ export default function RewardRevealScreen() {
   }, []);
 
   async function runSequence() {
-    // Phase 1: Particles gather
+    // Phase 1: Particles gather while we fetch rewards
     particleOpacity.value = withTiming(1, { duration: 600 });
     particleScale.value = withTiming(1, { duration: 800, easing: Easing.out(Easing.cubic) });
-    await sleep(1200);
+
+    let result: CompleteEventResult;
+    try {
+      result = await completeEvent(id!);
+      setRewardData(result);
+    } catch (err) {
+      console.error('Failed to complete event:', err);
+      setError(err instanceof Error ? err.message : '보상을 불러오지 못했습니다.');
+      setPhase('done');
+      return;
+    }
+
+    await sleep(400);
 
     // Phase 2: Card flies in and flips
     setPhase('reveal');
@@ -101,10 +93,7 @@ export default function RewardRevealScreen() {
 
     // Phase 3: XP counter
     setPhase('xp');
-    const xpAmount = reward.amount ?? 100;
-    addXp(xpAmount, reward.name);
-
-    // Animate XP counting
+    const xpAmount = result.rewards.xp_earned;
     const steps = 20;
     for (let i = 1; i <= steps; i++) {
       await sleep(30);
@@ -113,12 +102,12 @@ export default function RewardRevealScreen() {
     await sleep(500);
 
     // Phase 4: Level up?
-    if (levelUpPending) {
+    if (result.character?.level_up) {
       setPhase('levelup');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       levelUpScale.value = withSpring(1, { damping: 6, stiffness: 80 });
       await sleep(2500);
-      clearLevelUp();
+      await fetchCharacter();
     }
 
     setPhase('done');
@@ -145,7 +134,14 @@ export default function RewardRevealScreen() {
     opacity: levelUpScale.value,
   }));
 
-  const rarityGradient = RARITY_GRADIENTS[reward.rarity] ?? RARITY_GRADIENTS[ItemRarity.COMMON];
+  const firstBadge = rewardData?.rewards.badges_earned[0];
+  const cardRarity = firstBadge?.rarity ?? 'common';
+  const cardEmoji = firstBadge ? '🏅' : '⚡';
+  const cardName = firstBadge?.name ?? `${rewardData?.rewards.xp_earned ?? 0} XP 획득`;
+  const cardDesc = firstBadge
+    ? '새로운 배지를 획득했습니다!'
+    : '미션을 완료했습니다!';
+  const rarityGradient = RARITY_GRADIENTS[cardRarity] ?? RARITY_GRADIENTS.common;
 
   return (
     <View style={styles.container}>
@@ -174,18 +170,32 @@ export default function RewardRevealScreen() {
         </Animated.View>
       )}
 
+      {/* Error state */}
+      {error && phase === 'done' && (
+        <View style={styles.errorContainer}>
+          <Ionicons name="warning-outline" size={48} color={COLORS.warning} />
+          <Text style={styles.errorText}>{error}</Text>
+          <Pressable
+            style={styles.ctaBtn}
+            onPress={() => router.replace('/(tabs)/map')}
+          >
+            <Text style={styles.ctaBtnText}>돌아가기</Text>
+          </Pressable>
+        </View>
+      )}
+
       {/* Reward card */}
-      {(phase === 'reveal' || phase === 'xp' || phase === 'done') && (
+      {!error && (phase === 'reveal' || phase === 'xp' || phase === 'done') && (
         <View style={styles.cardCenter}>
           <Animated.View style={[styles.card, cardStyle]}>
             <LinearGradient
               colors={rarityGradient}
               style={styles.cardGradient}
             >
-              <Text style={styles.cardRarity}>{RARITY_LABELS[reward.rarity]}</Text>
-              <Text style={styles.cardEmoji}>{reward.emoji}</Text>
-              <Text style={styles.cardName}>{reward.name}</Text>
-              <Text style={styles.cardDesc}>{reward.description}</Text>
+              <Text style={styles.cardRarity}>{RARITY_LABELS[cardRarity]}</Text>
+              <Text style={styles.cardEmoji}>{cardEmoji}</Text>
+              <Text style={styles.cardName}>{cardName}</Text>
+              <Text style={styles.cardDesc}>{cardDesc}</Text>
               <Text style={styles.cardAcquired}>획득!</Text>
             </LinearGradient>
           </Animated.View>
@@ -193,30 +203,34 @@ export default function RewardRevealScreen() {
       )}
 
       {/* XP float */}
-      {(phase === 'xp' || phase === 'done') && (
+      {!error && (phase === 'xp' || phase === 'done') && (
         <Animated.View entering={FadeInUp.delay(200).springify()} style={styles.xpFloat}>
           <Text style={styles.xpFloatText}>+{xpDisplayed} XP</Text>
         </Animated.View>
       )}
 
       {/* Level up overlay */}
-      {phase === 'levelup' && character && (
+      {phase === 'levelup' && rewardData?.character && (
         <Animated.View style={[styles.levelUpOverlay, levelUpStyle]}>
           <View style={styles.levelUpContent}>
             <Text style={styles.levelUpEmoji}>
-              {getEvolutionEmoji(character.characterClass, getEvolutionStage(character.level))}
+              {character
+                ? getEvolutionEmoji(character.character_type, getEvolutionStage(rewardData.character.new_level))
+                : '🎉'}
             </Text>
             <Text style={styles.levelUpTitle}>레벨 업!</Text>
-            <Text style={styles.levelUpLevel}>Lv.{character.level} 달성!</Text>
+            <Text style={styles.levelUpLevel}>Lv.{rewardData.character.new_level} 달성!</Text>
             <Text style={styles.levelUpSubtitle}>
-              {getLevelTitle(character.characterClass, character.level)}
+              {character
+                ? getLevelTitle(character.character_type, rewardData.character.new_level)
+                : '탐험가'}
             </Text>
           </View>
         </Animated.View>
       )}
 
       {/* CTA */}
-      {phase === 'done' && (
+      {!error && phase === 'done' && (
         <Animated.View entering={FadeIn.delay(300)} style={styles.footer}>
           <Pressable
             style={styles.ctaBtn}
@@ -255,6 +269,19 @@ const styles = StyleSheet.create({
   },
   particle: {
     position: 'absolute',
+  },
+
+  // ── Error ──
+  errorContainer: {
+    zIndex: 5,
+    alignItems: 'center',
+    gap: SPACING.lg,
+    paddingHorizontal: SPACING.xl,
+  },
+  errorText: {
+    fontSize: FONT_SIZE.md,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
   },
 
   // ── Card ──

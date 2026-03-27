@@ -15,51 +15,25 @@ import Animated, {
 
 import { useMapStore } from '../../src/stores/mapStore';
 import { useLocationStore } from '../../src/stores/locationStore';
-import { eventService } from '../../src/services/eventService';
+import { getEvent, getEventMissions, completeMission } from '../../src/lib/api';
 import { useNarrative } from '../../src/hooks/useNarrative';
 import { getDistance } from '../../src/utils/geo';
 import { formatDistance } from '../../src/utils/format';
 import { CHECK_IN_RADIUS_METERS } from '../../src/utils/constants';
-import { EventCategory, EventStatus } from '../../src/types/enums';
 import { COLORS, SPACING, FONT_SIZE, FONT_WEIGHT, BORDER_RADIUS, SHADOWS, BRAND, EVENT_COLORS } from '../../src/config/theme';
 import { useTheme } from '../../src/providers/ThemeProvider';
 import { GPSCheckIn, PhotoMission, QuizMission, TextMission, TimerMission } from '../../src/components/mission';
-import type { Event, MissionObjective } from '../../src/types';
+import type { Event, NearbyEvent, MissionWithStatus } from '../../src/types';
 
 const CATEGORY_META: Record<string, { emoji: string; label: string; gradient: string[] }> = {
-  [EventCategory.ACTIVITY]: { emoji: '🏃', label: '탐험', gradient: [EVENT_COLORS.exploration, '#059669'] },
-  [EventCategory.CULTURE]:  { emoji: '📸', label: '문화', gradient: [EVENT_COLORS.photo, '#2563EB'] },
-  [EventCategory.HIDDEN_GEM]: { emoji: '🧩', label: '숨은명소', gradient: [EVENT_COLORS.quiz, '#7C3AED'] },
-  [EventCategory.FOOD]:     { emoji: '🍜', label: '맛집', gradient: [EVENT_COLORS.partnership, '#D97706'] },
-  [EventCategory.CAFE]:     { emoji: '☕', label: '카페', gradient: ['#D97706', '#B45309'] },
-  [EventCategory.NATURE]:   { emoji: '🌿', label: '자연', gradient: [EVENT_COLORS.exploration, '#047857'] },
-  [EventCategory.NIGHTLIFE]: { emoji: '🌙', label: '야간', gradient: [BRAND.purple, '#7C3AED'] },
-  [EventCategory.SHOPPING]: { emoji: '🛍️', label: '쇼핑', gradient: [BRAND.coral, '#DC2626'] },
+  exploration: { emoji: '🏃', label: '탐험', gradient: [EVENT_COLORS.exploration, '#059669'] },
+  photo:       { emoji: '📸', label: '포토', gradient: [EVENT_COLORS.photo, '#2563EB'] },
+  quiz:        { emoji: '🧩', label: '퀴즈', gradient: [EVENT_COLORS.quiz, '#7C3AED'] },
+  partnership: { emoji: '🤝', label: '제휴', gradient: [EVENT_COLORS.partnership, '#D97706'] },
 };
 
-interface MockMissionStep {
-  id: string;
-  type: 'GPS' | 'PHOTO' | 'QUIZ' | 'TEXT' | 'TIMER';
-  description: string;
-  isCompleted: boolean;
-  config?: Record<string, any>;
-}
-
-function generateMockMissions(event: Event): MockMissionStep[] {
-  return [
-    { id: 's1', type: 'GPS', description: '목적지에 도착하세요', isCompleted: false },
-    { id: 's2', type: 'PHOTO', description: '이 장소의 특별한 점을 사진으로 남기세요', isCompleted: false },
-    { id: 's3', type: 'QUIZ', description: '퀴즈를 풀어보세요', isCompleted: false, config: {
-      question: `"${event.title}"에 관한 퀴즈: 이 장소는 어떤 구역에 위치하고 있을까요?`,
-      options: [
-        { id: 'a', text: '홍대', isCorrect: true },
-        { id: 'b', text: '강남', isCorrect: false },
-        { id: 'c', text: '이태원', isCorrect: false },
-        { id: 'd', text: '여의도', isCorrect: false },
-      ],
-    }},
-    { id: 's4', type: 'TEXT', description: '이 장소에 대한 짧은 후기를 남겨주세요', isCompleted: false },
-  ];
+function isNearbyEvent(e: Event | NearbyEvent): e is NearbyEvent {
+  return 'lat' in e && 'lng' in e;
 }
 
 export default function EventDetailScreen() {
@@ -70,9 +44,9 @@ export default function EventDetailScreen() {
   const visibleEvents = useMapStore((s) => s.visibleEvents);
   const currentPosition = useLocationStore((s) => s.currentPosition);
 
-  const [event, setEvent] = useState<Event | null>(null);
+  const [event, setEvent] = useState<Event | NearbyEvent | null>(null);
   const [loading, setLoading] = useState(true);
-  const [missionSteps, setMissionSteps] = useState<MockMissionStep[]>([]);
+  const [missions, setMissions] = useState<MissionWithStatus[]>([]);
   const [missionStarted, setMissionStarted] = useState(false);
 
   const { displayedText, status: narrativeStatus, retry: retryNarrative } = useNarrative(
@@ -81,7 +55,6 @@ export default function EventDetailScreen() {
     event?.narrative,
   );
 
-  // Shimmer animation for loading state
   const shimmerX = useSharedValue(0);
   useEffect(() => {
     shimmerX.value = withRepeat(
@@ -94,50 +67,55 @@ export default function EventDetailScreen() {
     opacity: 0.3 + shimmerX.value * 0.4,
   }));
 
-  // Try local cache first, then API
   useEffect(() => {
-    const cached = visibleEvents.find((e) => e.id === id);
-    if (cached) {
-      setEvent(cached);
-      setMissionSteps(generateMockMissions(cached));
-      setLoading(false);
-    } else {
-      (async () => {
-        try {
-          const data = await eventService.getById(id!);
-          setEvent(data);
-          setMissionSteps(generateMockMissions(data));
-        } catch {
-          const fallback = visibleEvents[0];
-          if (fallback) {
-            setEvent({ ...fallback, id: id! });
-            setMissionSteps(generateMockMissions(fallback));
-          }
-        } finally {
-          setLoading(false);
+    (async () => {
+      try {
+        const cached = visibleEvents.find((e) => e.id === id);
+        if (cached) {
+          setEvent(cached);
+        } else {
+          const eventData = await getEvent(id!);
+          setEvent(eventData);
         }
-      })();
-    }
+        const missionsData = await getEventMissions(id!);
+        setMissions(missionsData);
+      } catch (err) {
+        console.error('Failed to load event:', err);
+        const fallback = visibleEvents.find((e) => e.id === id) ?? visibleEvents[0];
+        if (fallback) setEvent(fallback);
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, [id]);
 
   const distance = useMemo(() => {
     if (!currentPosition || !event) return null;
-    return getDistance(currentPosition, event.location);
+    if (isNearbyEvent(event)) {
+      return getDistance(currentPosition, { latitude: event.lat, longitude: event.lng });
+    }
+    return null;
   }, [currentPosition, event]);
 
   const isInRange = distance !== null && distance <= CHECK_IN_RADIUS_METERS;
   const walkMinutes = distance !== null ? Math.max(1, Math.round(distance / 80)) : null;
 
-  const completedCount = missionSteps.filter((s) => s.isCompleted).length;
-  const allCompleted = completedCount === missionSteps.length && missionSteps.length > 0;
-  const activeStepIndex = missionSteps.findIndex((s) => !s.isCompleted);
+  const completedCount = missions.filter((m) => m.is_completed).length;
+  const allCompleted = completedCount === missions.length && missions.length > 0;
+  const activeStepIndex = missions.findIndex((m) => !m.is_completed);
 
-  const handleStepComplete = useCallback((stepId: string) => {
-    setMissionSteps((prev) =>
-      prev.map((s) => (s.id === stepId ? { ...s, isCompleted: true } : s)),
+  const handleStepComplete = useCallback(async (mission: MissionWithStatus) => {
+    setMissions((prev) =>
+      prev.map((m) => (m.id === mission.id ? { ...m, is_completed: true } : m)),
     );
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  }, []);
+
+    try {
+      await completeMission(mission.id, id!);
+    } catch (err) {
+      console.warn('Failed to record mission completion:', err);
+    }
+  }, [id]);
 
   const handleStartMission = () => {
     if (!isInRange) return;
@@ -158,7 +136,7 @@ export default function EventDetailScreen() {
     );
   }
 
-  const meta = CATEGORY_META[event.category] ?? CATEGORY_META[EventCategory.ACTIVITY];
+  const meta = CATEGORY_META[event.category] ?? CATEGORY_META.exploration;
 
   return (
     <View style={styles.container}>
@@ -222,14 +200,13 @@ export default function EventDetailScreen() {
             <View style={styles.stat}>
               <Text style={styles.statLabel}>보상</Text>
               <View style={styles.rewardChips}>
-                <Text style={styles.rewardText}>⚡ {event.xpReward} XP</Text>
-                <Text style={styles.rewardText}>🪙 {event.coinReward}</Text>
+                <Text style={styles.rewardText}>⚡ {event.reward_xp} XP</Text>
               </View>
             </View>
-            {event.difficulty >= 4 && (
+            {event.time_limit_minutes && (
               <View style={styles.stat}>
                 <Text style={styles.statLabel}>제한시간</Text>
-                <Text style={styles.timeLimitText}>30분</Text>
+                <Text style={styles.timeLimitText}>{event.time_limit_minutes}분</Text>
               </View>
             )}
           </View>
@@ -237,7 +214,7 @@ export default function EventDetailScreen() {
           <Text style={styles.description}>{event.description}</Text>
         </View>
 
-        {/* ── Narrative (AI-generated via FastAPI → Claude) ── */}
+        {/* ── Narrative (AI-generated via Edge Function → Claude) ── */}
         {narrativeStatus === 'loading' && (
           <Animated.View style={[styles.narrativeCard, styles.narrativeShimmer, shimmerStyle]}>
             <Ionicons name="sparkles" size={18} color={COLORS.primaryLight} style={{ marginBottom: SPACING.sm }} />
@@ -286,72 +263,82 @@ export default function EventDetailScreen() {
           <Animated.View entering={FadeIn} style={styles.missionSection}>
             <View style={styles.missionHeader}>
               <Text style={styles.missionTitle}>미션 단계</Text>
-              <Text style={styles.missionProgress}>{completedCount}/{missionSteps.length}</Text>
+              <Text style={styles.missionProgress}>{completedCount}/{missions.length}</Text>
             </View>
 
-            {/* Progress bar */}
             <View style={styles.progressBar}>
               <View
                 style={[
                   styles.progressFill,
-                  { width: `${missionSteps.length > 0 ? (completedCount / missionSteps.length) * 100 : 0}%` },
+                  { width: `${missions.length > 0 ? (completedCount / missions.length) * 100 : 0}%` },
                 ]}
               />
             </View>
 
             <View style={styles.stepsContainer}>
-              {missionSteps.map((step, index) => {
+              {missions.map((mission, index) => {
                 const isActive = index === activeStepIndex;
-                const isStepCompleted = step.isCompleted;
+                const isStepCompleted = mission.is_completed;
 
-                switch (step.type) {
-                  case 'GPS':
+                switch (mission.mission_type) {
+                  case 'gps_checkin':
                     return (
                       <GPSCheckIn
-                        key={step.id}
-                        targetLocation={event.location}
-                        onComplete={() => handleStepComplete(step.id)}
+                        key={mission.id}
+                        targetLocation={
+                          event && isNearbyEvent(event)
+                            ? { latitude: event.lat, longitude: event.lng }
+                            : { latitude: 0, longitude: 0 }
+                        }
+                        onComplete={() => handleStepComplete(mission)}
                         isActive={isActive}
                       />
                     );
-                  case 'PHOTO':
+                  case 'photo':
                     return (
                       <PhotoMission
-                        key={step.id}
-                        description={step.description}
-                        onComplete={() => handleStepComplete(step.id)}
+                        key={mission.id}
+                        description={mission.description ?? mission.title}
+                        onComplete={() => handleStepComplete(mission)}
                         isActive={isActive}
                         isCompleted={isStepCompleted}
                       />
                     );
-                  case 'QUIZ':
+                  case 'quiz': {
+                    const cfg = mission.config as { question?: string; options?: string[]; correctIndex?: number };
+                    const quizOptions = (cfg.options ?? []).map((text, i) => ({
+                      id: String(i),
+                      text,
+                      isCorrect: i === (cfg.correctIndex ?? 0),
+                    }));
                     return (
                       <QuizMission
-                        key={step.id}
-                        question={step.config?.question ?? '퀴즈 질문'}
-                        options={step.config?.options ?? []}
-                        onComplete={() => handleStepComplete(step.id)}
+                        key={mission.id}
+                        question={cfg.question ?? mission.title}
+                        options={quizOptions}
+                        onComplete={() => handleStepComplete(mission)}
                         isActive={isActive}
                         isCompleted={isStepCompleted}
                       />
                     );
-                  case 'TEXT':
+                  }
+                  case 'text':
                     return (
                       <TextMission
-                        key={step.id}
-                        description={step.description}
-                        onComplete={() => handleStepComplete(step.id)}
+                        key={mission.id}
+                        description={mission.description ?? mission.title}
+                        onComplete={() => handleStepComplete(mission)}
                         isActive={isActive}
                         isCompleted={isStepCompleted}
                       />
                     );
-                  case 'TIMER':
+                  case 'timer':
                     return (
                       <TimerMission
-                        key={step.id}
-                        durationSeconds={step.config?.duration ?? 60}
-                        description={step.description}
-                        onComplete={() => handleStepComplete(step.id)}
+                        key={mission.id}
+                        durationSeconds={(mission.config as { duration?: number }).duration ?? 60}
+                        description={mission.description ?? mission.title}
+                        onComplete={() => handleStepComplete(mission)}
                         isActive={isActive}
                         isCompleted={isStepCompleted}
                       />
@@ -376,10 +363,10 @@ export default function EventDetailScreen() {
         ) : missionStarted ? (
           <View style={styles.ctaProgress}>
             <View style={styles.ctaProgressBar}>
-              <View style={[styles.ctaProgressFill, { width: `${(completedCount / missionSteps.length) * 100}%` }]} />
+              <View style={[styles.ctaProgressFill, { width: `${(completedCount / missions.length) * 100}%` }]} />
             </View>
             <Text style={styles.ctaProgressText}>
-              {completedCount}/{missionSteps.length} 단계 완료
+              {completedCount}/{missions.length} 단계 완료
             </Text>
           </View>
         ) : (

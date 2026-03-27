@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Pressable, TextInput, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Pressable, TextInput, ScrollView, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, {
   useAnimatedStyle,
@@ -12,16 +12,18 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import { characterService } from '../../src/services/characterService';
+import { createCharacter, updateProfile } from '../../src/lib/api';
+import { supabase } from '../../src/config/supabase';
 import { useAuthStore } from '../../src/stores/authStore';
-import { CharacterClass } from '../../src/types/enums';
 import { COLORS, SPACING, FONT_SIZE, FONT_WEIGHT, BORDER_RADIUS } from '../../src/config/theme';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-interface StarterCharacter {
-  id: CharacterClass;
-  name: string;
+type CharacterName = '도담' | '나래' | '하람' | '별찌';
+
+interface StarterCharacterDef {
+  name: CharacterName;
+  type: string;
   koreanName: string;
   description: string;
   emoji: string;
@@ -29,10 +31,10 @@ interface StarterCharacter {
   element: string;
 }
 
-const STARTER_CHARACTERS: StarterCharacter[] = [
+const STARTER_CHARACTERS: StarterCharacterDef[] = [
   {
-    id: CharacterClass.EXPLORER,
-    name: 'Dodam',
+    name: '도담',
+    type: 'explorer',
     koreanName: '도담',
     description: '숲의 정령과 친구가 된 탐험가',
     emoji: '🌿',
@@ -40,8 +42,8 @@ const STARTER_CHARACTERS: StarterCharacter[] = [
     element: '🍃',
   },
   {
-    id: CharacterClass.FOODIE,
-    name: 'Narae',
+    name: '나래',
+    type: 'foodie',
     koreanName: '나래',
     description: '바람을 타고 날아다니는 모험가',
     emoji: '💨',
@@ -49,8 +51,8 @@ const STARTER_CHARACTERS: StarterCharacter[] = [
     element: '☁️',
   },
   {
-    id: CharacterClass.ARTIST,
-    name: 'Haram',
+    name: '하람',
+    type: 'artist',
     koreanName: '하람',
     description: '태양의 힘을 지닌 수호자',
     emoji: '☀️',
@@ -58,8 +60,8 @@ const STARTER_CHARACTERS: StarterCharacter[] = [
     element: '✨',
   },
   {
-    id: CharacterClass.SOCIALITE,
-    name: 'Byeolzzi',
+    name: '별찌',
+    type: 'socialite',
     koreanName: '별찌',
     description: '별을 모으는 신비한 여행자',
     emoji: '⭐',
@@ -74,7 +76,7 @@ export default function OnboardingScreen() {
   
   const [step, setStep] = useState(1);
   const [username, setUsername] = useState('');
-  const [selectedCharacter, setSelectedCharacter] = useState<StarterCharacter | null>(null);
+  const [selectedCharacter, setSelectedCharacter] = useState<StarterCharacterDef | null>(null);
   const [isCheckingUsername, setIsCheckingUsername] = useState(false);
   const [usernameError, setUsernameError] = useState('');
   const [isCreating, setIsCreating] = useState(false);
@@ -124,7 +126,7 @@ export default function OnboardingScreen() {
     });
   };
 
-  const handleCharacterSelect = (character: StarterCharacter) => {
+  const handleCharacterSelect = (character: StarterCharacterDef) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     setSelectedCharacter(character);
   };
@@ -139,10 +141,19 @@ export default function OnboardingScreen() {
     setUsernameError('');
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      setUsernameError('');
-    } catch (error) {
-      setUsernameError('이미 사용 중인 닉네임입니다');
+      const { data } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('username', name)
+        .maybeSingle();
+
+      if (data) {
+        setUsernameError('이미 사용 중인 닉네임입니다');
+      } else {
+        setUsernameError('');
+      }
+    } catch {
+      setUsernameError('닉네임 확인 중 오류가 발생했습니다');
     } finally {
       setIsCheckingUsername(false);
     }
@@ -157,22 +168,8 @@ export default function OnboardingScreen() {
 
       celebrationScale.value = withSpring(1, { damping: 10, stiffness: 100 });
 
-      try {
-        await characterService.create({
-          name: username,
-          characterClass: selectedCharacter.id,
-          appearance: {
-            bodyType: 1,
-            hairStyle: 1,
-            hairColor: selectedCharacter.colors[0],
-            outfit: 'default',
-            accessory: null,
-            expression: 1,
-          },
-        });
-      } catch (apiError) {
-        console.warn('API not available, saving locally:', apiError);
-      }
+      await updateProfile({ username });
+      await createCharacter(selectedCharacter.name, selectedCharacter.type);
 
       setOnboardingComplete(true);
 
@@ -245,11 +242,11 @@ export default function OnboardingScreen() {
         showsVerticalScrollIndicator={false}
       >
         {STARTER_CHARACTERS.map((character) => {
-          const isSelected = selectedCharacter?.id === character.id;
+          const isSelected = selectedCharacter?.name === character.name;
           
           return (
             <Pressable
-              key={character.id}
+              key={character.name}
               onPress={() => handleCharacterSelect(character)}
               style={styles.characterCardWrapper}
             >
@@ -329,7 +326,11 @@ export default function OnboardingScreen() {
   );
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+    >
       <View style={styles.progressBar}>
         {[1, 2, 3].map((s) => (
           <View
@@ -345,7 +346,7 @@ export default function OnboardingScreen() {
       {step === 1 && renderStep1()}
       {step === 2 && renderStep2()}
       {step === 3 && renderStep3()}
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

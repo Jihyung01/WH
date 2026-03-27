@@ -22,6 +22,7 @@ export default function TabsLayout() {
         ],
         tabBarLabelStyle: styles.tabBarLabel,
         tabBarItemStyle: styles.tabBarItem,
+        animation: 'shift',
       }}
     >
       <Tabs.Screen
@@ -30,7 +31,7 @@ export default function TabsLayout() {
           title: '탐험',
           tabBarAccessibilityLabel: '탐험 화면으로 이동',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'compass' : 'compass-outline'} size={22} color={color} />
+            <Ionicons name={focused ? 'compass' : 'compass-outline'} size={24} color={color} />
           ),
         }}
       />
@@ -43,18 +44,19 @@ export default function TabsLayout() {
             <View
               style={[
                 styles.centerIcon,
+                { backgroundColor: focused ? BRAND.primary : colors.surfaceLight },
                 focused && styles.centerIconActive,
-                focused && { backgroundColor: BRAND.primary },
               ]}
               accessibilityRole="button"
             >
               <Ionicons
                 name={focused ? 'map' : 'map-outline'}
-                size={focused ? 26 : 22}
+                size={28}
                 color={focused ? '#FFFFFF' : color}
               />
             </View>
           ),
+          tabBarLabel: () => null,
         }}
       />
       <Tabs.Screen
@@ -63,7 +65,7 @@ export default function TabsLayout() {
           title: '가방',
           tabBarAccessibilityLabel: '가방 화면으로 이동',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'bag-handle' : 'bag-handle-outline'} size={22} color={color} />
+            <Ionicons name={focused ? 'bag-handle' : 'bag-handle-outline'} size={24} color={color} />
           ),
         }}
       />
@@ -73,7 +75,7 @@ export default function TabsLayout() {
           title: '프로필',
           tabBarAccessibilityLabel: '프로필 화면으로 이동',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'person' : 'person-outline'} size={22} color={color} />
+            <Ionicons name={focused ? 'person' : 'person-outline'} size={24} color={color} />
           ),
         }}
       />
@@ -100,14 +102,17 @@ const styles = StyleSheet.create({
     paddingTop: 2,
   },
   centerIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: -12,
+    marginTop: -20,
+    borderWidth: 3,
+    borderColor: 'transparent',
   },
   centerIconActive: {
+    borderColor: BRAND.primaryLight + '40',
     ...SHADOWS.glow,
   },
 });

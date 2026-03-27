@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Switch } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useSharedValue,
@@ -12,9 +13,7 @@ import Animated, {
   withTiming,
   withSpring,
   Easing,
-  FadeIn,
   FadeInDown,
-  FadeInRight,
 } from 'react-native-reanimated';
 
 import {
@@ -23,44 +22,43 @@ import {
   getEvolutionEmoji,
   getLevelTitle,
   getNextEvolutionLevel,
-  type GrowthStats,
+  xpForLevel,
 } from '../../src/stores/characterStore';
 import { useProfileStore } from '../../src/stores/profileStore';
 import { useAuthStore } from '../../src/stores/authStore';
-import { useInventoryStore } from '../../src/stores/inventoryStore';
-import { CharacterClass, District } from '../../src/types/enums';
-import { formatRelativeDate, formatNumber } from '../../src/utils/format';
+import { CharacterClass } from '../../src/types/enums';
+import { formatNumber } from '../../src/utils/format';
 import { COLORS, SPACING, FONT_SIZE, FONT_WEIGHT, BORDER_RADIUS, SHADOWS } from '../../src/config/theme';
 
-type ProfileTab = 'overview' | 'social';
-
-const CLASS_GRADIENTS: Record<CharacterClass, string[]> = {
+const CLASS_GRADIENTS: Record<string, string[]> = {
   [CharacterClass.EXPLORER]:  ['#00D68F', '#009B6A'],
   [CharacterClass.FOODIE]:    ['#48DBFB', '#0ABDE3'],
   [CharacterClass.ARTIST]:    ['#F0C040', '#EE9A00'],
   [CharacterClass.SOCIALITE]: ['#7EE8CA', '#2DD4A8'],
 };
 
-const STAT_LABELS: { key: keyof GrowthStats; label: string; icon: string }[] = [
-  { key: 'exploration', label: '탐험력', icon: '🧭' },
-  { key: 'discovery',   label: '발견력', icon: '🔍' },
-  { key: 'knowledge',   label: '지식력', icon: '📚' },
-  { key: 'connection',  label: '교류력', icon: '🤝' },
-  { key: 'creativity',  label: '창의력', icon: '🎨' },
+const STAT_LABELS: { key: string; label: string; icon: string }[] = [
+  { key: 'stat_exploration', label: '탐험력', icon: '🧭' },
+  { key: 'stat_discovery',   label: '발견력', icon: '🔍' },
+  { key: 'stat_knowledge',   label: '지식력', icon: '📚' },
+  { key: 'stat_connection',  label: '교류력', icon: '🤝' },
+  { key: 'stat_creativity',  label: '창의력', icon: '🎨' },
 ];
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<ProfileTab>('overview');
+  const insets = useSafeAreaInsets();
+  const [refreshing, setRefreshing] = useState(false);
 
-  const { character, growthStats, recentXpGains, weekActivity, initializeMockCharacter } = useCharacterStore();
-  const { stats, achievements, friends, leaderboard, myRank, visitedLocations, initializeMockData, fetchLeaderboard } = useProfileStore();
+  const { character, fetchCharacter } = useCharacterStore();
+  const { stats, leaderboard, visitedLocations, myRank, fetchStats, fetchLeaderboard, fetchVisitedLocations } = useProfileStore();
   const { signOut } = useAuthStore();
-  const { badges } = useInventoryStore();
 
   useEffect(() => {
-    initializeMockCharacter();
-    initializeMockData();
+    fetchCharacter();
+    fetchStats();
+    fetchVisitedLocations();
+    fetchLeaderboard();
   }, []);
 
   const floatY = useSharedValue(0);
@@ -90,7 +88,10 @@ export default function ProfileScreen() {
 
   const handleSignOut = useCallback(async () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    try { await signOut(); } catch {}
+    try {
+      await signOut();
+      router.replace('/(auth)/welcome');
+    } catch {}
   }, []);
 
   if (!character) {
@@ -103,17 +104,41 @@ export default function ProfileScreen() {
   }
 
   const stage = getEvolutionStage(character.level);
-  const emoji = getEvolutionEmoji(character.characterClass, stage);
-  const title = getLevelTitle(character.characterClass, character.level);
-  const gradient = CLASS_GRADIENTS[character.characterClass] ?? CLASS_GRADIENTS[CharacterClass.EXPLORER];
+  const emoji = getEvolutionEmoji(character.character_type, stage);
+  const title = getLevelTitle(character.character_type, character.level);
+  const gradient = CLASS_GRADIENTS[character.character_type] ?? CLASS_GRADIENTS[CharacterClass.EXPLORER];
   const nextEvo = getNextEvolutionLevel(character.level);
-  const xpPercent = character.requiredXp > 0 ? Math.min((character.currentXp / character.requiredXp) * 100, 100) : 0;
-  const maxStat = Math.max(...Object.values(growthStats), 1);
+  const requiredXp = xpForLevel(character.level);
+  const xpPercent = requiredXp > 0 ? Math.min((character.xp / requiredXp) * 100, 100) : 0;
+
+  const statValues: Record<string, number> = {
+    stat_exploration: character.stat_exploration,
+    stat_discovery: character.stat_discovery,
+    stat_knowledge: character.stat_knowledge,
+    stat_connection: character.stat_connection,
+    stat_creativity: character.stat_creativity,
+  };
+  const maxStat = Math.max(...Object.values(statValues), 1);
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* ── Profile Header ── */}
-      <LinearGradient colors={[gradient[0] + '30', COLORS.background]} style={styles.heroSection}>
+    <ScrollView
+      style={styles.container}
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={async () => {
+            setRefreshing(true);
+            await Promise.all([fetchCharacter(), fetchStats(), fetchLeaderboard(), fetchVisitedLocations()]);
+            setRefreshing(false);
+          }}
+          tintColor={COLORS.primary}
+          colors={[COLORS.primary]}
+        />
+      }
+    >
+      {/* Hero */}
+      <LinearGradient colors={[gradient[0] + '30', COLORS.background]} style={[styles.heroSection, { paddingTop: insets.top + 12 }]}>
         <View style={styles.heroHeader}>
           <View style={{ width: 40 }} />
           <Pressable
@@ -127,7 +152,6 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
 
-        {/* Avatar + character */}
         <Pressable onPress={handleCharacterTap}>
           <Animated.View style={[styles.avatarContainer, floatStyle]}>
             <View style={[styles.avatarCircle, { borderColor: gradient[0] }]}>
@@ -146,7 +170,7 @@ export default function ProfileScreen() {
         <View style={styles.xpBar}>
           <View style={styles.xpBarHeader}>
             <Text style={styles.xpLabel}>Lv.{character.level} → Lv.{character.level + 1}</Text>
-            <Text style={styles.xpNumbers}>{formatNumber(character.currentXp)} / {formatNumber(character.requiredXp)} XP</Text>
+            <Text style={styles.xpNumbers}>{formatNumber(character.xp)} / {formatNumber(requiredXp)} XP</Text>
           </View>
           <View style={styles.xpBarTrack}>
             <LinearGradient colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.xpBarFill, { width: `${xpPercent}%` }]} />
@@ -161,248 +185,104 @@ export default function ProfileScreen() {
         )}
       </LinearGradient>
 
-      {/* ── Activity Stats Grid (2x2) ── */}
+      {/* Activity Stats */}
       <Animated.View entering={FadeInDown.delay(100)} style={styles.section}>
         <View style={styles.statsGrid2x2}>
-          <StatCard emoji="🏁" value={`${stats.totalEvents}개`} label="총 탐험" />
-          <StatCard emoji="📏" value={`${stats.totalDistanceKm}km`} label="총 거리" />
-          <StatCard emoji="🏅" value={`${stats.totalBadges}개`} label="수집 배지" />
-          <StatCard emoji="📆" value={`${stats.explorationDays}일`} label="탐험 일수" />
+          <StatCard emoji="🏁" value={`${stats?.events_completed ?? 0}개`} label="총 탐험" />
+          <StatCard emoji="🔥" value={`${stats?.login_streak ?? 0}일`} label="연속 기록" />
+          <StatCard emoji="🏅" value={`${stats?.badges_count ?? 0}개`} label="수집 배지" />
+          <StatCard emoji="📍" value={`${stats?.districts_visited?.length ?? 0}곳`} label="방문 지역" />
         </View>
       </Animated.View>
 
-      {/* ── Tab Selector ── */}
-      <View style={styles.tabRow}>
-        {(['overview', 'social'] as const).map((tab) => (
-          <Pressable
-            key={tab}
-            style={[styles.tabBtn, activeTab === tab && styles.tabBtnActive]}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setActiveTab(tab);
-            }}
-          >
-            <Text style={[styles.tabBtnText, activeTab === tab && styles.tabBtnTextActive]}>
-              {tab === 'overview' ? '나의 활동' : '소셜'}
-            </Text>
-          </Pressable>
+      {/* Growth Stats */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>성장 능력치</Text>
+        <View style={styles.statsBarList}>
+          {STAT_LABELS.map(({ key, label, icon }) => {
+            const val = statValues[key] ?? 10;
+            const pct = (val / maxStat) * 100;
+            return (
+              <View key={key} style={styles.statRow}>
+                <Text style={styles.statIcon}>{icon}</Text>
+                <Text style={styles.statLabel}>{label}</Text>
+                <View style={styles.statBarTrack}>
+                  <LinearGradient colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.statBarFill, { width: `${pct}%` }]} />
+                </View>
+                <Text style={styles.statValue}>{val}</Text>
+              </View>
+            );
+          })}
+        </View>
+      </View>
+
+      {/* Exploration Map */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>나의 탐험 지도</Text>
+          <Text style={styles.sectionBadge}>나의 발자취</Text>
+        </View>
+        <Pressable style={styles.miniMapCard}>
+          <View style={styles.miniMap}>
+            {visitedLocations.slice(0, 30).map((loc, i) => {
+              const nx = ((loc.lng - 126.93) / 0.1) * 100;
+              const ny = ((37.59 - loc.lat) / 0.06) * 100;
+              const opacity = 0.4 + Math.min(0.6, (30 - i) / 30);
+              return (
+                <View
+                  key={loc.event_id}
+                  style={[styles.mapDot, {
+                    left: `${Math.min(95, Math.max(5, nx))}%`,
+                    top: `${Math.min(90, Math.max(5, ny))}%`,
+                    opacity,
+                    backgroundColor: gradient[0],
+                  }]}
+                />
+              );
+            })}
+            <View style={styles.miniMapOverlay}>
+              <Ionicons name="map-outline" size={20} color={COLORS.textMuted} />
+              <Text style={styles.miniMapText}>{visitedLocations.length}곳 방문</Text>
+            </View>
+          </View>
+        </Pressable>
+      </View>
+
+      {/* Leaderboard */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>리더보드</Text>
+
+        {myRank != null && (
+          <View style={styles.myRankCard}>
+            <Text style={styles.myRankLabel}>내 순위</Text>
+            <Text style={styles.myRankValue}>#{myRank}</Text>
+          </View>
+        )}
+
+        {leaderboard.slice(0, 10).map((entry, i) => (
+          <Animated.View key={entry.user_id} entering={FadeInDown.delay(i * 40)}>
+            <View style={styles.lbRow}>
+              <Text style={[styles.lbRank, i < 3 && styles.lbRankTop]}>
+                {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${entry.rank}`}
+              </Text>
+              <View style={styles.lbAvatar}>
+                <Text style={styles.lbAvatarText}>{(entry.username ?? '?')[0]}</Text>
+              </View>
+              <View style={styles.lbInfo}>
+                <Text style={styles.lbName}>{entry.username ?? '탐험가'}</Text>
+              </View>
+              <Text style={styles.lbXp}>{formatNumber(entry.weekly_xp)} XP</Text>
+            </View>
+          </Animated.View>
         ))}
       </View>
 
-      {activeTab === 'overview' ? (
-        <>
-          {/* ── Activity Map Preview ── */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>나의 탐험 지도</Text>
-              <Text style={styles.sectionBadge}>나의 발자취</Text>
-            </View>
-            <Pressable style={styles.miniMapCard}>
-              <View style={styles.miniMap}>
-                {visitedLocations.slice(0, 30).map((loc, i) => {
-                  const nx = ((loc.location.longitude - 126.93) / 0.1) * 100;
-                  const ny = ((37.59 - loc.location.latitude) / 0.06) * 100;
-                  const opacity = 0.4 + Math.min(0.6, (30 - i) / 30);
-                  return (
-                    <View
-                      key={loc.id}
-                      style={[styles.mapDot, {
-                        left: `${Math.min(95, Math.max(5, nx))}%`,
-                        top: `${Math.min(90, Math.max(5, ny))}%`,
-                        opacity,
-                        backgroundColor: gradient[0],
-                      }]}
-                    />
-                  );
-                })}
-                <View style={styles.miniMapOverlay}>
-                  <Ionicons name="map-outline" size={20} color={COLORS.textMuted} />
-                  <Text style={styles.miniMapText}>{visitedLocations.length}곳 방문</Text>
-                </View>
-              </View>
-            </Pressable>
-          </View>
-
-          {/* ── Growth Stats ── */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>성장 능력치</Text>
-            <View style={styles.statsBarList}>
-              {STAT_LABELS.map(({ key, label, icon }) => {
-                const val = growthStats[key];
-                const pct = (val / maxStat) * 100;
-                return (
-                  <View key={key} style={styles.statRow}>
-                    <Text style={styles.statIcon}>{icon}</Text>
-                    <Text style={styles.statLabel}>{label}</Text>
-                    <View style={styles.statBarTrack}>
-                      <LinearGradient colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.statBarFill, { width: `${pct}%` }]} />
-                    </View>
-                    <Text style={styles.statValue}>{val}</Text>
-                  </View>
-                );
-              })}
-            </View>
-          </View>
-
-          {/* ── Achievements ── */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>업적</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.achievementScroll}>
-              {achievements.map((ach, i) => (
-                <Animated.View key={ach.id} entering={FadeInRight.delay(i * 60)}>
-                  <View style={[styles.achievementCard, !ach.isUnlocked && styles.achievementLocked]}>
-                    <Text style={styles.achievementEmoji}>{ach.emoji}</Text>
-                    <Text style={styles.achievementName} numberOfLines={1}>{ach.name}</Text>
-                    {ach.isUnlocked ? (
-                      <Ionicons name="checkmark-circle" size={16} color={COLORS.success} />
-                    ) : (
-                      <Text style={styles.achievementProgress}>{ach.progress}/{ach.target}</Text>
-                    )}
-                  </View>
-                </Animated.View>
-              ))}
-            </ScrollView>
-          </View>
-
-          {/* ── Weekly Activity ── */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>활동 기록</Text>
-            <View style={styles.activityGrid}>
-              {weekActivity.map((day) => {
-                const intensity = day.count === 0 ? 0 : Math.min(day.count / 4, 1);
-                const bgColor = day.count === 0 ? COLORS.surfaceHighlight : `rgba(108,92,231,${0.2 + intensity * 0.8})`;
-                return <View key={day.date} style={[styles.activityCell, { backgroundColor: bgColor }]} />;
-              })}
-            </View>
-            <View style={styles.activityLegend}>
-              <Text style={styles.legendText}>적음</Text>
-              <View style={styles.legendScale}>
-                {[0, 0.3, 0.6, 1].map((v, i) => (
-                  <View key={i} style={[styles.legendCell, { backgroundColor: v === 0 ? COLORS.surfaceHighlight : `rgba(108,92,231,${0.2 + v * 0.8})` }]} />
-                ))}
-              </View>
-              <Text style={styles.legendText}>많음</Text>
-            </View>
-          </View>
-
-          {/* ── Recent XP ── */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>최근 획득 XP</Text>
-            {recentXpGains.slice(0, 4).map((entry) => (
-              <View key={entry.id} style={styles.xpEntry}>
-                <View style={styles.xpEntryLeft}>
-                  <Text style={styles.xpEntryIcon}>⚡</Text>
-                  <View>
-                    <Text style={styles.xpEntrySource}>{entry.source}</Text>
-                    <Text style={styles.xpEntryTime}>{formatRelativeDate(entry.timestamp)}</Text>
-                  </View>
-                </View>
-                <Text style={styles.xpEntryAmount}>+{entry.amount} XP</Text>
-              </View>
-            ))}
-          </View>
-        </>
-      ) : (
-        <>
-          {/* ── Friends ── */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>친구</Text>
-              <Text style={styles.sectionSubCount}>{friends.length}명</Text>
-            </View>
-            {friends.length > 0 ? (
-              friends.map((friend, i) => (
-                <Animated.View key={friend.id} entering={FadeInDown.delay(i * 60)}>
-                  <View style={styles.friendCard}>
-                    <View style={styles.friendAvatar}>
-                      <Text style={styles.friendAvatarText}>{friend.nickname[0]}</Text>
-                    </View>
-                    <View style={styles.friendInfo}>
-                      <View style={styles.friendNameRow}>
-                        <Text style={styles.friendName}>{friend.nickname}</Text>
-                        <Text style={styles.friendLevel}>Lv.{friend.level}</Text>
-                      </View>
-                      <View style={styles.friendMeta}>
-                        <Ionicons name="location-outline" size={11} color={COLORS.textMuted} />
-                        <Text style={styles.friendDistrict}>{friend.lastDistrict}</Text>
-                        <Text style={styles.friendDot}>·</Text>
-                        <Text style={styles.friendTime}>{formatRelativeDate(friend.lastActiveAt)}</Text>
-                      </View>
-                      {friend.recentActivity && (
-                        <Text style={styles.friendActivity} numberOfLines={1}>{friend.recentActivity}</Text>
-                      )}
-                    </View>
-                  </View>
-                </Animated.View>
-              ))
-            ) : (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyEmoji}>👥</Text>
-                <Text style={styles.emptyText}>WhereHere를 사용하는 카카오 친구가 없어요</Text>
-              </View>
-            )}
-          </View>
-
-          {/* ── Leaderboard ── */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>리더보드</Text>
-
-            {/* Scope toggle */}
-            <View style={styles.lbScopeRow}>
-              {(['weekly', 'district'] as const).map((scope) => (
-                <Pressable
-                  key={scope}
-                  style={[styles.lbScopeBtn, leaderboard.length > 0 && useProfileStore.getState().leaderboardScope === scope && styles.lbScopeBtnActive]}
-                  onPress={() => fetchLeaderboard(scope, scope === 'district' ? District.SEONGSU : undefined)}
-                >
-                  <Text style={[styles.lbScopeText, useProfileStore.getState().leaderboardScope === scope && styles.lbScopeTextActive]}>
-                    {scope === 'weekly' ? '주간 XP' : '지역 랭킹'}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-
-            {/* My rank */}
-            {myRank != null && (
-              <View style={styles.myRankCard}>
-                <Text style={styles.myRankLabel}>내 순위</Text>
-                <Text style={styles.myRankValue}>#{myRank}</Text>
-              </View>
-            )}
-
-            {/* Top entries */}
-            {leaderboard.slice(0, 10).map((entry, i) => (
-              <Animated.View key={entry.userId} entering={FadeInDown.delay(i * 40)}>
-                <View style={[styles.lbRow, entry.isMe && styles.lbRowMe]}>
-                  <Text style={[styles.lbRank, i < 3 && styles.lbRankTop]}>
-                    {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${entry.rank}`}
-                  </Text>
-                  <View style={styles.lbAvatar}>
-                    <Text style={styles.lbAvatarText}>{entry.nickname[0]}</Text>
-                  </View>
-                  <View style={styles.lbInfo}>
-                    <Text style={[styles.lbName, entry.isMe && styles.lbNameMe]}>{entry.nickname}</Text>
-                    <Text style={styles.lbLevel}>Lv.{entry.level}</Text>
-                  </View>
-                  <Text style={styles.lbXp}>{formatNumber(entry.weeklyXp)} XP</Text>
-                </View>
-              </Animated.View>
-            ))}
-          </View>
-        </>
-      )}
-
-      {/* ── Settings Section ── */}
+      {/* Settings */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>설정</Text>
         <View style={styles.settingsGroup}>
           <SettingsRow icon="notifications-outline" label="알림 설정" onPress={() => router.push('/settings')} />
           <SettingsRow icon="location-outline" label="위치 권한 관리" onPress={() => router.push('/settings')} />
-          <SettingsRow icon="language-outline" label="언어 설정" value="한국어" onPress={() => router.push('/settings')} />
-        </View>
-        <View style={styles.settingsGroup}>
-          <SettingsRow icon="document-text-outline" label="개인정보 처리방침" onPress={() => {}} />
-          <SettingsRow icon="reader-outline" label="이용약관" onPress={() => {}} />
           <SettingsRow icon="information-circle-outline" label="앱 버전" value="1.0.0" />
         </View>
         <Pressable style={styles.logoutBtn} onPress={handleSignOut}>
@@ -416,7 +296,6 @@ export default function ProfileScreen() {
   );
 }
 
-/* ── Stat Card Helper ── */
 function StatCard({ emoji, value, label }: { emoji: string; value: string; label: string }) {
   return (
     <View style={styles.stat2x2Card}>
@@ -427,7 +306,6 @@ function StatCard({ emoji, value, label }: { emoji: string; value: string; label
   );
 }
 
-/* ── Settings Row Helper ── */
 function SettingsRow({ icon, label, value, onPress }: {
   icon: string; label: string; value?: string; onPress?: () => void;
 }) {
@@ -449,8 +327,7 @@ const styles = StyleSheet.create({
   loadingEmoji: { fontSize: 64, marginBottom: SPACING.lg },
   loadingText: { fontSize: FONT_SIZE.md, color: COLORS.textSecondary },
 
-  // ── Hero ──
-  heroSection: { paddingTop: 56, paddingBottom: SPACING.xl, alignItems: 'center' },
+  heroSection: { paddingBottom: SPACING.xl, alignItems: 'center' },
   heroHeader: {
     width: '100%', flexDirection: 'row', justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg, marginBottom: SPACING.sm,
@@ -489,7 +366,14 @@ const styles = StyleSheet.create({
   },
   evoText: { fontSize: FONT_SIZE.xs, color: COLORS.primaryLight, fontWeight: FONT_WEIGHT.medium },
 
-  // ── 2x2 Stats ──
+  section: { paddingHorizontal: SPACING.xl, marginTop: SPACING.xxl },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: SPACING.lg },
+  sectionTitle: { fontSize: FONT_SIZE.lg, fontWeight: FONT_WEIGHT.bold, color: COLORS.textPrimary, marginBottom: SPACING.lg },
+  sectionBadge: {
+    fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.semibold, color: COLORS.primaryLight,
+    backgroundColor: COLORS.primary + '20', paddingHorizontal: SPACING.sm, paddingVertical: 2, borderRadius: BORDER_RADIUS.sm,
+  },
+
   statsGrid2x2: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.md, paddingHorizontal: SPACING.xl, marginTop: SPACING.lg },
   stat2x2Card: {
     width: '47%', backgroundColor: COLORS.surfaceLight, borderRadius: BORDER_RADIUS.md,
@@ -499,27 +383,14 @@ const styles = StyleSheet.create({
   stat2x2Value: { fontSize: FONT_SIZE.xl, fontWeight: FONT_WEIGHT.bold, color: COLORS.textPrimary },
   stat2x2Label: { fontSize: FONT_SIZE.xs, color: COLORS.textMuted },
 
-  // ── Tab Selector ──
-  tabRow: { flexDirection: 'row', paddingHorizontal: SPACING.xl, gap: SPACING.sm, marginTop: SPACING.xxl, marginBottom: SPACING.sm },
-  tabBtn: {
-    flex: 1, alignItems: 'center', paddingVertical: SPACING.md,
-    borderRadius: BORDER_RADIUS.md, backgroundColor: COLORS.surfaceLight,
-  },
-  tabBtnActive: { backgroundColor: COLORS.primary },
-  tabBtnText: { fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.semibold, color: COLORS.textMuted },
-  tabBtnTextActive: { color: COLORS.textPrimary },
+  statsBarList: { gap: SPACING.md },
+  statRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
+  statIcon: { fontSize: 18, width: 24 },
+  statLabel: { fontSize: FONT_SIZE.sm, color: COLORS.textSecondary, width: 48 },
+  statBarTrack: { flex: 1, height: 8, borderRadius: 4, backgroundColor: COLORS.surfaceHighlight, overflow: 'hidden' },
+  statBarFill: { height: '100%', borderRadius: 4 },
+  statValue: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.bold, color: COLORS.textPrimary, width: 28, textAlign: 'right' },
 
-  // ── Section ──
-  section: { paddingHorizontal: SPACING.xl, marginTop: SPACING.xxl },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: SPACING.lg },
-  sectionTitle: { fontSize: FONT_SIZE.lg, fontWeight: FONT_WEIGHT.bold, color: COLORS.textPrimary, marginBottom: SPACING.lg },
-  sectionBadge: {
-    fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.semibold, color: COLORS.primaryLight,
-    backgroundColor: COLORS.primary + '20', paddingHorizontal: SPACING.sm, paddingVertical: 2, borderRadius: BORDER_RADIUS.sm,
-  },
-  sectionSubCount: { fontSize: FONT_SIZE.sm, color: COLORS.textMuted, marginBottom: SPACING.lg },
-
-  // ── Mini Map ──
   miniMapCard: {
     backgroundColor: COLORS.surfaceLight, borderRadius: BORDER_RADIUS.md,
     overflow: 'hidden', height: 160,
@@ -533,83 +404,6 @@ const styles = StyleSheet.create({
   },
   miniMapText: { fontSize: FONT_SIZE.xs, color: COLORS.textSecondary },
 
-  // ── Growth Stats Bars ──
-  statsBarList: { gap: SPACING.md },
-  statRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
-  statIcon: { fontSize: 18, width: 24 },
-  statLabel: { fontSize: FONT_SIZE.sm, color: COLORS.textSecondary, width: 48 },
-  statBarTrack: { flex: 1, height: 8, borderRadius: 4, backgroundColor: COLORS.surfaceHighlight, overflow: 'hidden' },
-  statBarFill: { height: '100%', borderRadius: 4 },
-  statValue: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.bold, color: COLORS.textPrimary, width: 28, textAlign: 'right' },
-
-  // ── Achievements ──
-  achievementScroll: { gap: SPACING.md },
-  achievementCard: {
-    width: 100, alignItems: 'center', padding: SPACING.md,
-    backgroundColor: COLORS.surfaceLight, borderRadius: BORDER_RADIUS.md,
-    gap: 6,
-  },
-  achievementLocked: { opacity: 0.4 },
-  achievementEmoji: { fontSize: 28 },
-  achievementName: { fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.semibold, color: COLORS.textPrimary, textAlign: 'center' },
-  achievementProgress: { fontSize: FONT_SIZE.xs, color: COLORS.textMuted },
-
-  // ── Activity Grid ──
-  activityGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
-  activityCell: { width: 18, height: 18, borderRadius: 3 },
-  activityLegend: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: SPACING.sm, marginTop: SPACING.sm },
-  legendText: { fontSize: FONT_SIZE.xs, color: COLORS.textMuted },
-  legendScale: { flexDirection: 'row', gap: 3 },
-  legendCell: { width: 14, height: 14, borderRadius: 2 },
-
-  // ── XP Entries ──
-  xpEntry: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: COLORS.surfaceLight, borderRadius: BORDER_RADIUS.md,
-    padding: SPACING.md, marginBottom: SPACING.sm,
-  },
-  xpEntryLeft: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, flex: 1 },
-  xpEntryIcon: { fontSize: 20 },
-  xpEntrySource: { fontSize: FONT_SIZE.sm, color: COLORS.textPrimary, fontWeight: FONT_WEIGHT.medium },
-  xpEntryTime: { fontSize: FONT_SIZE.xs, color: COLORS.textMuted, marginTop: 2 },
-  xpEntryAmount: { fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.bold, color: COLORS.primary },
-
-  // ── Friends ──
-  friendCard: {
-    flexDirection: 'row', alignItems: 'center', gap: SPACING.md,
-    backgroundColor: COLORS.surfaceLight, borderRadius: BORDER_RADIUS.md,
-    padding: SPACING.lg, marginBottom: SPACING.sm,
-  },
-  friendAvatar: {
-    width: 44, height: 44, borderRadius: 22,
-    backgroundColor: COLORS.surfaceHighlight,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  friendAvatarText: { fontSize: FONT_SIZE.lg, fontWeight: FONT_WEIGHT.bold, color: COLORS.primary },
-  friendInfo: { flex: 1 },
-  friendNameRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
-  friendName: { fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.semibold, color: COLORS.textPrimary },
-  friendLevel: { fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.semibold, color: COLORS.primaryLight },
-  friendMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
-  friendDistrict: { fontSize: FONT_SIZE.xs, color: COLORS.textMuted },
-  friendDot: { fontSize: FONT_SIZE.xs, color: COLORS.textMuted },
-  friendTime: { fontSize: FONT_SIZE.xs, color: COLORS.textMuted },
-  friendActivity: { fontSize: FONT_SIZE.xs, color: COLORS.textSecondary, marginTop: 4 },
-
-  // ── Empty ──
-  emptyState: { alignItems: 'center', paddingVertical: SPACING.xxxl },
-  emptyEmoji: { fontSize: 40, marginBottom: SPACING.md },
-  emptyText: { fontSize: FONT_SIZE.sm, color: COLORS.textMuted, textAlign: 'center' },
-
-  // ── Leaderboard ──
-  lbScopeRow: { flexDirection: 'row', gap: SPACING.sm, marginBottom: SPACING.lg },
-  lbScopeBtn: {
-    paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm,
-    borderRadius: BORDER_RADIUS.full, backgroundColor: COLORS.surfaceLight,
-  },
-  lbScopeBtnActive: { backgroundColor: COLORS.primary },
-  lbScopeText: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.semibold, color: COLORS.textMuted },
-  lbScopeTextActive: { color: COLORS.textPrimary },
   myRankCard: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     backgroundColor: COLORS.primary + '20', borderRadius: BORDER_RADIUS.md,
@@ -622,7 +416,6 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.md, paddingHorizontal: SPACING.sm,
     borderBottomWidth: 1, borderBottomColor: COLORS.surfaceHighlight,
   },
-  lbRowMe: { backgroundColor: COLORS.primary + '10', borderRadius: BORDER_RADIUS.sm, marginHorizontal: -SPACING.sm, paddingHorizontal: SPACING.md },
   lbRank: { width: 28, fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.bold, color: COLORS.textSecondary, textAlign: 'center' },
   lbRankTop: { fontSize: FONT_SIZE.lg },
   lbAvatar: {
@@ -633,11 +426,8 @@ const styles = StyleSheet.create({
   lbAvatarText: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.bold, color: COLORS.primaryLight },
   lbInfo: { flex: 1 },
   lbName: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.semibold, color: COLORS.textPrimary },
-  lbNameMe: { color: COLORS.primary },
-  lbLevel: { fontSize: FONT_SIZE.xs, color: COLORS.textMuted },
   lbXp: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.bold, color: COLORS.warning },
 
-  // ── Settings ──
   settingsGroup: {
     backgroundColor: COLORS.surfaceLight, borderRadius: BORDER_RADIUS.md,
     marginBottom: SPACING.md, overflow: 'hidden',

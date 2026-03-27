@@ -11,16 +11,23 @@ interface EmptyStateProps {
   description: string;
   actionLabel?: string;
   onAction?: () => void;
+  emoji?: string;
 }
 
-export function EmptyState({ icon, title, description, actionLabel, onAction }: EmptyStateProps) {
+export function EmptyState({ icon, title, description, actionLabel, onAction, emoji }: EmptyStateProps) {
   const { colors } = useTheme();
 
   return (
     <View style={styles.container}>
-      <View style={[styles.iconCircle, { backgroundColor: colors.surfaceLight }]}>
-        <Ionicons name={icon} size={40} color={colors.textMuted} />
-      </View>
+      {emoji ? (
+        <View style={[styles.emojiCircle, { backgroundColor: colors.surfaceLight }]}>
+          <Text style={styles.emoji}>{emoji}</Text>
+        </View>
+      ) : (
+        <View style={[styles.iconCircle, { backgroundColor: colors.surfaceLight }]}>
+          <Ionicons name={icon} size={40} color={colors.textMuted} />
+        </View>
+      )}
       <Text style={[styles.title, { color: colors.textPrimary }]}>{title}</Text>
       <Text style={[styles.description, { color: colors.textSecondary }]}>{description}</Text>
       {actionLabel && onAction && (
@@ -37,6 +44,40 @@ export function EmptyState({ icon, title, description, actionLabel, onAction }: 
   );
 }
 
+interface NetworkErrorProps {
+  onRetry: () => void;
+}
+
+export function NetworkError({ onRetry }: NetworkErrorProps) {
+  return (
+    <EmptyState
+      icon="cloud-offline-outline"
+      emoji="📡"
+      title="인터넷 연결을 확인해주세요"
+      description="네트워크에 연결되어 있지 않아요.\n연결 상태를 확인하고 다시 시도해주세요."
+      actionLabel="다시 시도"
+      onAction={onRetry}
+    />
+  );
+}
+
+interface ServerErrorProps {
+  onRetry: () => void;
+}
+
+export function ServerError({ onRetry }: ServerErrorProps) {
+  return (
+    <EmptyState
+      icon="warning-outline"
+      emoji="🔧"
+      title="잠시 후 다시 시도해주세요"
+      description="서버에 일시적인 문제가 발생했어요.\n잠시 후 다시 시도해주세요."
+      actionLabel="다시 시도"
+      onAction={onRetry}
+    />
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
@@ -50,6 +91,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: SPACING.lg,
+  },
+  emojiCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: SPACING.lg,
+  },
+  emoji: {
+    fontSize: 40,
   },
   title: {
     fontSize: FONT_SIZE.lg,

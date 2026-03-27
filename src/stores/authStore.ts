@@ -1,7 +1,11 @@
 import { create } from 'zustand';
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
 import { supabase } from '../config/supabase';
-import type { User } from '../types';
-import type { Session } from '@supabase/supabase-js';
+import { getMyCharacter } from '../lib/api';
+import type { Session, User } from '@supabase/supabase-js';
+
+WebBrowser.maybeCompleteAuthSession();
 
 interface AuthState {
   user: User | null;
@@ -10,7 +14,6 @@ interface AuthState {
   isLoading: boolean;
   hasCompletedOnboarding: boolean;
 
-  // Actions
   setUser: (user: User) => void;
   setSession: (session: Session | null) => void;
   setLoading: (loading: boolean) => void;
@@ -19,6 +22,31 @@ interface AuthState {
   signOut: () => Promise<void>;
   initializeAuth: () => Promise<void>;
   checkOnboardingStatus: () => Promise<boolean>;
+}
+
+function extractParamsFromUrl(url: string): Record<string, string> {
+  const params: Record<string, string> = {};
+
+  const hashIndex = url.indexOf('#');
+  if (hashIndex !== -1) {
+    const fragment = url.substring(hashIndex + 1);
+    for (const pair of fragment.split('&')) {
+      const [key, value] = pair.split('=');
+      if (key && value) params[key] = decodeURIComponent(value);
+    }
+  }
+
+  const questionIndex = url.indexOf('?');
+  if (questionIndex !== -1) {
+    const endIndex = hashIndex !== -1 ? hashIndex : url.length;
+    const query = url.substring(questionIndex + 1, endIndex);
+    for (const pair of query.split('&')) {
+      const [key, value] = pair.split('=');
+      if (key && value) params[key] = decodeURIComponent(value);
+    }
+  }
+
+  return params;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -36,18 +64,63 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   signInWithKakao: async () => {
     try {
       set({ isLoading: true });
-      
+
+      const redirectTo = 'wherehere://auth/callback';
+
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'kakao',
         options: {
-          redirectTo: 'wherehere://auth/callback',
+          redirectTo,
+          skipBrowserRedirect: true,
         },
       });
 
       if (error) throw error;
+      if (!data.url) throw new Error('OAuth URL을 받지 못했습니다.');
 
-      if (data.session) {
-        set({ session: data.session, isAuthenticated: true });
+      console.log('[AUTH] redirectTo:', redirectTo);
+      console.log('[AUTH] Opening URL:', data.url);
+
+      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+
+      if (result.type !== 'success') {
+        set({ isLoading: false });
+        return;
+      }
+
+      const params = extractParamsFromUrl(result.url);
+
+      if (params.access_token && params.refresh_token) {
+        const { data: sessionData, error: sessionError } =
+          await supabase.auth.setSession({
+            access_token: params.access_token,
+            refresh_token: params.refresh_token,
+          });
+
+        if (sessionError) throw sessionError;
+
+        if (sessionData.session) {
+          set({
+            session: sessionData.session,
+            user: sessionData.session.user,
+            isAuthenticated: true,
+          });
+        }
+      } else if (params.code) {
+        const { data: sessionData, error: sessionError } =
+          await supabase.auth.exchangeCodeForSession(params.code);
+
+        if (sessionError) throw sessionError;
+
+        if (sessionData.session) {
+          set({
+            session: sessionData.session,
+            user: sessionData.session.user,
+            isAuthenticated: true,
+          });
+        }
+      } else {
+        throw new Error('인증 토큰을 받지 못했습니다.');
       }
     } catch (error) {
       console.error('Kakao login error:', error);
@@ -60,9 +133,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   signOut: async () => {
     try {
       await supabase.auth.signOut();
-      set({ 
-        user: null, 
-        session: null, 
+      set({
+        user: null,
+        session: null,
         isAuthenticated: false,
         hasCompletedOnboarding: false,
       });
@@ -76,17 +149,27 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       set({ isLoading: true });
 
-      const { data: { session } } = await supabase.auth.getSession();
-      
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
       if (session) {
-        set({ session, isAuthenticated: true });
-        
+        set({
+          session,
+          user: session.user,
+          isAuthenticated: true,
+        });
+
         const hasOnboarded = await get().checkOnboardingStatus();
         set({ hasCompletedOnboarding: hasOnboarded });
       }
 
       supabase.auth.onAuthStateChange((_event, session) => {
-        set({ session, isAuthenticated: !!session });
+        set({
+          session,
+          user: session?.user ?? null,
+          isAuthenticated: !!session,
+        });
       });
     } catch (error) {
       console.error('Auth initialization error:', error);
@@ -100,20 +183,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const { session } = get();
       if (!session) return false;
 
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/characters/me`, {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        return !!data.data;
-      }
-      
-      return false;
-    } catch (error) {
-      console.error('Check onboarding status error:', error);
+      const character = await getMyCharacter();
+      return !!character;
+    } catch {
       return false;
     }
   },

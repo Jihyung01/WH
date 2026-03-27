@@ -42,6 +42,9 @@ yarn-error.*
 /ios
 /android
 
+# Supabase local
+supabase/.temp/
+
 # AI tools
 .claude/
 .cursor/

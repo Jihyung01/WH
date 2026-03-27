@@ -74,15 +74,19 @@ export default function LoginScreen() {
     try {
       setIsLoading(true);
       await signInWithKakao();
-      
+
+      const { isAuthenticated } = useAuthStore.getState();
+      if (!isAuthenticated) return;
+
       const hasOnboarded = await checkOnboardingStatus();
-      
+
       if (hasOnboarded) {
         router.replace('/(tabs)/map');
       } else {
         router.replace('/(auth)/onboarding');
       }
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.message?.includes('cancelled')) return;
       console.error('Login error:', error);
       Alert.alert(
         '로그인 실패',

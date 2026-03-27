@@ -110,7 +110,7 @@ export default function SettingsScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     Alert.alert('로그아웃', '정말 로그아웃 하시겠습니까?', [
       { text: '취소', style: 'cancel' },
-      { text: '로그아웃', style: 'destructive', onPress: async () => { try { await signOut(); } catch {} } },
+      { text: '로그아웃', style: 'destructive', onPress: async () => { try { await signOut(); router.replace('/(auth)/welcome'); } catch {} } },
     ]);
   };
 

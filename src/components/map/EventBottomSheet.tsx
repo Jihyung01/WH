@@ -9,7 +9,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
-import type { Event, GeoPoint } from '../../types';
+import type { NearbyEvent, GeoPoint } from '../../types';
 import { getDistance } from '../../utils/geo';
 import { formatDistance } from '../../utils/format';
 import { CHECK_IN_RADIUS_METERS } from '../../utils/constants';
@@ -17,10 +17,10 @@ import { COLORS, SPACING, FONT_SIZE, FONT_WEIGHT, BORDER_RADIUS, SHADOWS } from 
 import { EventCategory } from '../../types/enums';
 
 interface EventBottomSheetProps {
-  event: Event | null;
+  event: NearbyEvent | null;
   userLocation: GeoPoint | null;
   onDismiss: () => void;
-  onChallenge: (event: Event) => void;
+  onChallenge: (event: NearbyEvent) => void;
 }
 
 const SHEET_HEIGHT = 260;
@@ -34,6 +34,9 @@ const CATEGORY_LABELS: Record<string, string> = {
   [EventCategory.NIGHTLIFE]: '야간',
   [EventCategory.SHOPPING]: '쇼핑',
   [EventCategory.HIDDEN_GEM]: '숨은명소',
+  [EventCategory.PHOTO]: '포토',
+  [EventCategory.QUIZ]: '퀴즈',
+  [EventCategory.PARTNERSHIP]: '제휴',
 };
 
 export function EventBottomSheet({ event, userLocation, onDismiss, onChallenge }: EventBottomSheetProps) {
@@ -49,19 +52,21 @@ export function EventBottomSheet({ event, userLocation, onDismiss, onChallenge }
   }, [event]);
 
   const panGesture = Gesture.Pan()
+    .activeOffsetY([-8, 8])
+    .failOffsetX([-20, 20])
     .onStart(() => {
       contextY.value = translateY.value;
     })
     .onUpdate((e) => {
       const newY = contextY.value + e.translationY;
-      translateY.value = Math.max(0, newY);
+      translateY.value = Math.max(-10, newY);
     })
     .onEnd((e) => {
-      if (e.translationY > 80 || e.velocityY > 500) {
+      if (e.translationY > 60 || e.velocityY > 400) {
         translateY.value = withTiming(SHEET_HEIGHT, { duration: 200 });
         runOnJS(onDismiss)();
       } else {
-        translateY.value = withSpring(0, { damping: 20, stiffness: 200 });
+        translateY.value = withSpring(0, { damping: 25, stiffness: 180, mass: 0.8 });
       }
     });
 
@@ -71,17 +76,15 @@ export function EventBottomSheet({ event, userLocation, onDismiss, onChallenge }
 
   if (!event) return null;
 
-  const distance = userLocation
-    ? getDistance(userLocation, event.location)
-    : null;
+  const coordinate = { latitude: event.lat, longitude: event.lng };
+  const distance = userLocation ? getDistance(userLocation, coordinate) : null;
   const isInRange = distance !== null && distance <= CHECK_IN_RADIUS_METERS;
   const categoryLabel = CATEGORY_LABELS[event.category] ?? '이벤트';
 
   const openDirections = () => {
-    const { latitude, longitude } = event.location;
     const url = Platform.select({
-      ios: `maps:0,0?q=${latitude},${longitude}`,
-      android: `geo:0,0?q=${latitude},${longitude}(${event.title})`,
+      ios: `maps:0,0?q=${event.lat},${event.lng}`,
+      android: `geo:0,0?q=${event.lat},${event.lng}(${event.title})`,
     });
     if (url) Linking.openURL(url);
   };
@@ -116,22 +119,10 @@ export function EventBottomSheet({ event, userLocation, onDismiss, onChallenge }
         <Text style={styles.description} numberOfLines={2}>{event.description}</Text>
 
         <View style={styles.rewardRow}>
-          {event.xpReward > 0 && (
+          {event.reward_xp > 0 && (
             <View style={styles.rewardChip}>
               <Text style={styles.rewardIcon}>⚡</Text>
-              <Text style={styles.rewardText}>{event.xpReward} XP</Text>
-            </View>
-          )}
-          {event.coinReward > 0 && (
-            <View style={styles.rewardChip}>
-              <Text style={styles.rewardIcon}>🪙</Text>
-              <Text style={styles.rewardText}>{event.coinReward}</Text>
-            </View>
-          )}
-          {event.rewards.length > 0 && (
-            <View style={styles.rewardChip}>
-              <Text style={styles.rewardIcon}>🎁</Text>
-              <Text style={styles.rewardText}>{event.rewards.length}개</Text>
+              <Text style={styles.rewardText}>{event.reward_xp} XP</Text>
             </View>
           )}
         </View>

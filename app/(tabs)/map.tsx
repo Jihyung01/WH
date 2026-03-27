@@ -19,7 +19,8 @@ import { SPACING, FONT_WEIGHT, SHADOWS, BRAND } from '../../src/config/theme';
 import { useTheme } from '../../src/providers/ThemeProvider';
 import { EventMarker, UserLocationMarker, EventBottomSheet, GpsBanner } from '../../src/components/map';
 import { getMapStyle } from '../../src/components/map/mapStyle';
-import type { Event } from '../../src/types';
+import { MapLoadingOverlay } from '../../src/components/ui';
+import type { NearbyEvent } from '../../src/types';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -36,6 +37,7 @@ export default function MapScreen() {
     visibleEvents,
     selectedEventId,
     isFollowingUser,
+    isFetchingEvents,
     lastFetchCenter,
     selectEvent,
     setFollowingUser,
@@ -83,11 +85,7 @@ export default function MapScreen() {
   const sortedEvents = useMemo(() => {
     if (!currentPosition) return visibleEvents.slice(0, 50);
     return [...visibleEvents]
-      .sort(
-        (a, b) =>
-          getDistance(currentPosition, a.location) -
-          getDistance(currentPosition, b.location),
-      )
+      .sort((a, b) => a.distance_meters - b.distance_meters)
       .slice(0, 50);
   }, [visibleEvents, currentPosition]);
 
@@ -113,13 +111,14 @@ export default function MapScreen() {
 
   // ── Marker press ──
   const onMarkerPress = useCallback(
-    (event: Event) => {
+    (event: NearbyEvent) => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       selectEvent(event.id);
       setFollowingUser(false);
       mapRef.current?.animateToRegion(
         {
-          ...event.location,
+          latitude: event.lat,
+          longitude: event.lng,
           latitudeDelta: 0.005,
           longitudeDelta: 0.005,
         },
@@ -134,7 +133,7 @@ export default function MapScreen() {
 
   // ── Challenge button ──
   const onChallenge = useCallback(
-    (event: Event) => {
+    (event: NearbyEvent) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.push(`/event/${event.id}`);
     },
@@ -206,6 +205,9 @@ export default function MapScreen() {
 
       {/* ── GPS Banner ── */}
       <GpsBanner visible={locationPermission === 'denied'} />
+
+      {/* ── Loading overlay ── */}
+      {isFetchingEvents && visibleEvents.length === 0 && <MapLoadingOverlay />}
 
       {/* ── Top Left: User avatar ── */}
       <Pressable

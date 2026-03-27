@@ -16,7 +16,7 @@ import Animated, {
 
 import { useLocationStore } from '../../../src/stores/locationStore';
 import { useMapStore } from '../../../src/stores/mapStore';
-import { checkinService } from '../../../src/services/checkinService';
+import { verifyCheckin } from '../../../src/lib/api';
 import { getDistance } from '../../../src/utils/geo';
 import { formatDistance } from '../../../src/utils/format';
 import { CHECK_IN_RADIUS_METERS } from '../../../src/utils/constants';
@@ -40,7 +40,7 @@ export default function CheckInScreen() {
 
   const distance = useMemo(() => {
     if (!currentPosition || !event) return null;
-    return getDistance(currentPosition, event.location);
+    return getDistance(currentPosition, { latitude: event.lat, longitude: event.lng });
   }, [currentPosition, event]);
 
   const isInRange = distance !== null && distance <= CHECK_IN_RADIUS_METERS;
@@ -69,7 +69,6 @@ export default function CheckInScreen() {
     }
   }, [state]);
 
-  // Auto-check-in when in range
   useEffect(() => {
     if (isInRange && state === 'approaching') {
       performCheckIn();
@@ -77,27 +76,27 @@ export default function CheckInScreen() {
   }, [isInRange, state]);
 
   const performCheckIn = async () => {
+    if (!currentPosition || !event) return;
+
     try {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setState('success');
-      successScale.value = withSpring(1, { damping: 8, stiffness: 100 });
-      checkScale.value = withDelay(300, withSpring(1, { damping: 10, stiffness: 120 }));
+      const result = await verifyCheckin(
+        event.id,
+        currentPosition.latitude,
+        currentPosition.longitude,
+      );
 
-      if (currentPosition && event) {
-        try {
-          await checkinService.create({
-            eventId: event.id,
-            latitude: currentPosition.latitude,
-            longitude: currentPosition.longitude,
-          });
-        } catch {
-          console.warn('Check-in API not available, proceeding locally');
-        }
+      if (result.success) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        setState('success');
+        successScale.value = withSpring(1, { damping: 8, stiffness: 100 });
+        checkScale.value = withDelay(300, withSpring(1, { damping: 10, stiffness: 120 }));
+
+        setTimeout(() => {
+          router.back();
+        }, 2500);
+      } else {
+        setState('error');
       }
-
-      setTimeout(() => {
-        router.back();
-      }, 2500);
     } catch (error) {
       console.error('Check-in error:', error);
       setState('error');

@@ -1,84 +1,88 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, FlatList } from 'react-native';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { useInventoryStore } from '../../src/stores/inventoryStore';
-import { ItemRarity } from '../../src/types/enums';
+import { BadgeGridSkeleton, ItemListSkeleton } from '../../src/components/ui';
 import { COLORS, SPACING, FONT_SIZE, FONT_WEIGHT, BORDER_RADIUS, SHADOWS } from '../../src/config/theme';
-import type { Badge, InventoryItem } from '../../src/types';
+import type { UserBadge, Badge, InventoryItem } from '../../src/types';
 
 type TabKey = 'badges' | 'items' | 'collection';
 
 const RARITY_COLORS: Record<string, string> = {
-  [ItemRarity.COMMON]: COLORS.common,
-  [ItemRarity.UNCOMMON]: COLORS.uncommon,
-  [ItemRarity.RARE]: COLORS.rare,
-  [ItemRarity.EPIC]: COLORS.epic,
-  [ItemRarity.LEGENDARY]: COLORS.legendary,
+  common: COLORS.common,
+  rare: COLORS.rare,
+  epic: COLORS.epic,
+  legendary: COLORS.legendary,
 };
 
 const RARITY_LABELS: Record<string, string> = {
-  [ItemRarity.COMMON]: '일반',
-  [ItemRarity.UNCOMMON]: '고급',
-  [ItemRarity.RARE]: '희귀',
-  [ItemRarity.EPIC]: '영웅',
-  [ItemRarity.LEGENDARY]: '전설',
+  common: '일반',
+  rare: '희귀',
+  epic: '영웅',
+  legendary: '전설',
 };
 
-// Mock data for demo
-const MOCK_BADGES: Badge[] = [
-  { id: 'b1', name: '첫 발걸음', description: '첫 번째 체크인 완료', iconUrl: '', category: 'MISSION', rarity: ItemRarity.COMMON, requirement: { type: 'checkin', target: 1, district: null }, xpBonus: 10, unlockedAt: new Date(Date.now() - 86400000 * 5).toISOString() },
-  { id: 'b2', name: '홍대 탐험가', description: '홍대 지역 이벤트 3개 완료', iconUrl: '', category: 'DISTRICT', rarity: ItemRarity.RARE, requirement: { type: 'district', target: 3, district: null }, xpBonus: 50, unlockedAt: new Date(Date.now() - 86400000 * 3).toISOString() },
-  { id: 'b3', name: '퀴즈 마스터', description: '퀴즈 10개 연속 정답', iconUrl: '', category: 'MISSION', rarity: ItemRarity.EPIC, requirement: { type: 'quiz', target: 10, district: null }, xpBonus: 100, unlockedAt: new Date(Date.now() - 86400000).toISOString() },
-  { id: 'b4', name: '사진작가', description: '사진 미션 20개 완료', iconUrl: '', category: 'COLLECTION', rarity: ItemRarity.UNCOMMON, requirement: { type: 'photo', target: 20, district: null }, xpBonus: 30, unlockedAt: null },
-  { id: 'b5', name: '7일 연속 탐험', description: '7일 연속 체크인', iconUrl: '', category: 'STREAK', rarity: ItemRarity.RARE, requirement: { type: 'streak', target: 7, district: null }, xpBonus: 70, unlockedAt: null },
-  { id: 'b6', name: '전설의 발견자', description: '숨은 명소 10곳 발견', iconUrl: '', category: 'SPECIAL', rarity: ItemRarity.LEGENDARY, requirement: { type: 'hidden', target: 10, district: null }, xpBonus: 200, unlockedAt: null },
-  { id: 'b7', name: '성수 마스터', description: '성수동 이벤트 전체 완료', iconUrl: '', category: 'DISTRICT', rarity: ItemRarity.EPIC, requirement: { type: 'district', target: 10, district: null }, xpBonus: 150, unlockedAt: null },
-  { id: 'b8', name: '야간 탐험가', description: '밤 10시 이후 체크인 5회', iconUrl: '', category: 'SPECIAL', rarity: ItemRarity.UNCOMMON, requirement: { type: 'night', target: 5, district: null }, xpBonus: 40, unlockedAt: new Date(Date.now() - 86400000 * 2).toISOString() },
-];
-
-const MOCK_ITEMS: InventoryItem[] = [
-  { id: 'i1', userId: '', itemId: 'skin1', name: '봄의 모자', description: '벚꽃 테마 캐릭터 모자', iconUrl: '', rarity: ItemRarity.RARE, category: 'COSMETIC', quantity: 1, isEquipped: false, metadata: {}, acquiredAt: new Date().toISOString(), expiresAt: null },
-  { id: 'i2', userId: '', itemId: 'boost1', name: 'XP 부스터 (2배)', description: '30분간 XP 획득량 2배', iconUrl: '', rarity: ItemRarity.UNCOMMON, category: 'CONSUMABLE', quantity: 3, isEquipped: false, metadata: {}, acquiredAt: new Date().toISOString(), expiresAt: null },
-  { id: 'i3', userId: '', itemId: 'ticket1', name: '프리미엄 이벤트 티켓', description: '특별 이벤트 참여 가능', iconUrl: '', rarity: ItemRarity.EPIC, category: 'CONSUMABLE', quantity: 1, isEquipped: false, metadata: {}, acquiredAt: new Date().toISOString(), expiresAt: null },
-  { id: 'i4', userId: '', itemId: 'coupon1', name: '카페 할인 쿠폰', description: '제휴 카페 20% 할인', iconUrl: '', rarity: ItemRarity.COMMON, category: 'COUPON', quantity: 2, isEquipped: false, metadata: {}, acquiredAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 86400000 * 14).toISOString() },
-];
-
 const BADGE_EMOJIS: Record<string, string> = {
-  DISTRICT: '🗺️', MISSION: '🎯', STREAK: '🔥', COLLECTION: '📸', SPECIAL: '💎',
+  exploration: '🗺️',
+  region: '🎯',
+  season: '🔥',
+  achievement: '💎',
 };
 
 const ITEM_EMOJIS: Record<string, string> = {
-  COSMETIC: '🎭', CONSUMABLE: '⚡', EQUIPMENT: '🛡️', COUPON: '🎟️',
+  booster: '⚡',
+  cosmetic: '🎭',
+  coupon: '🎟️',
 };
 
 export default function InventoryScreen() {
+  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<TabKey>('badges');
-  const { badges, items, setBadges, setItems } = useInventoryStore();
+  const { userBadges, allBadges, items, fetchAll, isLoading } = useInventoryStore();
 
   useEffect(() => {
-    if (badges.length === 0) setBadges(MOCK_BADGES);
-    if (items.length === 0) setItems(MOCK_ITEMS);
+    fetchAll();
   }, []);
 
-  const earnedBadges = badges.filter((b) => b.unlockedAt);
-  const lockedBadges = badges.filter((b) => !b.unlockedAt);
-  const totalCollectibles = badges.length + 20; // pretend more exist
-  const collectedCount = earnedBadges.length + items.length;
+  const earnedBadgeIds = useMemo(
+    () => new Set(userBadges.map((ub) => ub.badge_id)),
+    [userBadges],
+  );
+
+  const lockedBadges = useMemo(
+    () => allBadges.filter((b) => !earnedBadgeIds.has(b.id)),
+    [allBadges, earnedBadgeIds],
+  );
+
+  const totalCollectibles = allBadges.length || 1;
+  const collectedCount = userBadges.length + items.length;
   const collectionPercent = Math.round((collectedCount / totalCollectibles) * 100);
 
   const tabs: { key: TabKey; label: string; count: string }[] = [
-    { key: 'badges', label: '배지', count: `${earnedBadges.length}/${badges.length}` },
+    { key: 'badges', label: '배지', count: `${userBadges.length}/${allBadges.length}` },
     { key: 'items', label: '아이템', count: `${items.length}` },
     { key: 'collection', label: '도감', count: `${collectionPercent}%` },
   ];
 
+  const [refreshing, setRefreshing] = useState(false);
+  const showBadgeSkeleton = isLoading && userBadges.length === 0 && allBadges.length === 0;
+  const showItemSkeleton = isLoading && items.length === 0;
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchAll();
+    setRefreshing(false);
+  }, []);
+
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <Text style={styles.headerTitle}>가방</Text>
       </View>
 
@@ -104,20 +108,41 @@ export default function InventoryScreen() {
       </View>
 
       {/* Content */}
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {activeTab === 'badges' && (
+      <ScrollView
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={COLORS.primary}
+            colors={[COLORS.primary]}
+          />
+        }
+      >
+        {activeTab === 'badges' && showBadgeSkeleton && (
+          <View style={{ paddingVertical: SPACING.lg }}>
+            <BadgeGridSkeleton count={6} />
+          </View>
+        )}
+        {activeTab === 'badges' && !showBadgeSkeleton && (
           <Animated.View entering={FadeIn} style={styles.badgeGrid}>
-            {earnedBadges.map((badge, i) => (
-              <Animated.View key={badge.id} entering={FadeIn.delay(i * 60)} style={styles.badgeCardWrapper}>
-                <View style={[styles.badgeCard, { borderColor: RARITY_COLORS[badge.rarity] }]}>
-                  <Text style={styles.badgeEmoji}>{BADGE_EMOJIS[badge.category] ?? '🏅'}</Text>
-                  <Text style={styles.badgeName} numberOfLines={1}>{badge.name}</Text>
-                  <Text style={[styles.badgeRarity, { color: RARITY_COLORS[badge.rarity] }]}>
-                    {RARITY_LABELS[badge.rarity]}
-                  </Text>
-                </View>
-              </Animated.View>
-            ))}
+            {userBadges.map((ub, i) => {
+              const badge = ub.badges;
+              const rarity = badge?.rarity ?? 'common';
+              const category = badge?.category ?? 'exploration';
+              return (
+                <Animated.View key={ub.id} entering={FadeIn.delay(i * 60)} style={styles.badgeCardWrapper}>
+                  <View style={[styles.badgeCard, { borderColor: RARITY_COLORS[rarity] }]}>
+                    <Text style={styles.badgeEmoji}>{BADGE_EMOJIS[category] ?? '🏅'}</Text>
+                    <Text style={styles.badgeName} numberOfLines={1}>{badge?.name ?? '배지'}</Text>
+                    <Text style={[styles.badgeRarity, { color: RARITY_COLORS[rarity] }]}>
+                      {RARITY_LABELS[rarity]}
+                    </Text>
+                  </View>
+                </Animated.View>
+              );
+            })}
             {lockedBadges.map((badge) => (
               <View key={badge.id} style={styles.badgeCardWrapper}>
                 <View style={[styles.badgeCard, styles.badgeCardLocked]}>
@@ -127,30 +152,40 @@ export default function InventoryScreen() {
                 </View>
               </View>
             ))}
+            {userBadges.length === 0 && lockedBadges.length === 0 && (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyEmoji}>🏅</Text>
+                <Text style={styles.emptyText}>아직 배지가 없습니다</Text>
+              </View>
+            )}
           </Animated.View>
         )}
 
-        {activeTab === 'items' && (
+        {activeTab === 'items' && showItemSkeleton && (
+          <View style={{ paddingVertical: SPACING.lg }}>
+            <ItemListSkeleton count={4} />
+          </View>
+        )}
+        {activeTab === 'items' && !showItemSkeleton && (
           <Animated.View entering={FadeIn} style={styles.itemList}>
             {items.map((item, i) => (
               <Animated.View key={item.id} entering={FadeIn.delay(i * 80)}>
                 <View style={[styles.itemCard, { borderColor: RARITY_COLORS[item.rarity] + '60' }]}>
                   <View style={[styles.itemIconCircle, { backgroundColor: RARITY_COLORS[item.rarity] + '20' }]}>
-                    <Text style={styles.itemEmoji}>{ITEM_EMOJIS[item.category] ?? '📦'}</Text>
+                    <Text style={styles.itemEmoji}>{ITEM_EMOJIS[item.item_type] ?? '📦'}</Text>
                   </View>
                   <View style={styles.itemInfo}>
                     <View style={styles.itemHeader}>
-                      <Text style={styles.itemName}>{item.name}</Text>
+                      <Text style={styles.itemName}>{item.item_name}</Text>
                       <Text style={[styles.itemRarity, { color: RARITY_COLORS[item.rarity] }]}>
                         {RARITY_LABELS[item.rarity]}
                       </Text>
                     </View>
-                    <Text style={styles.itemDesc} numberOfLines={1}>{item.description}</Text>
                     {item.quantity > 1 && (
                       <Text style={styles.itemQty}>x{item.quantity}</Text>
                     )}
                   </View>
-                  {item.category === 'CONSUMABLE' && (
+                  {item.item_type === 'booster' && (
                     <Pressable
                       style={styles.useBtn}
                       onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)}
@@ -186,12 +221,14 @@ export default function InventoryScreen() {
             </View>
 
             {/* Categories */}
-            {(['DISTRICT', 'MISSION', 'STREAK', 'COLLECTION', 'SPECIAL'] as const).map((cat) => {
-              const catBadges = badges.filter((b) => b.category === cat);
-              const earned = catBadges.filter((b) => b.unlockedAt).length;
+            {(['exploration', 'region', 'season', 'achievement'] as const).map((cat) => {
+              const catBadges = allBadges.filter((b) => b.category === cat);
+              const earned = catBadges.filter((b) => earnedBadgeIds.has(b.id)).length;
               const catLabels: Record<string, string> = {
-                DISTRICT: '🗺️ 지역 배지', MISSION: '🎯 미션 배지',
-                STREAK: '🔥 연속 배지', COLLECTION: '📸 수집 배지', SPECIAL: '💎 특별 배지',
+                exploration: '🗺️ 탐험 배지',
+                region: '🎯 지역 배지',
+                season: '🔥 시즌 배지',
+                achievement: '💎 업적 배지',
               };
               return (
                 <View key={cat} style={styles.collectionCategory}>
@@ -205,7 +242,7 @@ export default function InventoryScreen() {
                         key={badge.id}
                         style={[
                           styles.collectionDot,
-                          badge.unlockedAt
+                          earnedBadgeIds.has(badge.id)
                             ? { backgroundColor: RARITY_COLORS[badge.rarity] }
                             : { backgroundColor: COLORS.surfaceHighlight },
                         ]}
@@ -226,7 +263,7 @@ export default function InventoryScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  header: { paddingTop: 60, paddingHorizontal: SPACING.xl, paddingBottom: SPACING.lg },
+  header: { paddingHorizontal: SPACING.xl, paddingBottom: SPACING.lg },
   headerTitle: { fontSize: FONT_SIZE.xxl, fontWeight: FONT_WEIGHT.bold, color: COLORS.textPrimary },
 
   // ── Tabs ──
@@ -285,7 +322,6 @@ const styles = StyleSheet.create({
   itemHeader: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
   itemName: { fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.semibold, color: COLORS.textPrimary },
   itemRarity: { fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.semibold },
-  itemDesc: { fontSize: FONT_SIZE.sm, color: COLORS.textMuted, marginTop: 2 },
   itemQty: { fontSize: FONT_SIZE.xs, color: COLORS.textSecondary, marginTop: 4 },
   useBtn: {
     backgroundColor: COLORS.primary,

@@ -1,25 +1,8 @@
-// API Response wrapper types
-
-export interface ApiResponse<T> {
-  success: boolean;
-  data: T;
-  message: string | null;
-}
-
-export interface PaginatedResponse<T> {
-  items: T[];
-  total: number;
-  page: number;
-  pageSize: number;
-  hasMore: boolean;
-}
-
 export interface NearbyEventsRequest {
   latitude: number;
   longitude: number;
-  radius?: number; // meters, default 5000
+  radiusKm?: number;
   category?: string;
-  status?: string;
 }
 
 export interface CheckInRequest {
@@ -29,14 +12,13 @@ export interface CheckInRequest {
 }
 
 export interface CreateCharacterRequest {
-  name: string;
-  characterClass: string;
-  appearance: Record<string, unknown>;
+  name: '도담' | '나래' | '하람' | '별찌';
+  characterType: string;
 }
 
-export interface ApiError {
-  success: false;
-  message: string;
-  code: string;
-  statusCode: number;
+export interface CompleteMissionRequest {
+  missionId: string;
+  eventId: string;
+  answer?: string;
+  proofUrl?: string;
 }
