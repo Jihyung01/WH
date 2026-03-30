@@ -19,7 +19,10 @@ import { HONGDAE_REGION, getDistance } from '../../src/utils/geo';
 import { MAP_REFETCH_DISTANCE_M } from '../../src/utils/constants';
 import { SPACING, FONT_WEIGHT, SHADOWS, BRAND } from '../../src/config/theme';
 import { useTheme } from '../../src/providers/ThemeProvider';
-import { EventMarker, UserLocationMarker, EventBottomSheet, GpsBanner } from '../../src/components/map';
+import { EventMarker, UserLocationMarker, EventBottomSheet, GpsBanner, FriendMarker } from '../../src/components/map';
+import { getFriendLocations, subscribeToFriendLocations } from '../../src/services/friendLocation';
+import type { FriendLocation } from '../../src/services/friendLocation';
+import { getFriends } from '../../src/lib/api';
 import { getMapStyle } from '../../src/components/map/mapStyle';
 import { MapLoadingOverlay } from '../../src/components/ui';
 import { registerGeofences } from '../../src/services/geofencing';
@@ -51,6 +54,7 @@ export default function MapScreen() {
 
   const { showTutorial, completeTutorial } = useTutorial();
   const [mapReady, setMapReady] = useState(false);
+  const [friendLocations, setFriendLocations] = useState<FriendLocation[]>([]);
   const userHeading = useLocationStore((s) => s.heading);
   const bgLocationEnabled = useNotificationStore((s) => s.backgroundLocationEnabled);
 
@@ -65,6 +69,30 @@ export default function MapScreen() {
       }
       startTracking();
     })();
+  }, []);
+
+  // ── Load friend locations ──
+  useEffect(() => {
+    let unsubscribe: (() => void) | null = null;
+
+    async function initFriendLocations() {
+      try {
+        const { friends } = await getFriends();
+        if (friends.length === 0) return;
+
+        const locations = await getFriendLocations();
+        setFriendLocations(locations);
+
+        const friendIds = friends.map((f) => f.user_id);
+        unsubscribe = subscribeToFriendLocations(friendIds, setFriendLocations);
+      } catch {}
+    }
+
+    initFriendLocations();
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, []);
 
   // ── Register geofences when events update ──
@@ -228,6 +256,11 @@ export default function MapScreen() {
             userLocation={currentPosition}
             onPress={onMarkerPress}
           />
+        ))}
+
+        {/* Friend location markers */}
+        {friendLocations.map((friend) => (
+          <FriendMarker key={friend.user_id} friend={friend} />
         ))}
       </ClusteredMapView>
 

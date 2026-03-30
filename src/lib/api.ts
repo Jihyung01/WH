@@ -832,3 +832,17 @@ export async function leaveCrew(): Promise<{ success: boolean }> {
 export async function getPersonalizedRecommendations(): Promise<(Event & { event_id: string; score: number })[]> {
   return invokeEdgeFunction<(Event & { event_id: string; score: number })[]>('recommend-events', {});
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 21. Friend Locations
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function updateMyLocation(lat: number, lng: number): Promise<void> {
+  const { error } = await supabase.rpc('update_my_location', { p_lat: lat, p_lng: lng });
+  if (error) console.warn('Failed to update location:', error);
+}
+
+export async function toggleLocationSharing(enabled: boolean): Promise<void> {
+  const { error } = await supabase.rpc('toggle_location_sharing', { p_enabled: enabled });
+  if (error) console.warn('Failed to toggle location sharing:', error);
+}

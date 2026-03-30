@@ -12,6 +12,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Modal,
+  Switch,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -29,6 +30,11 @@ import {
   joinCrew,
   leaveCrew,
 } from '../src/lib/api';
+import {
+  startLocationSharing,
+  stopLocationSharing,
+  isLocationSharingActive,
+} from '../src/services/friendLocation';
 import type { FriendsResult, FriendInfo, MyCrewResult, CrewMember } from '../src/lib/api';
 import {
   COLORS,
@@ -127,6 +133,18 @@ function FriendsTab({
   const [searchText, setSearchText] = useState('');
   const [sending, setSending] = useState(false);
   const [respondingIds, setRespondingIds] = useState<Set<string>>(new Set());
+  const [locationSharingEnabled, setLocationSharingEnabled] = useState(isLocationSharingActive);
+
+  const handleLocationToggle = async (value: boolean) => {
+    if (value) {
+      const granted = await startLocationSharing();
+      setLocationSharingEnabled(granted);
+      if (!granted) onShowToast('위치 권한이 필요해요.', 'error');
+    } else {
+      stopLocationSharing();
+      setLocationSharingEnabled(false);
+    }
+  };
 
   const handleSendRequest = async () => {
     const username = searchText.trim();
@@ -191,6 +209,20 @@ function FriendsTab({
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={BRAND.primary} colors={[BRAND.primary]} />}
       keyboardShouldPersistTaps="handled"
     >
+      {/* Location sharing toggle */}
+      <Animated.View entering={FadeInUp.duration(300)} style={s.locationShareRow}>
+        <View>
+          <Text style={s.locationShareLabel}>📍 실시간 위치 공유</Text>
+          <Text style={s.locationShareDesc}>친구에게 내 위치를 공유합니다</Text>
+        </View>
+        <Switch
+          value={locationSharingEnabled}
+          onValueChange={handleLocationToggle}
+          trackColor={{ false: COLORS.surfaceLight, true: BRAND.primary }}
+          thumbColor="#FFF"
+        />
+      </Animated.View>
+
       {/* Search bar */}
       <Animated.View entering={FadeInUp.duration(300)} style={s.searchRow}>
         <TextInput
@@ -999,6 +1031,29 @@ const s = StyleSheet.create({
     color: COLORS.textPrimary,
     marginBottom: SPACING.md,
     marginTop: SPACING.lg,
+  },
+
+  // Location sharing toggle
+  locationShareRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.md,
+    padding: SPACING.lg,
+    marginBottom: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  locationShareLabel: {
+    fontSize: FONT_SIZE.md,
+    fontWeight: FONT_WEIGHT.semibold,
+    color: COLORS.textPrimary,
+  },
+  locationShareDesc: {
+    fontSize: FONT_SIZE.xs,
+    color: COLORS.textSecondary,
+    marginTop: 2,
   },
 
   // Search bar

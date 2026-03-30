@@ -4,4 +4,5 @@ export { EventBottomSheet } from './EventBottomSheet';
 export { GpsBanner } from './GpsBanner';
 export { CharacterBubble } from './CharacterBubble';
 export { default as ConditionalBadge } from './ConditionalBadge';
+export { default as FriendMarker } from './FriendMarker';
 export { DARK_MAP_STYLE, LIGHT_MAP_STYLE, getMapStyle } from './mapStyle';
