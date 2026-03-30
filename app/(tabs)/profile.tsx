@@ -1,5 +1,13 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, RefreshControl } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  RefreshControl,
+  ActivityIndicator,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -50,7 +58,8 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const [refreshing, setRefreshing] = useState(false);
 
-  const { character, fetchCharacter } = useCharacterStore();
+  const { character, isLoading: characterLoading, error: characterError, fetchCharacter } =
+    useCharacterStore();
   const { stats, leaderboard, visitedLocations, myRank, fetchStats, fetchLeaderboard, fetchVisitedLocations } = useProfileStore();
   const { signOut } = useAuthStore();
 
@@ -94,30 +103,38 @@ export default function ProfileScreen() {
     } catch {}
   }, []);
 
-  if (!character) {
-    return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.loadingEmoji}>🧑‍🚀</Text>
-        <Text style={styles.loadingText}>프로필 로딩 중...</Text>
-      </View>
-    );
-  }
+  const stage = character ? getEvolutionStage(character.level) : 'baby';
+  const emoji = character
+    ? getEvolutionEmoji(character.character_type, stage)
+    : '🧑‍🚀';
+  const title = character
+    ? getLevelTitle(character.character_type, character.level)
+    : '탐험가';
+  const gradient = character
+    ? CLASS_GRADIENTS[character.character_type] ?? CLASS_GRADIENTS[CharacterClass.EXPLORER]
+    : CLASS_GRADIENTS[CharacterClass.EXPLORER];
+  const nextEvo = character ? getNextEvolutionLevel(character.level) : null;
+  const requiredXp = character ? xpForLevel(character.level) : 500;
+  const xpPercent =
+    character && requiredXp > 0
+      ? Math.min((character.xp / requiredXp) * 100, 100)
+      : 0;
 
-  const stage = getEvolutionStage(character.level);
-  const emoji = getEvolutionEmoji(character.character_type, stage);
-  const title = getLevelTitle(character.character_type, character.level);
-  const gradient = CLASS_GRADIENTS[character.character_type] ?? CLASS_GRADIENTS[CharacterClass.EXPLORER];
-  const nextEvo = getNextEvolutionLevel(character.level);
-  const requiredXp = xpForLevel(character.level);
-  const xpPercent = requiredXp > 0 ? Math.min((character.xp / requiredXp) * 100, 100) : 0;
-
-  const statValues: Record<string, number> = {
-    stat_exploration: character.stat_exploration,
-    stat_discovery: character.stat_discovery,
-    stat_knowledge: character.stat_knowledge,
-    stat_connection: character.stat_connection,
-    stat_creativity: character.stat_creativity,
-  };
+  const statValues: Record<string, number> = character
+    ? {
+        stat_exploration: character.stat_exploration,
+        stat_discovery: character.stat_discovery,
+        stat_knowledge: character.stat_knowledge,
+        stat_connection: character.stat_connection,
+        stat_creativity: character.stat_creativity,
+      }
+    : {
+        stat_exploration: 0,
+        stat_discovery: 0,
+        stat_knowledge: 0,
+        stat_connection: 0,
+        stat_creativity: 0,
+      };
   const maxStat = Math.max(...Object.values(statValues), 1);
 
   return (
@@ -137,10 +154,10 @@ export default function ProfileScreen() {
         />
       }
     >
-      {/* Hero */}
-      <LinearGradient colors={[gradient[0] + '30', COLORS.background]} style={[styles.heroSection, { paddingTop: insets.top + 12 }]}>
-        <View style={styles.heroHeader}>
-          <View style={{ width: 40 }} />
+      {/* 탐험 허브 — 항상 맨 위 (캐릭터 로딩/미생성과 무관) */}
+      <View style={[styles.hubSectionTop, { paddingTop: insets.top + 12 }]}>
+        <View style={styles.hubTopRow}>
+          <Text style={styles.screenTitle}>프로필</Text>
           <Pressable
             style={styles.editBtn}
             onPress={() => {
@@ -151,52 +168,6 @@ export default function ProfileScreen() {
             <Ionicons name="settings-outline" size={20} color={COLORS.textPrimary} />
           </Pressable>
         </View>
-
-        <Pressable onPress={handleCharacterTap}>
-          <Animated.View style={[styles.avatarContainer, floatStyle]}>
-            <View style={[styles.avatarCircle, { borderColor: gradient[0] }]}>
-              <Text style={styles.avatarEmoji}>{emoji}</Text>
-            </View>
-            <View style={[styles.levelBadge, { backgroundColor: gradient[0] }]}>
-              <Text style={styles.levelBadgeText}>Lv.{character.level}</Text>
-            </View>
-          </Animated.View>
-        </Pressable>
-
-        <Text style={styles.username}>{character.name}</Text>
-        <Text style={[styles.titleText, { color: gradient[0] }]}>{title}</Text>
-
-        {/* XP bar */}
-        <View style={styles.xpBar}>
-          <View style={styles.xpBarHeader}>
-            <Text style={styles.xpLabel}>Lv.{character.level} → Lv.{character.level + 1}</Text>
-            <Text style={styles.xpNumbers}>{formatNumber(character.xp)} / {formatNumber(requiredXp)} XP</Text>
-          </View>
-          <View style={styles.xpBarTrack}>
-            <LinearGradient colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.xpBarFill, { width: `${xpPercent}%` }]} />
-          </View>
-        </View>
-
-        {nextEvo && (
-          <View style={styles.evoPreview}>
-            <Ionicons name="sparkles" size={14} color={COLORS.primaryLight} />
-            <Text style={styles.evoText}>다음 진화까지 {nextEvo - character.level}레벨!</Text>
-          </View>
-        )}
-      </LinearGradient>
-
-      {/* Activity Stats */}
-      <Animated.View entering={FadeInDown.delay(100)} style={styles.section}>
-        <View style={styles.statsGrid2x2}>
-          <StatCard emoji="🏁" value={`${stats?.events_completed ?? 0}개`} label="총 탐험" />
-          <StatCard emoji="🔥" value={`${stats?.login_streak ?? 0}일`} label="연속 기록" />
-          <StatCard emoji="🏅" value={`${stats?.badges_count ?? 0}개`} label="수집 배지" />
-          <StatCard emoji="📍" value={`${stats?.districts_visited?.length ?? 0}곳`} label="방문 지역" />
-        </View>
-      </Animated.View>
-
-      {/* Phase 2 — 탐험 허브 (소셜·시즌·일지 등 — ROADMAP 연동 진입점) */}
-      <Animated.View entering={FadeInDown.delay(80)} style={styles.section}>
         <Text style={styles.sectionTitle}>탐험 허브</Text>
         <Text style={styles.hubSubtitle}>친구·시즌·일지·프리미엄 등 새 기능으로 이동</Text>
         <View style={styles.hubGrid}>
@@ -254,6 +225,92 @@ export default function ProfileScreen() {
               router.push('/create-event');
             }}
           />
+        </View>
+      </View>
+
+      {characterLoading && !character && (
+        <View style={styles.characterBanner}>
+          <ActivityIndicator />
+          <Text style={styles.characterBannerText}>캐릭터 정보를 불러오는 중...</Text>
+        </View>
+      )}
+
+      {!characterLoading && !character && (
+        <View style={styles.noCharacterCard}>
+          <Text style={styles.noCharacterTitle}>탐험가 프로필이 없어요</Text>
+          <Text style={styles.noCharacterDesc}>
+            {characterError ?? '온보딩에서 캐릭터를 만들면 아래에 통계와 레벨이 표시됩니다.'}
+          </Text>
+          <Pressable
+            style={styles.primaryCta}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              router.push('/(auth)/onboarding');
+            }}
+          >
+            <Text style={styles.primaryCtaText}>캐릭터 만들기</Text>
+          </Pressable>
+          <Pressable
+            style={styles.secondaryCta}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              fetchCharacter();
+            }}
+          >
+            <Text style={styles.secondaryCtaText}>다시 불러오기</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {character && (
+        <>
+      {/* Hero */}
+      <LinearGradient colors={[gradient[0] + '30', COLORS.background]} style={[styles.heroSection, { paddingTop: SPACING.lg }]}>
+        <View style={styles.heroHeader}>
+          <View style={{ width: 40 }} />
+          <View style={{ width: 40 }} />
+        </View>
+
+        <Pressable onPress={handleCharacterTap}>
+          <Animated.View style={[styles.avatarContainer, floatStyle]}>
+            <View style={[styles.avatarCircle, { borderColor: gradient[0] }]}>
+              <Text style={styles.avatarEmoji}>{emoji}</Text>
+            </View>
+            <View style={[styles.levelBadge, { backgroundColor: gradient[0] }]}>
+              <Text style={styles.levelBadgeText}>Lv.{character.level}</Text>
+            </View>
+          </Animated.View>
+        </Pressable>
+
+        <Text style={styles.username}>{character.name}</Text>
+        <Text style={[styles.titleText, { color: gradient[0] }]}>{title}</Text>
+
+        {/* XP bar */}
+        <View style={styles.xpBar}>
+          <View style={styles.xpBarHeader}>
+            <Text style={styles.xpLabel}>Lv.{character.level} → Lv.{character.level + 1}</Text>
+            <Text style={styles.xpNumbers}>{formatNumber(character.xp)} / {formatNumber(requiredXp)} XP</Text>
+          </View>
+          <View style={styles.xpBarTrack}>
+            <LinearGradient colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.xpBarFill, { width: `${xpPercent}%` }]} />
+          </View>
+        </View>
+
+        {nextEvo && (
+          <View style={styles.evoPreview}>
+            <Ionicons name="sparkles" size={14} color={COLORS.primaryLight} />
+            <Text style={styles.evoText}>다음 진화까지 {nextEvo - character.level}레벨!</Text>
+          </View>
+        )}
+      </LinearGradient>
+
+      {/* Activity Stats */}
+      <Animated.View entering={FadeInDown.delay(100)} style={styles.section}>
+        <View style={styles.statsGrid2x2}>
+          <StatCard emoji="🏁" value={`${stats?.events_completed ?? 0}개`} label="총 탐험" />
+          <StatCard emoji="🔥" value={`${stats?.login_streak ?? 0}일`} label="연속 기록" />
+          <StatCard emoji="🏅" value={`${stats?.badges_count ?? 0}개`} label="수집 배지" />
+          <StatCard emoji="📍" value={`${stats?.districts_visited?.length ?? 0}곳`} label="방문 지역" />
         </View>
       </Animated.View>
 
@@ -339,6 +396,9 @@ export default function ProfileScreen() {
         ))}
       </View>
 
+        </>
+      )}
+
       {/* Settings */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>설정</Text>
@@ -408,6 +468,76 @@ const styles = StyleSheet.create({
   loadingContainer: { flex: 1, backgroundColor: COLORS.background, alignItems: 'center', justifyContent: 'center' },
   loadingEmoji: { fontSize: 64, marginBottom: SPACING.lg },
   loadingText: { fontSize: FONT_SIZE.md, color: COLORS.textSecondary },
+
+  hubSectionTop: {
+    paddingHorizontal: SPACING.xl,
+    paddingBottom: SPACING.md,
+  },
+  hubTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: SPACING.lg,
+  },
+  screenTitle: {
+    fontSize: FONT_SIZE.xl,
+    fontWeight: FONT_WEIGHT.bold,
+    color: COLORS.textPrimary,
+  },
+  characterBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.md,
+    paddingVertical: SPACING.lg,
+    marginHorizontal: SPACING.xl,
+    backgroundColor: COLORS.surfaceLight,
+    borderRadius: BORDER_RADIUS.md,
+    marginBottom: SPACING.md,
+  },
+  characterBannerText: { fontSize: FONT_SIZE.sm, color: COLORS.textSecondary },
+  noCharacterCard: {
+    marginHorizontal: SPACING.xl,
+    marginBottom: SPACING.xl,
+    padding: SPACING.xl,
+    backgroundColor: COLORS.surfaceLight,
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.surfaceHighlight,
+  },
+  noCharacterTitle: {
+    fontSize: FONT_SIZE.lg,
+    fontWeight: FONT_WEIGHT.bold,
+    color: COLORS.textPrimary,
+    marginBottom: SPACING.sm,
+  },
+  noCharacterDesc: {
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.textMuted,
+    marginBottom: SPACING.lg,
+    lineHeight: 20,
+  },
+  primaryCta: {
+    backgroundColor: COLORS.primary,
+    paddingVertical: SPACING.md,
+    borderRadius: BORDER_RADIUS.md,
+    alignItems: 'center',
+    marginBottom: SPACING.sm,
+  },
+  primaryCtaText: {
+    fontSize: FONT_SIZE.md,
+    fontWeight: FONT_WEIGHT.bold,
+    color: '#FFFFFF',
+  },
+  secondaryCta: {
+    paddingVertical: SPACING.sm,
+    alignItems: 'center',
+  },
+  secondaryCtaText: {
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.primaryLight,
+    fontWeight: FONT_WEIGHT.semibold,
+  },
 
   heroSection: { paddingBottom: SPACING.xl, alignItems: 'center' },
   heroHeader: {

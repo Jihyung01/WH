@@ -10,7 +10,8 @@ export function initSentry() {
 
   Sentry.init({
     dsn: SENTRY_DSN,
-    debug: __DEV__,
+    // Verbose TouchEvents / integration logs only when explicitly debugging Sentry
+    debug: process.env.EXPO_PUBLIC_SENTRY_DEBUG === '1',
     enabled: !__DEV__,
     tracesSampleRate: 0.2,
     profilesSampleRate: 0.1,

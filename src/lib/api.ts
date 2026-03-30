@@ -175,6 +175,8 @@ export async function getRecommendedEvents(
     p_user_id: user.id,
     p_lat: lat,
     p_lng: lng,
+    // Disambiguate when DB has both 3-arg and 4-arg overloads of this RPC
+    p_limit: 20,
   });
   throwIfError(error, '추천 이벤트를 불러오지 못했습니다.');
   return (data ?? []) as NearbyEvent[];
