@@ -1,10 +1,7 @@
 import { create } from 'zustand';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import { savePushToken } from '../lib/api';
-
-const PREFS_KEY = 'notification_prefs';
-const BG_LOCATION_KEY = 'bg_location_enabled';
-const POWER_SAVE_KEY = 'power_save_mode';
+import { zustandStorage } from './storage';
 
 export interface NotificationPrefs {
   nearbyEvents: boolean;
@@ -26,8 +23,6 @@ interface NotificationState {
   updatePref: (key: keyof NotificationPrefs, value: boolean) => void;
   setBackgroundLocation: (enabled: boolean) => void;
   setPowerSaveMode: (enabled: boolean) => void;
-  loadPrefs: () => Promise<void>;
-  persistPrefs: () => Promise<void>;
 }
 
 const DEFAULT_PREFS: NotificationPrefs = {
@@ -38,56 +33,43 @@ const DEFAULT_PREFS: NotificationPrefs = {
   friendActivity: true,
 };
 
-export const useNotificationStore = create<NotificationState>((set, get) => ({
-  pushToken: null,
-  notifPermission: 'undetermined',
-  prefs: { ...DEFAULT_PREFS },
-  backgroundLocationEnabled: false,
-  powerSaveMode: false,
+export const useNotificationStore = create<NotificationState>()(
+  persist(
+    (set, get) => ({
+      pushToken: null,
+      notifPermission: 'undetermined',
+      prefs: { ...DEFAULT_PREFS },
+      backgroundLocationEnabled: true,
+      powerSaveMode: false,
 
-  setPushToken: (token) => {
-    set({ pushToken: token });
-    if (token) {
-      savePushToken(token).catch((err) => console.warn('Failed to sync push token:', err));
-    }
-  },
-  setPermission: (perm) => set({ notifPermission: perm }),
+      setPushToken: (token) => {
+        set({ pushToken: token });
+        if (token) {
+          savePushToken(token).catch((err) => console.warn('Failed to sync push token:', err));
+        }
+      },
+      setPermission: (perm) => set({ notifPermission: perm }),
 
-  updatePref: (key, value) => {
-    set((state) => ({ prefs: { ...state.prefs, [key]: value } }));
-    get().persistPrefs();
-  },
+      updatePref: (key, value) => {
+        set((state) => ({ prefs: { ...state.prefs, [key]: value } }));
+      },
 
-  setBackgroundLocation: (enabled) => {
-    set({ backgroundLocationEnabled: enabled });
-    AsyncStorage.setItem(BG_LOCATION_KEY, JSON.stringify(enabled)).catch(() => {});
-  },
+      setBackgroundLocation: (enabled) => {
+        set({ backgroundLocationEnabled: enabled });
+      },
 
-  setPowerSaveMode: (enabled) => {
-    set({ powerSaveMode: enabled });
-    AsyncStorage.setItem(POWER_SAVE_KEY, JSON.stringify(enabled)).catch(() => {});
-  },
-
-  loadPrefs: async () => {
-    try {
-      const [prefsJson, bgJson, psJson] = await Promise.all([
-        AsyncStorage.getItem(PREFS_KEY),
-        AsyncStorage.getItem(BG_LOCATION_KEY),
-        AsyncStorage.getItem(POWER_SAVE_KEY),
-      ]);
-      if (prefsJson) set({ prefs: { ...DEFAULT_PREFS, ...JSON.parse(prefsJson) } });
-      if (bgJson) set({ backgroundLocationEnabled: JSON.parse(bgJson) });
-      if (psJson) set({ powerSaveMode: JSON.parse(psJson) });
-    } catch {
-      // defaults are fine
-    }
-  },
-
-  persistPrefs: async () => {
-    try {
-      await AsyncStorage.setItem(PREFS_KEY, JSON.stringify(get().prefs));
-    } catch {
-      // silent
-    }
-  },
-}));
+      setPowerSaveMode: (enabled) => {
+        set({ powerSaveMode: enabled });
+      },
+    }),
+    {
+      name: 'wherehere-notifications',
+      storage: createJSONStorage(() => zustandStorage),
+      partialize: (state) => ({
+        prefs: state.prefs,
+        backgroundLocationEnabled: state.backgroundLocationEnabled,
+        powerSaveMode: state.powerSaveMode,
+      }),
+    },
+  ),
+);

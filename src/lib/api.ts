@@ -262,6 +262,34 @@ export async function generateQuiz(eventId: string): Promise<QuizResult> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// 6-B. AI Batch Event Generation (Edge Function)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface BatchGenerateRequest {
+  district: string;
+  count?: number;
+  categories?: EventCategory[];
+  difficulty_range?: [number, number];
+  partner_name?: string;
+  creator_type?: string;
+}
+
+export interface BatchGenerateResult {
+  success: boolean;
+  district: string;
+  requested: number;
+  generated: number;
+  inserted: number;
+  event_ids: string[];
+}
+
+export async function generateEventsBatch(
+  params: BatchGenerateRequest,
+): Promise<BatchGenerateResult> {
+  return invokeEdgeFunction<BatchGenerateResult>('generate-events-batch', params as Record<string, unknown>);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // 7. Character
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -440,4 +468,186 @@ export async function uploadMissionPhoto(
   } = supabase.storage.from('mission-photos').getPublicUrl(fileName);
 
   return publicUrl;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 14. Daily Rewards & Streak
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface DailyRewardResult {
+  already_claimed: boolean;
+  reward_id?: string;
+  streak_day?: number;
+  xp_earned?: number;
+  base_xp?: number;
+  streak_bonus?: number;
+  bonus_type?: string | null;
+  message: string;
+}
+
+export interface StreakInfo {
+  current_streak: number;
+  claimed_today: boolean;
+  total_days: number;
+  weekly_progress: number;
+  next_milestone: number;
+  next_milestone_bonus: number;
+  days_until_milestone: number;
+}
+
+export async function claimDailyReward(): Promise<DailyRewardResult> {
+  const user = await getCurrentUser();
+  const { data, error } = await supabase.rpc('claim_daily_reward', {
+    p_user_id: user.id,
+  });
+  throwIfError(error, '일일 보상을 받지 못했습니다.');
+  return data as DailyRewardResult;
+}
+
+export async function getStreakInfo(): Promise<StreakInfo> {
+  const user = await getCurrentUser();
+  const { data, error } = await supabase.rpc('get_streak_info', {
+    p_user_id: user.id,
+  });
+  throwIfError(error, '출석 정보를 불러오지 못했습니다.');
+  return data as StreakInfo;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 15. Journals
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface JournalEntry {
+  id: string;
+  journal_date: string;
+  journal_text: string;
+  share_card: {
+    character_name: string;
+    places_visited: string[];
+    xp_earned: number;
+    badges_earned: string[];
+  };
+  events_completed: unknown[];
+  created_at: string;
+}
+
+export interface GenerateJournalResult {
+  journal_text: string;
+  share_card: JournalEntry['share_card'];
+  cached: boolean;
+}
+
+export async function generateJournal(date?: string): Promise<GenerateJournalResult> {
+  return invokeEdgeFunction<GenerateJournalResult>('generate-journal', {
+    date: date ?? new Date().toISOString().split('T')[0],
+  });
+}
+
+export async function getJournals(limit = 30): Promise<JournalEntry[]> {
+  const user = await getCurrentUser();
+  const { data, error } = await supabase
+    .from('journals')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('journal_date', { ascending: false })
+    .limit(limit);
+  throwIfError(error, '탐험 일지를 불러오지 못했습니다.');
+  return (data ?? []) as JournalEntry[];
+}
+
+export async function getJournalByDate(date: string): Promise<JournalEntry | null> {
+  const user = await getCurrentUser();
+  const { data, error } = await supabase
+    .from('journals')
+    .select('*')
+    .eq('user_id', user.id)
+    .eq('journal_date', date)
+    .maybeSingle();
+  throwIfError(error, '탐험 일지를 불러오지 못했습니다.');
+  return data as JournalEntry | null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 16. Character Chat
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface ChatMessage {
+  id: string;
+  character_type: string;
+  user_message: string;
+  ai_reply: string;
+  created_at: string;
+}
+
+export interface ChatReply {
+  reply: string;
+  remaining_chats_today: number;
+}
+
+export async function sendCharacterChat(message: string): Promise<ChatReply> {
+  return invokeEdgeFunction<ChatReply>('character-chat', { message });
+}
+
+export async function getChatHistory(limit = 50): Promise<ChatMessage[]> {
+  const user = await getCurrentUser();
+  const { data, error } = await supabase
+    .from('character_chats')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: true })
+    .limit(limit);
+  throwIfError(error, '대화 기록을 불러오지 못했습니다.');
+  return (data ?? []) as ChatMessage[];
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 17. UGC Events
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface UGCSuggestedEvent {
+  title: string;
+  narrative: string;
+  missions: Array<{
+    step_order: number;
+    mission_type: string;
+    title: string;
+    description: string;
+    config?: Record<string, unknown>;
+  }>;
+  difficulty: number;
+  reward_xp: number;
+}
+
+export interface GenerateUGCResult {
+  suggested_event: UGCSuggestedEvent;
+}
+
+export async function generateUGCEvent(params: {
+  location_name: string;
+  address: string;
+  lat: number;
+  lng: number;
+  category: string;
+  description?: string;
+}): Promise<GenerateUGCResult> {
+  return invokeEdgeFunction<GenerateUGCResult>('generate-ugc-event', params);
+}
+
+export async function saveUGCEvent(params: {
+  title: string;
+  narrative: string;
+  description: string;
+  lat: number;
+  lng: number;
+  address: string;
+  district: string;
+  category: string;
+  difficulty: number;
+  reward_xp: number;
+  missions: UGCSuggestedEvent['missions'];
+}): Promise<{ event_id: string }> {
+  return invokeEdgeFunction<{ event_id: string }>('generate-ugc-event', {
+    action: 'save',
+    event_data: params,
+  });
 }

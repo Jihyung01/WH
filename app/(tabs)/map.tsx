@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useCallback, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Platform } from 'react-native';
-import MapView, { PROVIDER_GOOGLE, type Region } from 'react-native-maps';
+import ClusteredMapView from 'react-native-map-clustering';
+import { PROVIDER_GOOGLE, type Region } from 'react-native-maps';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -13,6 +14,7 @@ import Animated, {
 import { useLocation } from '../../src/hooks/useLocation';
 import { useMapStore } from '../../src/stores/mapStore';
 import { useLocationStore } from '../../src/stores/locationStore';
+import { useNotificationStore } from '../../src/stores/notificationStore';
 import { HONGDAE_REGION, getDistance } from '../../src/utils/geo';
 import { MAP_REFETCH_DISTANCE_M } from '../../src/utils/constants';
 import { SPACING, FONT_WEIGHT, SHADOWS, BRAND } from '../../src/config/theme';
@@ -20,6 +22,7 @@ import { useTheme } from '../../src/providers/ThemeProvider';
 import { EventMarker, UserLocationMarker, EventBottomSheet, GpsBanner } from '../../src/components/map';
 import { getMapStyle } from '../../src/components/map/mapStyle';
 import { MapLoadingOverlay } from '../../src/components/ui';
+import { registerGeofences } from '../../src/services/geofencing';
 import type { NearbyEvent } from '../../src/types';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -47,6 +50,7 @@ export default function MapScreen() {
 
   const [mapReady, setMapReady] = useState(false);
   const userHeading = useLocationStore((s) => s.heading);
+  const bgLocationEnabled = useNotificationStore((s) => s.backgroundLocationEnabled);
 
   // ── Initialise location tracking ──
   useEffect(() => {
@@ -60,6 +64,20 @@ export default function MapScreen() {
       startTracking();
     })();
   }, []);
+
+  // ── Register geofences when events update ──
+  useEffect(() => {
+    if (visibleEvents.length > 0 && bgLocationEnabled) {
+      const geofenceData = visibleEvents.map((e) => ({
+        id: e.id,
+        title: e.title,
+        lat: e.lat,
+        lng: e.lng,
+        category: e.category,
+      }));
+      registerGeofences(geofenceData).catch(() => {});
+    }
+  }, [visibleEvents, bgLocationEnabled]);
 
   // ── Recenter when following user and position changes ──
   useEffect(() => {
@@ -167,8 +185,8 @@ export default function MapScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* ── Map ── */}
-      <MapView
+      {/* ── Map with Clustering ── */}
+      <ClusteredMapView
         ref={mapRef}
         style={styles.map}
         provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
@@ -183,6 +201,14 @@ export default function MapScreen() {
         mapPadding={{ top: 0, right: 0, bottom: 88, left: 0 }}
         rotateEnabled={false}
         pitchEnabled={false}
+        clusterColor={BRAND.primary}
+        clusterTextColor="#FFF"
+        clusterFontFamily={undefined}
+        radius={60}
+        maxZoom={16}
+        minPoints={3}
+        extent={256}
+        animationEnabled={false}
       >
         {/* User location blue dot */}
         {currentPosition && (
@@ -201,7 +227,7 @@ export default function MapScreen() {
             onPress={onMarkerPress}
           />
         ))}
-      </MapView>
+      </ClusteredMapView>
 
       {/* ── GPS Banner ── */}
       <GpsBanner visible={locationPermission === 'denied'} />

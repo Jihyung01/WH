@@ -83,6 +83,9 @@ function AppContent() {
         <Stack.Screen name="mission/[id]" />
         <Stack.Screen name="mission/complete/[id]" options={{ presentation: 'fullScreenModal' }} />
         <Stack.Screen name="reward/[id]" options={{ presentation: 'fullScreenModal' }} />
+        <Stack.Screen name="chat" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="create-event" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="journal" options={{ headerShown: false, animation: 'slide_from_right' }} />
         <Stack.Screen name="settings" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="+not-found" />
       </Stack>

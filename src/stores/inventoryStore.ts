@@ -1,6 +1,8 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import type { UserBadge, Badge, InventoryItem } from '../types/models';
 import { getMyBadges, getAllBadges, getMyInventory } from '../lib/api';
+import { zustandStorage } from './storage';
 
 interface InventoryState {
   userBadges: UserBadge[];
@@ -16,45 +18,58 @@ interface InventoryState {
   clear: () => void;
 }
 
-export const useInventoryStore = create<InventoryState>((set, get) => ({
-  userBadges: [],
-  allBadges: [],
-  items: [],
-  isLoading: false,
-  error: null,
+export const useInventoryStore = create<InventoryState>()(
+  persist(
+    (set, get) => ({
+      userBadges: [],
+      allBadges: [],
+      items: [],
+      isLoading: false,
+      error: null,
 
-  fetchBadges: async () => {
-    try {
-      const data = await getMyBadges();
-      set({ userBadges: data });
-    } catch (err: any) {
-      set({ error: err.message });
-    }
-  },
+      fetchBadges: async () => {
+        try {
+          const data = await getMyBadges();
+          set({ userBadges: data });
+        } catch (err: any) {
+          set({ error: err.message });
+        }
+      },
 
-  fetchAllBadges: async () => {
-    try {
-      const data = await getAllBadges();
-      set({ allBadges: data });
-    } catch (err: any) {
-      set({ error: err.message });
-    }
-  },
+      fetchAllBadges: async () => {
+        try {
+          const data = await getAllBadges();
+          set({ allBadges: data });
+        } catch (err: any) {
+          set({ error: err.message });
+        }
+      },
 
-  fetchItems: async () => {
-    try {
-      const data = await getMyInventory();
-      set({ items: data });
-    } catch (err: any) {
-      set({ error: err.message });
-    }
-  },
+      fetchItems: async () => {
+        try {
+          const data = await getMyInventory();
+          set({ items: data });
+        } catch (err: any) {
+          set({ error: err.message });
+        }
+      },
 
-  fetchAll: async () => {
-    set({ isLoading: true, error: null });
-    await Promise.all([get().fetchBadges(), get().fetchAllBadges(), get().fetchItems()]);
-    set({ isLoading: false });
-  },
+      fetchAll: async () => {
+        set({ isLoading: true, error: null });
+        await Promise.all([get().fetchBadges(), get().fetchAllBadges(), get().fetchItems()]);
+        set({ isLoading: false });
+      },
 
-  clear: () => set({ userBadges: [], allBadges: [], items: [], error: null }),
-}));
+      clear: () => set({ userBadges: [], allBadges: [], items: [], error: null }),
+    }),
+    {
+      name: 'wherehere-inventory',
+      storage: createJSONStorage(() => zustandStorage),
+      partialize: (state) => ({
+        userBadges: state.userBadges,
+        allBadges: state.allBadges,
+        items: state.items,
+      }),
+    },
+  ),
+);

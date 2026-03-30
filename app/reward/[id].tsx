@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Dimensions, Modal } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -21,6 +21,8 @@ import { useCharacterStore, getEvolutionStage, getEvolutionEmoji, getLevelTitle 
 import { completeEvent } from '../../src/lib/api';
 import type { CompleteEventResult } from '../../src/types';
 import { COLORS, SPACING, FONT_SIZE, FONT_WEIGHT, BORDER_RADIUS, SHADOWS } from '../../src/config/theme';
+import ShareJournalCard from '../../src/components/share/ShareJournalCard';
+import { useShareJournal } from '../../src/hooks/useShareJournal';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -45,11 +47,13 @@ export default function RewardRevealScreen() {
   const router = useRouter();
 
   const { character, fetchCharacter } = useCharacterStore();
+  const { shareData, isReady: shareReady, prepare: prepareShare, clear: clearShare } = useShareJournal();
 
   const [phase, setPhase] = useState<Phase>('gathering');
   const [xpDisplayed, setXpDisplayed] = useState(0);
   const [rewardData, setRewardData] = useState<CompleteEventResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   // Particle animations
   const particleOpacity = useSharedValue(0);
@@ -109,6 +113,9 @@ export default function RewardRevealScreen() {
       await sleep(2500);
       await fetchCharacter();
     }
+
+    // Prepare share data in background
+    prepareShare(id!, '탐험', result);
 
     setPhase('done');
   }
@@ -232,6 +239,18 @@ export default function RewardRevealScreen() {
       {/* CTA */}
       {!error && phase === 'done' && (
         <Animated.View entering={FadeIn.delay(300)} style={styles.footer}>
+          {shareReady && (
+            <Pressable
+              style={styles.shareCtaBtn}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                setShowShareModal(true);
+              }}
+            >
+              <Ionicons name="share-social" size={20} color="#FFF" />
+              <Text style={styles.shareCtaBtnText}>탐험 일지 공유하기</Text>
+            </Pressable>
+          )}
           <Pressable
             style={styles.ctaBtn}
             onPress={() => {
@@ -243,6 +262,21 @@ export default function RewardRevealScreen() {
           </Pressable>
         </Animated.View>
       )}
+
+      {/* Share journal modal */}
+      <Modal
+        visible={showShareModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowShareModal(false)}
+      >
+        {shareData && (
+          <ShareJournalCard
+            data={shareData}
+            onClose={() => setShowShareModal(false)}
+          />
+        )}
+      </Modal>
     </View>
   );
 }
@@ -388,6 +422,21 @@ const styles = StyleSheet.create({
     left: SPACING.xl,
     right: SPACING.xl,
     zIndex: 5,
+  },
+  shareCtaBtn: {
+    flexDirection: 'row',
+    backgroundColor: '#E1306C',
+    paddingVertical: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: SPACING.sm,
+  },
+  shareCtaBtnText: {
+    fontSize: FONT_SIZE.md,
+    fontWeight: FONT_WEIGHT.bold,
+    color: '#FFF',
   },
   ctaBtn: {
     backgroundColor: COLORS.primary,

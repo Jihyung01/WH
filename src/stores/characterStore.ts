@@ -1,6 +1,8 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import { getMyCharacter, createCharacter as apiCreateCharacter } from '../lib/api';
 import type { Character } from '../types';
+import { zustandStorage } from './storage';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Evolution helpers
@@ -66,37 +68,48 @@ interface CharacterState {
   clear: () => void;
 }
 
-export const useCharacterStore = create<CharacterState>((set) => ({
-  character: null,
-  isLoading: false,
-  error: null,
+export const useCharacterStore = create<CharacterState>()(
+  persist(
+    (set) => ({
+      character: null,
+      isLoading: false,
+      error: null,
 
-  fetchCharacter: async () => {
-    try {
-      set({ isLoading: true, error: null });
-      const character = await getMyCharacter();
-      set({ character });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : '캐릭터 정보를 불러오지 못했습니다.';
-      set({ error: message });
-    } finally {
-      set({ isLoading: false });
-    }
-  },
+      fetchCharacter: async () => {
+        try {
+          set({ isLoading: true, error: null });
+          const character = await getMyCharacter();
+          set({ character });
+        } catch (err) {
+          const message = err instanceof Error ? err.message : '캐릭터 정보를 불러오지 못했습니다.';
+          set({ error: message });
+        } finally {
+          set({ isLoading: false });
+        }
+      },
 
-  createNewCharacter: async (name, characterType) => {
-    try {
-      set({ isLoading: true, error: null });
-      const character = await apiCreateCharacter(name, characterType);
-      set({ character });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : '캐릭터 생성에 실패했습니다.';
-      set({ error: message });
-      throw err;
-    } finally {
-      set({ isLoading: false });
-    }
-  },
+      createNewCharacter: async (name, characterType) => {
+        try {
+          set({ isLoading: true, error: null });
+          const character = await apiCreateCharacter(name, characterType);
+          set({ character });
+        } catch (err) {
+          const message = err instanceof Error ? err.message : '캐릭터 생성에 실패했습니다.';
+          set({ error: message });
+          throw err;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
 
-  clear: () => set({ character: null, isLoading: false, error: null }),
-}));
+      clear: () => set({ character: null, isLoading: false, error: null }),
+    }),
+    {
+      name: 'wherehere-character',
+      storage: createJSONStorage(() => zustandStorage),
+      partialize: (state) => ({
+        character: state.character,
+      }),
+    },
+  ),
+);
