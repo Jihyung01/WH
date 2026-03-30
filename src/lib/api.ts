@@ -656,62 +656,6 @@ export async function saveUGCEvent(params: {
 // 18. Season Pass
 // ─────────────────────────────────────────────────────────────────────────────
 
-export interface SeasonReward {
-  level: number;
-  track: 'free' | 'premium';
-  reward_type: 'xp' | 'skin' | 'badge' | 'effect' | 'item' | 'currency';
-  reward_name: string;
-  reward_icon: string;
-  reward_amount: number;
-  claimed: boolean;
-}
-
-export interface ActiveSeasonResult {
-  id: string;
-  name: string;
-  description: string;
-  theme_color: string;
-  starts_at: string;
-  ends_at: string;
-  max_level: number;
-  user_level: number;
-  user_xp: number;
-  xp_per_level: number;
-  xp_current_level: number;
-  is_premium: boolean;
-  total_xp_earned: number;
-  events_completed: number;
-  days_active: number;
-  rewards: SeasonReward[];
-}
-
-export async function getActiveSeason(): Promise<ActiveSeasonResult | null> {
-  const user = await getCurrentUser();
-  const { data, error } = await supabase.rpc('get_active_season', {
-    p_user_id: user.id,
-  });
-  throwIfError(error, '시즌 패스 정보를 불러오지 못했습니다.');
-  return data as ActiveSeasonResult | null;
-}
-
-export async function claimSeasonReward(
-  level: number,
-  track: 'free' | 'premium' = 'free',
-): Promise<{ success: boolean; reward: SeasonReward }> {
-  const user = await getCurrentUser();
-  const { data, error } = await supabase.rpc('claim_season_reward', {
-    p_user_id: user.id,
-    p_level: level,
-    p_track: track,
-  });
-  throwIfError(error, '시즌 보상을 받지 못했습니다.');
-  return data as { success: boolean; reward: SeasonReward };
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 18. Season Pass
-// ─────────────────────────────────────────────────────────────────────────────
-
 export interface SeasonInfo {
   id: string;
   name: string;
@@ -756,7 +700,7 @@ export interface SeasonXPResult {
   reason?: string;
 }
 
-export async function getSeasonInfo(): Promise<ActiveSeasonResult> {
+export async function getActiveSeason(): Promise<ActiveSeasonResult> {
   const user = await getCurrentUser();
   const { data, error } = await supabase.rpc('get_active_season', { p_user_id: user.id });
   throwIfError(error, '시즌 정보를 불러오지 못했습니다.');

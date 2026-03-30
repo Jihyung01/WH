@@ -89,7 +89,6 @@
           "color": "#2DD4A8"
         }
       ],
-      "react-native-purchases"
     ],
     "experiments": {
       "typedRoutes": true
