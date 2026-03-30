@@ -195,6 +195,68 @@ export default function ProfileScreen() {
         </View>
       </Animated.View>
 
+      {/* Phase 2 — 탐험 허브 (소셜·시즌·일지 등 — ROADMAP 연동 진입점) */}
+      <Animated.View entering={FadeInDown.delay(80)} style={styles.section}>
+        <Text style={styles.sectionTitle}>탐험 허브</Text>
+        <Text style={styles.hubSubtitle}>친구·시즌·일지·프리미엄 등 새 기능으로 이동</Text>
+        <View style={styles.hubGrid}>
+          <HubTile
+            emoji="🤝"
+            label="소셜"
+            desc="친구·크루·위치"
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push('/social');
+            }}
+          />
+          <HubTile
+            emoji="🌸"
+            label="시즌 패스"
+            desc="보상 트랙"
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push('/season');
+            }}
+          />
+          <HubTile
+            emoji="📔"
+            label="탐험 일지"
+            desc="AI 일지·공유"
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push('/journal');
+            }}
+          />
+          <HubTile
+            emoji="⭐"
+            label="프리미엄"
+            desc="구독·혜택"
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push('/premium');
+            }}
+          />
+          <HubTile
+            emoji="💬"
+            label="캐릭터 채팅"
+            desc="AI 대화"
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push('/chat');
+            }}
+          />
+          <HubTile
+            emoji="✨"
+            label="이벤트 제안"
+            desc="UGC 생성"
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push('/create-event');
+            }}
+          />
+        </View>
+      </Animated.View>
+
       {/* Growth Stats */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>성장 능력치</Text>
@@ -296,6 +358,26 @@ export default function ProfileScreen() {
   );
 }
 
+function HubTile({
+  emoji,
+  label,
+  desc,
+  onPress,
+}: {
+  emoji: string;
+  label: string;
+  desc: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable style={({ pressed }) => [styles.hubTile, pressed && styles.hubTilePressed]} onPress={onPress}>
+      <Text style={styles.hubTileEmoji}>{emoji}</Text>
+      <Text style={styles.hubTileLabel}>{label}</Text>
+      <Text style={styles.hubTileDesc} numberOfLines={1}>{desc}</Text>
+    </Pressable>
+  );
+}
+
 function StatCard({ emoji, value, label }: { emoji: string; value: string; label: string }) {
   return (
     <View style={styles.stat2x2Card}>
@@ -373,6 +455,30 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.semibold, color: COLORS.primaryLight,
     backgroundColor: COLORS.primary + '20', paddingHorizontal: SPACING.sm, paddingVertical: 2, borderRadius: BORDER_RADIUS.sm,
   },
+
+  hubSubtitle: {
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.textMuted,
+    marginTop: -SPACING.md,
+    marginBottom: SPACING.lg,
+  },
+  hubGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.md,
+  },
+  hubTile: {
+    width: '47%',
+    backgroundColor: COLORS.surfaceLight,
+    borderRadius: BORDER_RADIUS.md,
+    padding: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.surfaceHighlight,
+  },
+  hubTilePressed: { opacity: 0.85 },
+  hubTileEmoji: { fontSize: 22, marginBottom: 4 },
+  hubTileLabel: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.bold, color: COLORS.textPrimary },
+  hubTileDesc: { fontSize: FONT_SIZE.xs, color: COLORS.textMuted, marginTop: 2 },
 
   statsGrid2x2: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.md, paddingHorizontal: SPACING.xl, marginTop: SPACING.lg },
   stat2x2Card: {

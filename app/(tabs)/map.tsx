@@ -289,6 +289,17 @@ export default function MapScreen() {
       <View style={styles.topRight}>
         <Pressable
           style={[styles.iconBtn, { backgroundColor: colors.surface + 'E0' }]}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.push('/social');
+          }}
+          accessibilityLabel="소셜 · 친구 위치"
+          accessibilityRole="button"
+        >
+          <Ionicons name="people-outline" size={22} color={colors.textPrimary} />
+        </Pressable>
+        <Pressable
+          style={[styles.iconBtn, { backgroundColor: colors.surface + 'E0' }]}
           onPress={() => router.push('/settings/notifications')}
           accessibilityLabel="알림 설정"
           accessibilityRole="button"
