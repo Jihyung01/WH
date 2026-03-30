@@ -3,10 +3,6 @@ import type { StateStorage } from 'zustand/middleware';
 
 export const storage = new MMKV({ id: 'wherehere-global-storage' });
 
-/**
- * Zustand persist middleware compatible storage adapter.
- * 10x faster than AsyncStorage for read/write operations.
- */
 export const zustandStorage: StateStorage = {
   setItem: (name, value) => {
     storage.set(name, value);
@@ -19,10 +15,6 @@ export const zustandStorage: StateStorage = {
   },
 };
 
-/**
- * Supabase Auth compatible storage adapter (async interface).
- * Replaces @react-native-async-storage/async-storage for auth session persistence.
- */
 export const supabaseStorage = {
   getItem: (key: string): Promise<string | null> => {
     return Promise.resolve(storage.getString(key) ?? null);

@@ -2,16 +2,15 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { zustandStorage } from './storage';
 import { checkPremiumStatus, getOfferings, purchasePackage, restorePurchases } from '../config/purchases';
-import type { PurchasesPackage } from 'react-native-purchases';
 
 interface PremiumState {
   isPremium: boolean;
   isLoading: boolean;
-  offerings: PurchasesPackage[];
+  offerings: unknown[];
 
   checkStatus: () => Promise<void>;
   loadOfferings: () => Promise<void>;
-  purchase: (pkg: PurchasesPackage) => Promise<{ success: boolean; error?: string }>;
+  purchase: (pkg: unknown) => Promise<{ success: boolean; error?: string }>;
   restore: () => Promise<boolean>;
 }
 
@@ -45,7 +44,7 @@ export const usePremiumStore = create<PremiumState>()(
         }
       },
 
-      purchase: async (pkg: PurchasesPackage) => {
+      purchase: async (pkg: unknown) => {
         set({ isLoading: true });
         try {
           const result = await purchasePackage(pkg);
@@ -63,7 +62,7 @@ export const usePremiumStore = create<PremiumState>()(
       restore: async () => {
         set({ isLoading: true });
         try {
-          const info = await restorePurchases();
+          const info: any = await restorePurchases();
           const isPremium = info?.entitlements?.active?.['premium'] !== undefined;
           set({ isPremium });
           return isPremium;

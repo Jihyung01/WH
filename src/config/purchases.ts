@@ -1,10 +1,10 @@
 import { Platform } from 'react-native';
-import Purchases, { LOG_LEVEL, PurchasesPackage, CustomerInfo } from 'react-native-purchases';
 
 const REVENUECAT_API_KEY_IOS = process.env.EXPO_PUBLIC_REVENUECAT_IOS ?? '';
 const REVENUECAT_API_KEY_ANDROID = process.env.EXPO_PUBLIC_REVENUECAT_ANDROID ?? '';
 
 let isConfigured = false;
+let Purchases: any = null;
 
 export async function initPurchases() {
   const apiKey = Platform.OS === 'ios' ? REVENUECAT_API_KEY_IOS : REVENUECAT_API_KEY_ANDROID;
@@ -15,7 +15,9 @@ export async function initPurchases() {
   }
 
   try {
-    Purchases.setLogLevel(LOG_LEVEL.DEBUG);
+    const mod = await import('react-native-purchases');
+    Purchases = mod.default;
+    Purchases.setLogLevel(mod.LOG_LEVEL.DEBUG);
     await Purchases.configure({ apiKey });
     isConfigured = true;
   } catch (e) {
@@ -24,7 +26,7 @@ export async function initPurchases() {
 }
 
 export async function identifyUser(userId: string) {
-  if (!isConfigured) return;
+  if (!isConfigured || !Purchases) return;
   try {
     await Purchases.logIn(userId);
   } catch (e) {
@@ -33,7 +35,7 @@ export async function identifyUser(userId: string) {
 }
 
 export async function getOfferings() {
-  if (!isConfigured) return null;
+  if (!isConfigured || !Purchases) return null;
   try {
     const offerings = await Purchases.getOfferings();
     return offerings.current;
@@ -43,8 +45,14 @@ export async function getOfferings() {
   }
 }
 
-export async function purchasePackage(pkg: PurchasesPackage): Promise<{ success: boolean; customerInfo?: CustomerInfo; error?: string }> {
-  if (!isConfigured) return { success: false, error: 'not_configured' };
+export interface PurchaseResult {
+  success: boolean;
+  customerInfo?: unknown;
+  error?: string;
+}
+
+export async function purchasePackage(pkg: unknown): Promise<PurchaseResult> {
+  if (!isConfigured || !Purchases) return { success: false, error: 'not_configured' };
   try {
     const result = await Purchases.purchasePackage(pkg);
     return { success: true, customerInfo: result.customerInfo };
@@ -56,22 +64,20 @@ export async function purchasePackage(pkg: PurchasesPackage): Promise<{ success:
   }
 }
 
-export async function restorePurchases(): Promise<CustomerInfo | null> {
-  if (!isConfigured) return null;
+export async function restorePurchases(): Promise<unknown> {
+  if (!isConfigured || !Purchases) return null;
   try {
-    const info = await Purchases.restorePurchases();
-    return info;
+    return await Purchases.restorePurchases();
   } catch (e) {
     console.warn('Restore failed:', e);
     return null;
   }
 }
 
-export async function getCustomerInfo(): Promise<CustomerInfo | null> {
-  if (!isConfigured) return null;
+export async function getCustomerInfo(): Promise<any> {
+  if (!isConfigured || !Purchases) return null;
   try {
-    const info = await Purchases.getCustomerInfo();
-    return info;
+    return await Purchases.getCustomerInfo();
   } catch (e) {
     return null;
   }
@@ -80,7 +86,5 @@ export async function getCustomerInfo(): Promise<CustomerInfo | null> {
 export async function checkPremiumStatus(): Promise<boolean> {
   const info = await getCustomerInfo();
   if (!info) return false;
-  return info.entitlements.active['premium'] !== undefined;
+  return info.entitlements?.active?.['premium'] !== undefined;
 }
-
-export { Purchases };
