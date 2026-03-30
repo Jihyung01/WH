@@ -651,3 +651,240 @@ export async function saveUGCEvent(params: {
     event_data: params,
   });
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 18. Season Pass
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface SeasonReward {
+  level: number;
+  track: 'free' | 'premium';
+  reward_type: 'xp' | 'skin' | 'badge' | 'effect' | 'item' | 'currency';
+  reward_name: string;
+  reward_icon: string;
+  reward_amount: number;
+  claimed: boolean;
+}
+
+export interface ActiveSeasonResult {
+  id: string;
+  name: string;
+  description: string;
+  theme_color: string;
+  starts_at: string;
+  ends_at: string;
+  max_level: number;
+  user_level: number;
+  user_xp: number;
+  xp_per_level: number;
+  xp_current_level: number;
+  is_premium: boolean;
+  total_xp_earned: number;
+  events_completed: number;
+  days_active: number;
+  rewards: SeasonReward[];
+}
+
+export async function getActiveSeason(): Promise<ActiveSeasonResult | null> {
+  const user = await getCurrentUser();
+  const { data, error } = await supabase.rpc('get_active_season', {
+    p_user_id: user.id,
+  });
+  throwIfError(error, '시즌 패스 정보를 불러오지 못했습니다.');
+  return data as ActiveSeasonResult | null;
+}
+
+export async function claimSeasonReward(
+  level: number,
+  track: 'free' | 'premium' = 'free',
+): Promise<{ success: boolean; reward: SeasonReward }> {
+  const user = await getCurrentUser();
+  const { data, error } = await supabase.rpc('claim_season_reward', {
+    p_user_id: user.id,
+    p_level: level,
+    p_track: track,
+  });
+  throwIfError(error, '시즌 보상을 받지 못했습니다.');
+  return data as { success: boolean; reward: SeasonReward };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 18. Season Pass
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface SeasonInfo {
+  id: string;
+  name: string;
+  description: string;
+  theme_color: string;
+  start_date: string;
+  end_date: string;
+  reward_track: SeasonReward[];
+  premium_reward_track: SeasonReward[];
+}
+
+export interface SeasonReward {
+  level: number;
+  type: 'xp' | 'badge' | 'skin';
+  xp?: number;
+  badge_name?: string;
+  skin_id?: string;
+  label: string;
+}
+
+export interface SeasonPassData {
+  id: string;
+  is_premium: boolean;
+  current_level: number;
+  season_xp: number;
+  claimed_rewards: string[];
+}
+
+export interface ActiveSeasonResult {
+  has_active_season: boolean;
+  season?: SeasonInfo;
+  pass?: SeasonPassData;
+  days_remaining?: number;
+}
+
+export interface SeasonXPResult {
+  success: boolean;
+  season_xp?: number;
+  current_level?: number;
+  leveled_up?: boolean;
+  xp_to_next?: number;
+  reason?: string;
+}
+
+export async function getSeasonInfo(): Promise<ActiveSeasonResult> {
+  const user = await getCurrentUser();
+  const { data, error } = await supabase.rpc('get_active_season', { p_user_id: user.id });
+  throwIfError(error, '시즌 정보를 불러오지 못했습니다.');
+  return data as ActiveSeasonResult;
+}
+
+export async function addSeasonXP(xp: number): Promise<SeasonXPResult> {
+  const user = await getCurrentUser();
+  const { data, error } = await supabase.rpc('add_season_xp', { p_user_id: user.id, p_xp: xp });
+  throwIfError(error, '시즌 XP를 추가하지 못했습니다.');
+  return data as SeasonXPResult;
+}
+
+export async function claimSeasonReward(level: number): Promise<{ success: boolean; reward?: SeasonReward; reason?: string }> {
+  const user = await getCurrentUser();
+  const { data, error } = await supabase.rpc('claim_season_reward', { p_user_id: user.id, p_level: level });
+  throwIfError(error, '보상을 수령하지 못했습니다.');
+  return data as { success: boolean; reward?: SeasonReward; reason?: string };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 19. Friends & Crews
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface FriendInfo {
+  friendship_id: string;
+  user_id: string;
+  username: string;
+  avatar_url: string | null;
+  level?: number;
+  character_type?: string;
+}
+
+export interface FriendsResult {
+  friends: FriendInfo[];
+  pending_requests: Array<FriendInfo & { created_at: string }>;
+}
+
+export interface CrewInfo {
+  id: string;
+  name: string;
+  description: string | null;
+  icon_emoji: string;
+  home_district: string | null;
+  total_xp: number;
+  weekly_xp: number;
+  invite_code: string;
+  member_count: number;
+  max_members: number;
+}
+
+export interface CrewMember {
+  user_id: string;
+  username: string;
+  avatar_url: string | null;
+  role: 'leader' | 'officer' | 'member';
+  contribution_xp: number;
+  level?: number;
+  character_type?: string;
+  joined_at: string;
+}
+
+export interface MyCrewResult {
+  has_crew: boolean;
+  crew?: CrewInfo;
+  members?: CrewMember[];
+}
+
+export async function sendFriendRequest(username: string): Promise<{ success: boolean; reason?: string }> {
+  const { data, error } = await supabase.rpc('send_friend_request', { p_username: username });
+  throwIfError(error, '친구 요청을 보내지 못했습니다.');
+  return data as { success: boolean; reason?: string };
+}
+
+export async function respondFriendRequest(friendshipId: string, accept: boolean): Promise<{ success: boolean }> {
+  const { data, error } = await supabase.rpc('respond_friend_request', {
+    p_friendship_id: friendshipId,
+    p_accept: accept,
+  });
+  throwIfError(error, '친구 요청을 처리하지 못했습니다.');
+  return data as { success: boolean };
+}
+
+export async function getFriends(): Promise<FriendsResult> {
+  const user = await getCurrentUser();
+  const { data, error } = await supabase.rpc('get_friends', { p_user_id: user.id });
+  throwIfError(error, '친구 목록을 불러오지 못했습니다.');
+  return data as FriendsResult;
+}
+
+export async function createCrew(name: string, description?: string, emoji?: string, district?: string): Promise<{ success: boolean; crew_id?: string; reason?: string }> {
+  const { data, error } = await supabase.rpc('create_crew', {
+    p_name: name,
+    p_description: description ?? null,
+    p_emoji: emoji ?? '⚔️',
+    p_district: district ?? null,
+  });
+  throwIfError(error, '크루를 생성하지 못했습니다.');
+  return data as { success: boolean; crew_id?: string; reason?: string };
+}
+
+export async function joinCrew(inviteCode: string): Promise<{ success: boolean; crew_id?: string; crew_name?: string; reason?: string }> {
+  const { data, error } = await supabase.rpc('join_crew', { p_invite_code: inviteCode });
+  throwIfError(error, '크루에 가입하지 못했습니다.');
+  return data as { success: boolean; crew_id?: string; crew_name?: string; reason?: string };
+}
+
+export async function getMyCrew(): Promise<MyCrewResult> {
+  const user = await getCurrentUser();
+  const { data, error } = await supabase.rpc('get_my_crew', { p_user_id: user.id });
+  throwIfError(error, '크루 정보를 불러오지 못했습니다.');
+  return data as MyCrewResult;
+}
+
+export async function leaveCrew(): Promise<{ success: boolean }> {
+  const user = await getCurrentUser();
+  const { error } = await supabase
+    .from('crew_members')
+    .delete()
+    .eq('user_id', user.id);
+  throwIfError(error, '크루 탈퇴에 실패했습니다.');
+  return { success: true };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 20. AI Personalized Recommendations
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function getPersonalizedRecommendations(): Promise<(Event & { event_id: string; score: number })[]> {
+  return invokeEdgeFunction<(Event & { event_id: string; score: number })[]>('recommend-events', {});
+}

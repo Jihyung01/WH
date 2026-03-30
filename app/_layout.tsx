@@ -8,6 +8,7 @@ import * as Notifications from 'expo-notifications';
 
 import { initSentry, Sentry } from '../src/config/sentry';
 import { initAnalytics } from '../src/config/analytics';
+import { initPurchases } from '../src/config/purchases';
 import { ThemeProvider, useTheme, useThemeStore } from '../src/providers/ThemeProvider';
 import { notificationService } from '../src/services/notificationService';
 import { useNotificationStore } from '../src/stores/notificationStore';
@@ -26,6 +27,7 @@ function AppContent() {
     async function bootstrap() {
       try {
         await initAnalytics();
+        await initPurchases();
         await useThemeStore.getState().loadOverride();
         await useNotificationStore.getState().loadPrefs();
 
@@ -87,10 +89,14 @@ function AppContent() {
         <Stack.Screen name="event/checkin/[id]" options={{ presentation: 'fullScreenModal' }} />
         <Stack.Screen name="mission/[id]" />
         <Stack.Screen name="mission/complete/[id]" options={{ presentation: 'fullScreenModal' }} />
+        <Stack.Screen name="mission/ar-photo" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
         <Stack.Screen name="reward/[id]" options={{ presentation: 'fullScreenModal' }} />
         <Stack.Screen name="chat" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
         <Stack.Screen name="create-event" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
         <Stack.Screen name="journal" options={{ headerShown: false, animation: 'slide_from_right' }} />
+        <Stack.Screen name="season" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="premium" options={{ presentation: 'modal', headerShown: false, animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="social" options={{ headerShown: false, animation: 'slide_from_right' }} />
         <Stack.Screen name="settings" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="+not-found" />
       </Stack>

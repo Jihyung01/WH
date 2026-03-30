@@ -308,12 +308,12 @@ MAU 10,000명 기준:
 
 ### Phase 2: 성장 엔진 (3~6개월)
 ```
-[ ] 시즌 패스 시스템
-[ ] 친구/크루 시스템
-[ ] 인앱 결제 (RevenueCat)
-[ ] B2B 사업자 대시보드 (Next.js)
-[ ] AI 개인화 추천
-[ ] AR 사진 미션
+[x] 시즌 패스 시스템 ✅ — seasons/season_passes 테이블, 30레벨 보상 트랙, 프리미엄 트랙, 시즌 UI
+[x] 친구/크루 시스템 ✅ — friendships/crews/crew_members 테이블, 친구 요청, 크루 생성/가입, 소셜 UI
+[x] 인앱 결제 (RevenueCat) ✅ — react-native-purchases, premiumStore, 구독 화면
+[x] AI 개인화 추천 ✅ — recommend-events Edge Function, 점수 기반 협업 필터링
+[x] AR 사진 미션 ✅ — expo-camera, 5종 AR 오버레이 프레임, 촬영/미리보기/제출
+[ ] B2B 사업자 대시보드 (Next.js) — 별도 웹 프로젝트로 진행 예정
 ```
 
 ### Phase 3: 플랫폼 확장 (6개월+)
