@@ -88,12 +88,12 @@ Deno.serve(async (req) => {
     }
 
     // ── 1. 프리미엄 확인 ─────────────────────────────────────────────
-    let isPremium = true;
+    let isPremium = false;
     const { data: profile } = await supabase
       .from("profiles")
       .select("is_premium")
       .eq("id", user.id)
-      .single();
+      .maybeSingle();
 
     if (profile && typeof profile.is_premium === "boolean") {
       isPremium = profile.is_premium;
@@ -102,13 +102,18 @@ Deno.serve(async (req) => {
     const dailyLimit = isPremium ? DAILY_LIMIT_PREMIUM : DAILY_LIMIT_FREE;
 
     // ── 2. 캐릭터 정보 ──────────────────────────────────────────────
-    const { data: character } = await supabase
+    const { data: character, error: charErr } = await supabase
       .from("characters")
       .select("name, character_type, level, xp")
       .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
+    if (charErr) {
+      console.error("character-chat character query:", charErr);
+      return json({ error: "캐릭터 정보를 불러오지 못했습니다." }, 500);
+    }
     if (!character) {
       return json({ error: "캐릭터를 먼저 생성해주세요." }, 400);
     }
@@ -160,9 +165,9 @@ Deno.serve(async (req) => {
     }
 
     // ── 5. Claude API 호출 ───────────────────────────────────────────
-    const claudeKey = Deno.env.get("ANTHROPIC_API_KEY");
+    const claudeKey = Deno.env.get("ANTHROPIC_API_KEY")?.trim();
     if (!claudeKey) {
-      return json({ error: "AI 서비스가 설정되지 않았습니다." }, 500);
+      return json({ error: "AI 서비스가 설정되지 않았습니다. (ANTHROPIC_API_KEY)" }, 500);
     }
 
     const systemPrompt = buildSystemPrompt(
@@ -191,7 +196,14 @@ Deno.serve(async (req) => {
     if (!claudeRes.ok) {
       const err = await claudeRes.text();
       console.error("Claude API error:", claudeRes.status, err);
-      return json({ error: "AI 응답 생성에 실패했습니다." }, 502);
+      let hint = "AI 응답 생성에 실패했습니다.";
+      if (claudeRes.status === 401) hint = "Anthropic API 키가 잘못되었습니다.";
+      else if (claudeRes.status === 402 || err.includes("credit")) {
+        hint = "Anthropic 크레딧이 부족합니다. 콘솔에서 충전해 주세요.";
+      } else if (claudeRes.status === 404 || err.includes("model")) {
+        hint = "모델 이름을 확인하세요. (claude-sonnet-4-20250514)";
+      }
+      return json({ error: hint, detail: err.slice(0, 300) }, 502);
     }
 
     const claudeData = await claudeRes.json();

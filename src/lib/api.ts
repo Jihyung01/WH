@@ -74,6 +74,7 @@ async function getAccessToken(): Promise<string> {
 }
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
 async function invokeEdgeFunction<T>(name: string, body: Record<string, unknown>): Promise<T> {
   const token = await getAccessToken();
@@ -81,16 +82,22 @@ async function invokeEdgeFunction<T>(name: string, body: Record<string, unknown>
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
+      apikey: SUPABASE_ANON_KEY,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(body),
   });
 
-  const data = await res.json();
+  let data: { error?: string; reply?: string; remaining_chats_today?: number } = {};
+  try {
+    data = await res.json();
+  } catch {
+    throw new AppError('서버 응답을 해석하지 못했습니다.', 'EDGE_FUNCTION_BAD_RESPONSE', res.status);
+  }
 
   if (!res.ok) {
     throw new AppError(
-      data?.error ?? '서버 오류가 발생했습니다.',
+      typeof data?.error === 'string' ? data.error : '서버 오류가 발생했습니다.',
       'EDGE_FUNCTION_ERROR',
       res.status,
     );

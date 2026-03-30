@@ -30,7 +30,7 @@ import {
   getEvolutionStage,
   getEvolutionEmoji,
 } from '../src/stores/characterStore';
-import { sendCharacterChat, getChatHistory } from '../src/lib/api';
+import { sendCharacterChat, getChatHistory, AppError } from '../src/lib/api';
 import type { ChatMessage } from '../src/lib/api';
 import {
   COLORS,
@@ -174,10 +174,12 @@ export default function ChatScreen() {
       setMessages((prev) => [...prev, aiMsg]);
       setRemainingChats(reply.remaining_chats_today);
     } catch (err) {
+      const detail =
+        err instanceof AppError ? err.message : '잠시 후 다시 시도해주세요.';
       const errorMsg: DisplayMessage = {
         id: `e-${Date.now()}`,
         role: 'ai',
-        text: '죄송해요, 지금은 대답하기 어려워요. 잠시 후 다시 시도해주세요!',
+        text: `⚠️ ${detail}`,
         createdAt: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, errorMsg]);
