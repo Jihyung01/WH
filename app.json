@@ -78,6 +78,7 @@
         "expo-location",
         {
           "locationAlwaysAndWhenInUsePermission": "WhereHere uses your location to show nearby events and verify check-ins.",
+          "isIosBackgroundLocationEnabled": true,
           "isAndroidBackgroundLocationEnabled": true,
           "isAndroidForegroundServiceEnabled": true
         }

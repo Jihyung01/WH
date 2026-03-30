@@ -23,6 +23,8 @@ interface NotificationState {
   updatePref: (key: keyof NotificationPrefs, value: boolean) => void;
   setBackgroundLocation: (enabled: boolean) => void;
   setPowerSaveMode: (enabled: boolean) => void;
+  /** Rehydrate persisted prefs from MMKV (call on app start). */
+  loadPrefs: () => Promise<void>;
 }
 
 const DEFAULT_PREFS: NotificationPrefs = {
@@ -60,6 +62,10 @@ export const useNotificationStore = create<NotificationState>()(
 
       setPowerSaveMode: (enabled) => {
         set({ powerSaveMode: enabled });
+      },
+
+      loadPrefs: async () => {
+        await useNotificationStore.persist.rehydrate();
       },
     }),
     {
