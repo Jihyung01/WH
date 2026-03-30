@@ -301,6 +301,8 @@ export async function getMyCharacter(): Promise<Character | null> {
     .from('characters')
     .select('*')
     .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(1)
     .maybeSingle();
   throwIfError(error, '캐릭터 정보를 불러오지 못했습니다.');
   return data as Character | null;
@@ -342,8 +344,11 @@ export async function getMyProfile(): Promise<Profile> {
     .from('profiles')
     .select('*')
     .eq('id', user.id)
-    .single();
+    .maybeSingle();
   throwIfError(error, '프로필을 불러오지 못했습니다.');
+  if (!data) {
+    throw new AppError('프로필이 없습니다. 다시 로그인해 주세요.', 'PROFILE_MISSING', 404);
+  }
   return data as Profile;
 }
 

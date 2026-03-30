@@ -1,5 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { Stack, useRouter } from 'expo-router';
+
+// Register TaskManager tasks before any screen calls startGeofencingAsync / background location
+import '../src/services/geofencing';
+import '../src/services/backgroundLocation';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StyleSheet } from 'react-native';
