@@ -15,6 +15,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { createCharacter, updateProfile } from '../../src/lib/api';
 import { supabase } from '../../src/config/supabase';
 import { useAuthStore } from '../../src/stores/authStore';
+import { useCharacterStore } from '../../src/stores/characterStore';
 import { COLORS, SPACING, FONT_SIZE, FONT_WEIGHT, BORDER_RADIUS } from '../../src/config/theme';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -170,6 +171,11 @@ export default function OnboardingScreen() {
 
       await updateProfile({ username });
       await createCharacter(selectedCharacter.name, selectedCharacter.type);
+      try {
+        await useCharacterStore.getState().fetchCharacter();
+      } catch {
+        /* 캐릭터는 이미 생성됨; 프로필 탭에서 다시 불러오기 */
+      }
 
       setOnboardingComplete(true);
 
