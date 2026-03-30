@@ -76,7 +76,40 @@ async function getAccessToken(): Promise<string> {
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
+function parseEdgeFunctionErrorBody(
+  status: number,
+  statusText: string,
+  rawText: string,
+  parsed: unknown,
+): string {
+  const o = parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : null;
+  const errStr =
+    (o && typeof o.error === 'string' && o.error) ||
+    (o && typeof o.message === 'string' && o.message) ||
+    (o && typeof o.msg === 'string' && o.msg) ||
+    '';
+  if (errStr) return errStr;
+  if (rawText && rawText.length > 0 && rawText.length < 500 && !rawText.trim().startsWith('<')) {
+    return rawText.trim();
+  }
+  if (status === 401 || status === 403) {
+    return '인증이 만료되었거나 권한이 없습니다. 다시 로그인해 주세요.';
+  }
+  if (status === 404) {
+    return `Edge Function을 찾을 수 없습니다. Supabase에 배포했는지 확인하세요. (${status})`;
+  }
+  return `서버 오류 (${status}${statusText ? ` ${statusText}` : ''})`;
+}
+
 async function invokeEdgeFunction<T>(name: string, body: Record<string, unknown>): Promise<T> {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    throw new AppError(
+      'EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY 가 설정되지 않았습니다.',
+      'EDGE_CONFIG',
+      500,
+    );
+  }
+
   const token = await getAccessToken();
   const res = await fetch(`${SUPABASE_URL}/functions/v1/${name}`, {
     method: 'POST',
@@ -88,22 +121,23 @@ async function invokeEdgeFunction<T>(name: string, body: Record<string, unknown>
     body: JSON.stringify(body),
   });
 
-  let data: { error?: string; reply?: string; remaining_chats_today?: number } = {};
+  const rawText = await res.text();
+  let parsed: unknown = null;
   try {
-    data = await res.json();
+    parsed = rawText ? JSON.parse(rawText) : null;
   } catch {
-    throw new AppError('서버 응답을 해석하지 못했습니다.', 'EDGE_FUNCTION_BAD_RESPONSE', res.status);
+    parsed = null;
   }
 
   if (!res.ok) {
     throw new AppError(
-      typeof data?.error === 'string' ? data.error : '서버 오류가 발생했습니다.',
+      parseEdgeFunctionErrorBody(res.status, res.statusText, rawText, parsed),
       'EDGE_FUNCTION_ERROR',
       res.status,
     );
   }
 
-  return data as T;
+  return (parsed ?? {}) as T;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
