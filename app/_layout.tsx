@@ -6,10 +6,14 @@ import { StyleSheet } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Notifications from 'expo-notifications';
 
+import { initSentry, Sentry } from '../src/config/sentry';
+import { initAnalytics } from '../src/config/analytics';
 import { ThemeProvider, useTheme, useThemeStore } from '../src/providers/ThemeProvider';
 import { notificationService } from '../src/services/notificationService';
 import { useNotificationStore } from '../src/stores/notificationStore';
 import { backgroundLocationService } from '../src/services/backgroundLocation';
+
+initSentry();
 
 SplashScreen.preventAutoHideAsync();
 
@@ -21,6 +25,7 @@ function AppContent() {
   useEffect(() => {
     async function bootstrap() {
       try {
+        await initAnalytics();
         await useThemeStore.getState().loadOverride();
         await useNotificationStore.getState().loadPrefs();
 
@@ -93,7 +98,7 @@ function AppContent() {
   );
 }
 
-export default function RootLayout() {
+function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.container}>
       <ThemeProvider>
@@ -102,6 +107,8 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
+
+export default Sentry.wrap(RootLayout);
 
 const styles = StyleSheet.create({
   container: {

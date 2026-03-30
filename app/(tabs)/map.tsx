@@ -23,6 +23,7 @@ import { EventMarker, UserLocationMarker, EventBottomSheet, GpsBanner } from '..
 import { getMapStyle } from '../../src/components/map/mapStyle';
 import { MapLoadingOverlay } from '../../src/components/ui';
 import { registerGeofences } from '../../src/services/geofencing';
+import { TutorialOverlay, useTutorial } from '../../src/components/onboarding';
 import type { NearbyEvent } from '../../src/types';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -48,6 +49,7 @@ export default function MapScreen() {
     setRegion,
   } = useMapStore();
 
+  const { showTutorial, completeTutorial } = useTutorial();
   const [mapReady, setMapReady] = useState(false);
   const userHeading = useLocationStore((s) => s.heading);
   const bgLocationEnabled = useNotificationStore((s) => s.backgroundLocationEnabled);
@@ -289,6 +291,13 @@ export default function MapScreen() {
         userLocation={currentPosition}
         onDismiss={onDismiss}
         onChallenge={onChallenge}
+      />
+
+      {/* ── Onboarding Tutorial ── */}
+      <TutorialOverlay
+        visible={showTutorial}
+        onComplete={completeTutorial}
+        onSkip={completeTutorial}
       />
     </View>
   );

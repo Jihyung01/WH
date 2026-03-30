@@ -296,9 +296,14 @@ MAU 10,000명 기준:
 [x] 탐험 완료 카카오톡/인스타 공유 ✅ — ShareJournalCard, ViewShot 캡처, 네이티브 공유
 [x] 일일 보상 + 출석 스트릭 ✅ — DB RPC, 7/30/100일 마일스톤, XP 보너스 누적
 [x] AI 이벤트 일괄 생성 백엔드 ✅ — Edge Function + Python CLI (서울 12개 지역 자동 생성)
-[ ] 인터랙티브 온보딩 튜토리얼
-[ ] Sentry 에러 추적
-[ ] Mixpanel 행동 분석
+[x] AI 탐험 일지 + 공유 카드 ✅ — generate-journal Edge Function, journals 테이블, 달력 UI
+[x] 캐릭터 상황별 대사 (토큰 0) ✅ — 4캐릭터 × 10상황 × 5대사, CharacterBubble 컴포넌트
+[x] AI 캐릭터 대화 ✅ — character-chat Edge Function, KakaoTalk 스타일 채팅 UI, 일일 20회 제한
+[x] 날씨/시간 조건부 이벤트 ✅ — visibility_conditions, weather 서비스, ConditionalBadge
+[x] UGC 이벤트 생성 ✅ — generate-ugc-event Edge Function, 4단계 생성 위자드, AI 보조
+[x] 인터랙티브 온보딩 튜토리얼 ✅ — 5단계 가이드 오버레이, 스킵/자동진행
+[x] Sentry 에러 추적 ✅ — @sentry/react-native 연동, 네비게이션 추적
+[x] Mixpanel 행동 분석 ✅ — mixpanel-react-native 연동, 핵심 이벤트 트래킹
 ```
 
 ### Phase 2: 성장 엔진 (3~6개월)
@@ -306,10 +311,8 @@ MAU 10,000명 기준:
 [ ] 시즌 패스 시스템
 [ ] 친구/크루 시스템
 [ ] 인앱 결제 (RevenueCat)
-[ ] UGC 이벤트 등록
 [ ] B2B 사업자 대시보드 (Next.js)
 [ ] AI 개인화 추천
-[ ] AI 가이드 캐릭터 (채팅형)
 [ ] AR 사진 미션
 ```
 
