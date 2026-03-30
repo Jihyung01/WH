@@ -89,6 +89,12 @@
           "color": "#2DD4A8"
         }
       ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "WhereHere needs camera access for AR photo missions."
+        }
+      ],
     ],
     "experiments": {
       "typedRoutes": true
