@@ -71,6 +71,9 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) return json({ error: "인증 토큰이 필요합니다." }, 401);
 
+    const jwt = authHeader.replace(/^Bearer\s+/i, "").trim();
+    if (!jwt) return json({ error: "인증 토큰이 필요합니다." }, 401);
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -79,7 +82,7 @@ Deno.serve(async (req) => {
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
+    } = await supabase.auth.getUser(jwt);
     if (authError || !user) return json({ error: "인증 실패" }, 401);
 
     const { message, area } = await req.json();

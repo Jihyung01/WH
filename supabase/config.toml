@@ -42,3 +42,11 @@ entrypoint = "./functions/send-notification/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/send-notification/*.html" ]
+
+# 게이트웨이 JWT 검증이 RN 세션 토큰과 충돌해 "Invalid JWT"가 나는 경우가 있어 비활성화.
+# 실제 인증은 함수 내부에서 supabase.auth.getUser(jwt)로 수행합니다.
+[functions.character-chat]
+enabled = true
+verify_jwt = false
+import_map = "./functions/character-chat/deno.json"
+entrypoint = "./functions/character-chat/index.ts"

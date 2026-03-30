@@ -1,3 +1,4 @@
+import { FunctionsHttpError } from '@supabase/supabase-js';
 import { supabase } from '../config/supabase';
 import type {
   NearbyEvent,
@@ -64,18 +65,6 @@ async function getCurrentUserOrNull() {
   return user;
 }
 
-async function getAccessToken(): Promise<string> {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session?.access_token)
-    throw new AppError('세션이 만료되었습니다.', 'SESSION_EXPIRED', 401);
-  return session.access_token;
-}
-
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
-
 function parseEdgeFunctionErrorBody(
   status: number,
   statusText: string,
@@ -101,43 +90,69 @@ function parseEdgeFunctionErrorBody(
   return `서버 오류 (${status}${statusText ? ` ${statusText}` : ''})`;
 }
 
+function looksLikeJwtAuthFailure(message: string, rawText: string): boolean {
+  const combined = `${message}\n${rawText}`.toLowerCase();
+  return (
+    combined.includes('jwt') ||
+    combined.includes('invalid token') ||
+    combined.includes('malformed') ||
+    combined.includes('expired')
+  );
+}
+
+/**
+ * `functions.invoke` + SDK `fetchWithAuth`만 사용 (Authorization 중복/불일치 방지).
+ * 호출 전 `getUser()`로 Auth 서버와 동기화해 만료된 `getSession` 토큰을 쓰지 않습니다.
+ */
 async function invokeEdgeFunction<T>(name: string, body: Record<string, unknown>): Promise<T> {
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const { error: userErr } = await supabase.auth.getUser();
+    if (userErr) {
+      if (attempt === 0) {
+        const { error: re } = await supabase.auth.refreshSession();
+        if (re) {
+          throw new AppError('세션이 만료되었습니다. 다시 로그인해 주세요.', 'SESSION_EXPIRED', 401);
+        }
+        continue;
+      }
+      throw new AppError('인증이 필요합니다.', 'AUTH_REQUIRED', 401);
+    }
+
+    const { data, error } = await supabase.functions.invoke<T>(name, { body });
+
+    if (!error) {
+      return (data ?? {}) as T;
+    }
+
+    if (error instanceof FunctionsHttpError) {
+      const res = error.context as Response;
+      const rawText = await res.text();
+      let parsed: unknown = null;
+      try {
+        parsed = rawText ? JSON.parse(rawText) : null;
+      } catch {
+        parsed = null;
+      }
+      const errMsg = parseEdgeFunctionErrorBody(res.status, res.statusText, rawText, parsed);
+      if (
+        attempt === 0 &&
+        res.status === 401 &&
+        looksLikeJwtAuthFailure(errMsg, rawText)
+      ) {
+        await supabase.auth.refreshSession();
+        continue;
+      }
+      throw new AppError(errMsg, 'EDGE_FUNCTION_ERROR', res.status);
+    }
+
     throw new AppError(
-      'EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY 가 설정되지 않았습니다.',
-      'EDGE_CONFIG',
+      error instanceof Error ? error.message : 'Edge Function 호출에 실패했습니다.',
+      'EDGE_FUNCTION_ERROR',
       500,
     );
   }
 
-  const token = await getAccessToken();
-  const res = await fetch(`${SUPABASE_URL}/functions/v1/${name}`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      apikey: SUPABASE_ANON_KEY,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  });
-
-  const rawText = await res.text();
-  let parsed: unknown = null;
-  try {
-    parsed = rawText ? JSON.parse(rawText) : null;
-  } catch {
-    parsed = null;
-  }
-
-  if (!res.ok) {
-    throw new AppError(
-      parseEdgeFunctionErrorBody(res.status, res.statusText, rawText, parsed),
-      'EDGE_FUNCTION_ERROR',
-      res.status,
-    );
-  }
-
-  return (parsed ?? {}) as T;
+  throw new AppError('인증에 실패했습니다. 다시 로그인해 주세요.', 'EDGE_FUNCTION_ERROR', 401);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
