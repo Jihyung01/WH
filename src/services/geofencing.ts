@@ -92,7 +92,9 @@ function markNotified(eventId: string): void {
   storage.set(getCooldownKey(eventId), Date.now());
 }
 
-// Background task definition — must be at module top level
+// Background task definition — must be at module top level.
+// Guard duplicate registrations to avoid startup fatal errors.
+if (!TaskManager.isTaskDefined(GEOFENCE_TASK)) {
 TaskManager.defineTask(GEOFENCE_TASK, async ({ data, error }) => {
   if (error) {
     console.error('[Geofence] Task error:', error.message);
@@ -135,6 +137,7 @@ TaskManager.defineTask(GEOFENCE_TASK, async ({ data, error }) => {
     console.error('[Geofence] Notification error:', err);
   }
 });
+}
 
 /**
  * Register nearby events as geofence regions.

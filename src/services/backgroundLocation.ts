@@ -63,6 +63,8 @@ async function getCachedEvents(): Promise<StoredEvent[]> {
 }
 
 // ── Define the background task ──
+// Guard duplicate registrations to avoid startup fatal errors.
+if (!TaskManager.isTaskDefined(BG_LOCATION_TASK)) {
 TaskManager.defineTask(BG_LOCATION_TASK, async ({ data, error }) => {
   if (error) return;
   if (!data) return;
@@ -99,6 +101,7 @@ TaskManager.defineTask(BG_LOCATION_TASK, async ({ data, error }) => {
     }
   }
 });
+}
 
 export const backgroundLocationService = {
   /**
