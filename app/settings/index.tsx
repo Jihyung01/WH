@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
 import { useAuthStore } from '../../src/stores/authStore';
+import { deleteAccount } from '../../src/lib/api';
 import { useNotificationStore, type NotificationPrefs } from '../../src/stores/notificationStore';
 import { notificationService } from '../../src/services/notificationService';
 import { backgroundLocationService } from '../../src/services/backgroundLocation';
@@ -12,6 +13,12 @@ import { useTheme, useThemeStore } from '../../src/providers/ThemeProvider';
 import { PressableScale } from '../../src/components/ui';
 import { BRAND, SPACING, FONT_SIZE, FONT_WEIGHT, BORDER_RADIUS, SHADOWS, A11Y } from '../../src/config/theme';
 import type { ColorMode } from '../../src/config/theme';
+
+/** 노션 공개 페이지 (notion.site — 시크릿/비로그인 접근용) */
+const PRIVACY_POLICY_URL =
+  'https://jungle-bearskin-b04.notion.site/335048355db7806eab9af84e3afe8f16';
+const TERMS_OF_SERVICE_URL =
+  'https://jungle-bearskin-b04.notion.site/335048355db7806eab9af84e3afe8f16';
 
 const NOTIF_ROWS: { key: keyof NotificationPrefs; label: string; desc: string; icon: string }[] = [
   { key: 'nearbyEvents', label: '주변 이벤트 알림', desc: '근처 이벤트 발견 시 알림', icon: 'location' },
@@ -112,6 +119,39 @@ export default function SettingsScreen() {
       { text: '취소', style: 'cancel' },
       { text: '로그아웃', style: 'destructive', onPress: async () => { try { await signOut(); router.replace('/(auth)/welcome'); } catch {} } },
     ]);
+  };
+
+  const handleDeleteAccount = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    Alert.alert(
+      '계정 삭제',
+      '정말 계정을 삭제하시겠습니까?\n\n모든 데이터가 영구적으로 삭제되며 복구할 수 없습니다.',
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '삭제',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert('최종 확인', '이 작업은 되돌릴 수 없습니다. 계속하시겠습니까?', [
+              { text: '취소', style: 'cancel' },
+              {
+                text: '계정 영구 삭제',
+                style: 'destructive',
+                onPress: async () => {
+                  try {
+                    await deleteAccount();
+                    await signOut();
+                    router.replace('/(auth)/welcome');
+                  } catch {
+                    Alert.alert('오류', '계정 삭제 중 문제가 발생했습니다. 다시 시도해주세요.');
+                  }
+                },
+              },
+            ]);
+          },
+        },
+      ],
+    );
   };
 
   const switchTrack = { false: colors.surfaceHighlight, true: BRAND.primary };
@@ -283,21 +323,21 @@ export default function SettingsScreen() {
         <View style={[styles.group, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Pressable
             style={[styles.row, { borderBottomColor: colors.surfaceHighlight }]}
-            onPress={() => {}}
+            onPress={() => Linking.openURL(PRIVACY_POLICY_URL)}
             accessibilityLabel="개인정보 처리방침"
           >
             <Ionicons name="document-text-outline" size={20} color={colors.textSecondary} />
             <Text style={[styles.rowLabel, { flex: 1, color: colors.textPrimary }]}>개인정보 처리방침</Text>
-            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+            <Ionicons name="open-outline" size={16} color={colors.textMuted} />
           </Pressable>
           <Pressable
             style={[styles.row, { borderBottomColor: colors.surfaceHighlight }]}
-            onPress={() => {}}
+            onPress={() => Linking.openURL(TERMS_OF_SERVICE_URL)}
             accessibilityLabel="이용약관"
           >
             <Ionicons name="reader-outline" size={20} color={colors.textSecondary} />
             <Text style={[styles.rowLabel, { flex: 1, color: colors.textPrimary }]}>이용약관</Text>
-            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+            <Ionicons name="open-outline" size={16} color={colors.textMuted} />
           </Pressable>
           <View style={[styles.row, { borderBottomColor: 'transparent' }]}>
             <Ionicons name="information-circle-outline" size={20} color={colors.textSecondary} />
@@ -316,6 +356,16 @@ export default function SettingsScreen() {
         >
           <Ionicons name="log-out-outline" size={18} color={colors.error} />
           <Text style={[styles.logoutText, { color: colors.error }]}>로그아웃</Text>
+        </PressableScale>
+
+        <PressableScale
+          style={[styles.deleteBtn, { borderColor: colors.error + '40' }]}
+          onPress={handleDeleteAccount}
+          accessibilityLabel="계정 삭제"
+          accessibilityRole="button"
+        >
+          <Ionicons name="trash-outline" size={18} color={colors.error} />
+          <Text style={[styles.deleteBtnText, { color: colors.error }]}>계정 삭제</Text>
         </PressableScale>
 
         <View style={{ height: 48 }} />
@@ -424,5 +474,19 @@ const styles = StyleSheet.create({
   logoutText: {
     fontSize: FONT_SIZE.md,
     fontWeight: FONT_WEIGHT.semibold,
+  },
+  deleteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.sm,
+    paddingVertical: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg,
+    marginTop: SPACING.sm,
+    borderWidth: 1,
+  },
+  deleteBtnText: {
+    fontSize: FONT_SIZE.sm,
+    fontWeight: FONT_WEIGHT.medium,
   },
 });

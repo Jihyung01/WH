@@ -2,6 +2,13 @@
 
 > iOS App Store + Google Play 공통 기준. 플랫폼별 차이는 각 섹션에 명시.
 
+### 법적 고지 URL (Notion)
+
+앱 `설정`과 동일하게 아래를 사용합니다. **노션 페이지에서 「웹에 게시」**를 켜야 스토어 심사·비로그인 사용자가 열 수 있습니다.
+
+- **개인정보 / 약관 (동일 페이지):** [https://jungle-bearskin-b04.notion.site/335048355db7806eab9af84e3afe8f16](https://jungle-bearskin-b04.notion.site/335048355db7806eab9af84e3afe8f16)
+- 약관만 별도 노션 페이지로 쪼갤 경우 `app/settings/index.tsx`의 `TERMS_OF_SERVICE_URL`만 바꾸면 됩니다.
+
 ---
 
 ## 앱 기본 정보
@@ -39,6 +46,52 @@ WhereHere — 탐험 미션 도시 게임
 ```
 
 ### 설명 (4000자 이내)
+
+> **App Store Connect 오류** (`영어(미국) - 설명 - 유효하지 않은 문자`):  
+> **영어(미국)** 로컬에는 **영문과 기본 문장 부호만** 넣으세요. 한글·이모지·장식용 줄(`───`)·`[ ]` 괄호·스마트 따옴표·긴 대시 `—` 는 **한국어 탭**용으로 두고, 영어 탭에는 **아래 "영어(미국) 전용" 블록**만 붙여넣습니다.
+
+#### 영어 (미국) 전용 — 설명 (복사용, ASCII 위주)
+
+```
+Start exploring here and now with WhereHere.
+
+WhereHere is a location-based exploration game built around Seoul streets and landmarks. Visit real places, complete missions, and grow your character.
+
+Explore on foot
+GPS helps verify your visits in real time. Discover nearby events on the map and visit them in person. Hidden spots across Seoul are waiting for you.
+
+Missions
+- Photo missions: take a photo at a specific place to verify.
+- Quiz missions: answer questions about local history and culture.
+- Check-in missions: complete with on-site GPS verification.
+Earn XP, coins, and special badges when you finish missions.
+
+Grow your character
+Choose one of four companions and develop exploration, charm, stamina, and luck. Collect gear and costumes to build your style.
+
+Rewards
+- Badge collections for regions and mission types
+- Level-up rewards
+- Seasonal limited content
+
+Everyday exploration
+WhereHere turns everyday movement into exploration: commutes, weekends, and trips.
+
+Download now and begin your first adventure.
+
+Permissions
+- Location (required): nearby events and check-in verification.
+- Camera (optional): photo missions.
+- Notifications (optional): nearby event alerts.
+- Background location (optional): automatic nearby event alerts.
+
+Privacy Policy: https://jungle-bearskin-b04.notion.site/335048355db7806eab9af84e3afe8f16
+Terms of Use: https://jungle-bearskin-b04.notion.site/335048355db7806eab9af84e3afe8f16
+Support: ekzmwlgud@naver.com
+```
+
+#### 한국어 — 설명 (한국어 로컬 탭에만 붙여넣기)
+
 ```
 여기, 지금, 탐험을 시작하세요 — WhereHere
 
@@ -90,8 +143,8 @@ WhereHere와 함께라면 일상적인 이동이 탐험이 됩니다.
 • 카메라 권한: 포토 미션 촬영에 사용됩니다 (선택).
 • 알림 권한: 주변 이벤트 도착 알림에 사용됩니다 (선택).
 
-개인정보처리방침: https://wherehere.app/privacy
-이용약관: https://wherehere.app/terms
+개인정보처리방침: https://jungle-bearskin-b04.notion.site/335048355db7806eab9af84e3afe8f16
+이용약관: https://jungle-bearskin-b04.notion.site/335048355db7806eab9af84e3afe8f16
 ```
 
 ### 키워드 (100자 이내, 쉼표 구분)
@@ -101,12 +154,13 @@ WhereHere와 함께라면 일상적인 이동이 탐험이 됩니다.
 
 ### 지원 URL
 ```
-https://wherehere.app/support
+mailto:ekzmwlgud@naver.com
 ```
+(또는 추후 웹 고객센터 URL)
 
 ### 개인정보처리방침 URL
 ```
-https://wherehere.app/privacy
+https://jungle-bearskin-b04.notion.site/335048355db7806eab9af84e3afe8f16
 ```
 
 ### 저작권
@@ -171,8 +225,8 @@ WhereHere와 함께라면 일상적인 이동이 탐험이 됩니다.
 • 알림 (선택): 주변 이벤트 도착 알림
 • 백그라운드 위치 (선택): 근처 이벤트 자동 알림
 
-개인정보처리방침: https://wherehere.app/privacy
-이용약관: https://wherehere.app/terms
+개인정보처리방침: https://jungle-bearskin-b04.notion.site/335048355db7806eab9af84e3afe8f16
+이용약관: https://jungle-bearskin-b04.notion.site/335048355db7806eab9af84e3afe8f16
 고객센터: support@wherehere.app
 ```
 
@@ -187,7 +241,7 @@ support@wherehere.app
 
 ### 개인정보처리방침 URL
 ```
-https://wherehere.app/privacy
+https://jungle-bearskin-b04.notion.site/335048355db7806eab9af84e3afe8f16
 ```
 
 ---
@@ -217,15 +271,13 @@ https://wherehere.app/privacy
 
 ---
 
-## 호스팅 필요 URL 목록
+## 스토어 제출 시 URL 체크
 
-앱스토어 제출 전 아래 URL들이 실제로 접근 가능해야 합니다.
-
-| URL | 파일 |
+| 용도 | URL |
 |---|---|
-| `https://wherehere.app/privacy` | `privacy-policy.html` |
-| `https://wherehere.app/terms` | `terms-of-service.html` |
-| `https://wherehere.app/support` | 고객센터 페이지 또는 이메일 링크 |
+| 개인정보처리방침 | `https://jungle-bearskin-b04.notion.site/335048355db7806eab9af84e3afe8f16` |
+| 이용약관 | 위와 동일(한 페이지) 또는 별도 노션 공개 페이지 |
+| 고객 지원 | `mailto:support@wherehere.app` 등 |
 
-> **빠른 호스팅 방법**: GitHub Pages, Netlify, Vercel에 `docs/store-submission/` 폴더를 올리면
-> 무료로 즉시 호스팅 가능합니다.
+> 로컬 HTML 백업: `docs/store-submission/privacy-policy.html`, `terms-of-service.html`  
+> **Notion은 반드시 「웹에 게시」** 후 시크릿 창에서 URL이 열리는지 확인하세요.

@@ -7,6 +7,7 @@ import {
   Pressable,
   RefreshControl,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,6 +24,9 @@ import Animated, {
   Easing,
   FadeInDown,
 } from 'react-native-reanimated';
+
+import QuestsScreen from './quests';
+import InventoryScreen from './inventory';
 
 import {
   useCharacterStore,
@@ -53,7 +57,57 @@ const STAT_LABELS: { key: string; label: string; icon: string }[] = [
   { key: 'stat_creativity',  label: '창의력', icon: '🎨' },
 ];
 
-export default function ProfileScreen() {
+type ProfileTab = 'profile' | 'quests' | 'inventory';
+
+const PROFILE_TABS: { key: ProfileTab; label: string; icon: string }[] = [
+  { key: 'profile', label: '프로필', icon: 'person' },
+  { key: 'quests', label: '탐험', icon: 'compass' },
+  { key: 'inventory', label: '가방', icon: 'bag-handle' },
+];
+
+export default function ProfileTabContainer() {
+  const insets = useSafeAreaInsets();
+  const [activeTab, setActiveTab] = useState<ProfileTab>('profile');
+
+  return (
+    <View style={styles.container}>
+      {/* Top segment bar */}
+      <View style={[styles.segmentBar, { paddingTop: insets.top + 8 }]}>
+        {PROFILE_TABS.map((tab) => {
+          const active = activeTab === tab.key;
+          return (
+            <Pressable
+              key={tab.key}
+              style={[styles.segmentItem, active && styles.segmentItemActive]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setActiveTab(tab.key);
+              }}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: active }}
+            >
+              <Ionicons
+                name={(active ? tab.icon : `${tab.icon}-outline`) as any}
+                size={18}
+                color={active ? COLORS.primary : COLORS.textMuted}
+              />
+              <Text style={[styles.segmentLabel, active && styles.segmentLabelActive]}>
+                {tab.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {/* Tab content */}
+      {activeTab === 'profile' && <ProfileContent />}
+      {activeTab === 'quests' && <QuestsScreen embedded />}
+      {activeTab === 'inventory' && <InventoryScreen embedded />}
+    </View>
+  );
+}
+
+function ProfileContent() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [refreshing, setRefreshing] = useState(false);
@@ -154,10 +208,10 @@ export default function ProfileScreen() {
         />
       }
     >
-      {/* 탐험 허브 — 항상 맨 위 (캐릭터 로딩/미생성과 무관) */}
-      <View style={[styles.hubSectionTop, { paddingTop: insets.top + 12 }]}>
+      {/* 탐험 허브 */}
+      <View style={styles.hubSectionTop}>
         <View style={styles.hubTopRow}>
-          <Text style={styles.screenTitle}>프로필</Text>
+          <Text style={styles.screenTitle}>탐험 허브</Text>
           <Pressable
             style={styles.editBtn}
             onPress={() => {
@@ -168,8 +222,6 @@ export default function ProfileScreen() {
             <Ionicons name="settings-outline" size={20} color={COLORS.textPrimary} />
           </Pressable>
         </View>
-        <Text style={styles.sectionTitle}>탐험 허브</Text>
-        <Text style={styles.hubSubtitle}>친구·시즌·일지·프리미엄 등 새 기능으로 이동</Text>
         <View style={styles.hubGrid}>
           <HubTile
             emoji="🤝"
@@ -177,7 +229,7 @@ export default function ProfileScreen() {
             desc="친구·크루·위치"
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push('/social');
+              router.push('/(tabs)/social');
             }}
           />
           <HubTile
@@ -213,7 +265,7 @@ export default function ProfileScreen() {
             desc="AI 대화"
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push('/chat');
+              router.push('/(tabs)/character');
             }}
           />
           <HubTile
@@ -465,12 +517,45 @@ function SettingsRow({ icon, label, value, onPress }: {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
+  segmentBar: {
+    flexDirection: 'row',
+    paddingHorizontal: SPACING.lg,
+    paddingBottom: SPACING.sm,
+    backgroundColor: COLORS.background,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.surfaceHighlight,
+    gap: SPACING.sm,
+  },
+  segmentItem: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.xs,
+    paddingVertical: SPACING.sm,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: COLORS.surfaceLight,
+  },
+  segmentItemActive: {
+    backgroundColor: COLORS.primary + '20',
+    borderWidth: 1,
+    borderColor: COLORS.primary + '40',
+  },
+  segmentLabel: {
+    fontSize: FONT_SIZE.sm,
+    fontWeight: FONT_WEIGHT.semibold,
+    color: COLORS.textMuted,
+  },
+  segmentLabelActive: {
+    color: COLORS.primary,
+  },
   loadingContainer: { flex: 1, backgroundColor: COLORS.background, alignItems: 'center', justifyContent: 'center' },
   loadingEmoji: { fontSize: 64, marginBottom: SPACING.lg },
   loadingText: { fontSize: FONT_SIZE.md, color: COLORS.textSecondary },
 
   hubSectionTop: {
     paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.md,
     paddingBottom: SPACING.md,
   },
   hubTopRow: {

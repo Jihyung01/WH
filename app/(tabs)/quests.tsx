@@ -67,7 +67,7 @@ const DIFFICULTY_OPTIONS = [
   { value: 5, label: '★★★★★' },
 ];
 
-export default function QuestsScreen() {
+export default function QuestsScreen({ embedded }: { embedded?: boolean }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<QuestTab>('nearby');
@@ -154,18 +154,34 @@ export default function QuestsScreen() {
   return (
     <View style={styles.container}>
       {/* ── Header ── */}
-      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-        <Text style={styles.headerTitle}>탐험</Text>
-        <Pressable
-          style={styles.filterBtn}
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            setShowFilterModal(true);
-          }}
-        >
-          <Ionicons name="options-outline" size={20} color={COLORS.textPrimary} />
-        </Pressable>
-      </View>
+      {!embedded && (
+        <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+          <Text style={styles.headerTitle}>탐험</Text>
+          <Pressable
+            style={styles.filterBtn}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setShowFilterModal(true);
+            }}
+          >
+            <Ionicons name="options-outline" size={20} color={COLORS.textPrimary} />
+          </Pressable>
+        </View>
+      )}
+      {embedded && (
+        <View style={styles.embeddedHeader}>
+          <Pressable
+            style={styles.filterBtn}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setShowFilterModal(true);
+            }}
+          >
+            <Ionicons name="options-outline" size={20} color={COLORS.textPrimary} />
+            <Text style={{ fontSize: 12, color: COLORS.textMuted, marginLeft: 4 }}>필터</Text>
+          </Pressable>
+        </View>
+      )}
 
       {/* ── Search Bar ── */}
       <View style={styles.searchRow}>
@@ -512,9 +528,15 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: FONT_SIZE.xxl, fontWeight: FONT_WEIGHT.bold, color: COLORS.textPrimary },
   filterBtn: {
-    width: 36, height: 36, borderRadius: 18,
+    flexDirection: 'row',
+    height: 36, borderRadius: 18,
+    paddingHorizontal: SPACING.md,
     backgroundColor: COLORS.surfaceLight,
     alignItems: 'center', justifyContent: 'center',
+  },
+  embeddedHeader: {
+    flexDirection: 'row', justifyContent: 'flex-end',
+    paddingHorizontal: SPACING.xl, paddingVertical: SPACING.sm,
   },
 
   // ── Search ──

@@ -82,11 +82,22 @@ export function EventBottomSheet({ event, userLocation, onDismiss, onChallenge }
   const categoryLabel = CATEGORY_LABELS[event.category] ?? '이벤트';
 
   const openDirections = () => {
+    const encodedTitle = encodeURIComponent(event.title);
     const url = Platform.select({
-      ios: `maps:0,0?q=${event.lat},${event.lng}`,
-      android: `geo:0,0?q=${event.lat},${event.lng}(${event.title})`,
+      ios: `maps:0,0?daddr=${event.lat},${event.lng}&dirflg=w`,
+      android: `google.navigation:q=${event.lat},${event.lng}&mode=w`,
     });
-    if (url) Linking.openURL(url);
+    if (url) {
+      Linking.canOpenURL(url).then((supported) => {
+        if (supported) {
+          Linking.openURL(url);
+        } else {
+          Linking.openURL(
+            `https://www.google.com/maps/dir/?api=1&destination=${event.lat},${event.lng}&destination_place_id=${encodedTitle}&travelmode=walking`,
+          );
+        }
+      });
+    }
   };
 
   return (

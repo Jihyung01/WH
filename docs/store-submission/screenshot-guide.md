@@ -152,8 +152,8 @@ XP, 코인, 한정 배지를 모으세요
 ## 제출 전 최종 체크리스트
 
 ### 공통
-- [ ] 개인정보처리방침 URL 접근 가능 확인 (`https://wherehere.app/privacy`)
-- [ ] 이용약관 URL 접근 가능 확인 (`https://wherehere.app/terms`)
+- [ ] 개인정보처리방침 URL 접근 가능 확인 (`https://jungle-bearskin-b04.notion.site/335048355db7806eab9af84e3afe8f16`)
+- [ ] 이용약관 URL 접근 가능 확인 (동일 또는 별도 공개 페이지)
 - [ ] 고객센터 이메일 확인 (`support@wherehere.app`)
 - [ ] 스크린샷 최소 2장 준비 (권장 6장)
 - [ ] 앱 설명 복사 완료

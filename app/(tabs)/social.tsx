@@ -13,6 +13,7 @@ import {
   Platform,
   Modal,
   Switch,
+  Share,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -29,13 +30,13 @@ import {
   createCrew,
   joinCrew,
   leaveCrew,
-} from '../src/lib/api';
+} from '../../src/lib/api';
 import {
   startLocationSharing,
   stopLocationSharing,
   isLocationSharingActive,
-} from '../src/services/friendLocation';
-import type { FriendsResult, FriendInfo, MyCrewResult, CrewMember } from '../src/lib/api';
+} from '../../src/services/friendLocation';
+import type { FriendsResult, FriendInfo, MyCrewResult, CrewMember } from '../../src/lib/api';
 import {
   COLORS,
   SPACING,
@@ -44,7 +45,7 @@ import {
   BRAND,
   BORDER_RADIUS,
   SHADOWS,
-} from '../src/config/theme';
+} from '../../src/config/theme';
 
 type TabKey = 'friends' | 'crew';
 
@@ -697,6 +698,17 @@ function HasCrewView({
     }
   };
 
+  const handleShareInvite = async () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      await Share.share({
+        message: `WhereHere에서 "${crew.name}" 크루에 함께해요! 🗺️\n\n초대 코드: ${crew.invite_code}\n\n앱에서 바로 가입하기:\nwherehere://join?code=${crew.invite_code}`,
+      });
+    } catch {
+      // user cancelled
+    }
+  };
+
   const handleLeave = () => {
     Alert.alert(
       '크루 탈퇴',
@@ -765,10 +777,16 @@ function HasCrewView({
           <Text style={s.inviteLabel}>초대 코드</Text>
           <Text style={s.inviteCode}>{crew.invite_code}</Text>
         </View>
-        <Pressable style={s.copyBtn} onPress={handleCopyCode}>
-          <Ionicons name="copy-outline" size={18} color={BRAND.primary} />
-          <Text style={s.copyBtnText}>복사</Text>
-        </Pressable>
+        <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
+          <Pressable style={s.copyBtn} onPress={handleCopyCode}>
+            <Ionicons name="copy-outline" size={18} color={BRAND.primary} />
+            <Text style={s.copyBtnText}>복사</Text>
+          </Pressable>
+          <Pressable style={s.copyBtn} onPress={handleShareInvite}>
+            <Ionicons name="share-social-outline" size={18} color={BRAND.primary} />
+            <Text style={s.copyBtnText}>공유</Text>
+          </Pressable>
+        </View>
       </Animated.View>
 
       {/* Members */}
@@ -898,9 +916,7 @@ export default function SocialScreen() {
     >
       {/* Header */}
       <View style={s.header}>
-        <Pressable style={s.backBtn} onPress={() => router.back()} hitSlop={12}>
-          <Ionicons name="chevron-back" size={24} color={COLORS.textPrimary} />
-        </Pressable>
+        <View style={s.backBtn} />
         <Text style={s.headerTitle}>소셜</Text>
         <View style={s.headerSpacer} />
       </View>

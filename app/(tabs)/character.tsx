@@ -30,9 +30,9 @@ import {
   useCharacterStore,
   getEvolutionStage,
   getEvolutionEmoji,
-} from '../src/stores/characterStore';
-import { sendCharacterChat, getChatHistory, AppError } from '../src/lib/api';
-import type { ChatMessage } from '../src/lib/api';
+} from '../../src/stores/characterStore';
+import { sendCharacterChat, getChatHistory, AppError } from '../../src/lib/api';
+import type { ChatMessage } from '../../src/lib/api';
 import {
   COLORS,
   SPACING,
@@ -41,7 +41,7 @@ import {
   BORDER_RADIUS,
   SHADOWS,
   BRAND,
-} from '../src/config/theme';
+} from '../../src/config/theme';
 
 const SUGGESTED_QUESTIONS = [
   '이 동네 맛집 추천해줘',
@@ -242,13 +242,7 @@ export default function ChatScreen() {
             <Text style={styles.headerSub}>AI 대화</Text>
           </View>
         </View>
-        <Pressable
-          style={styles.closeBtn}
-          onPress={() => router.back()}
-          hitSlop={12}
-        >
-          <Ionicons name="close" size={24} color={COLORS.textSecondary} />
-        </Pressable>
+        <View style={styles.closeBtn} />
       </View>
 
       {/* Messages */}

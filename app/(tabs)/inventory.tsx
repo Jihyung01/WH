@@ -40,7 +40,7 @@ const ITEM_EMOJIS: Record<string, string> = {
   coupon: '🎟️',
 };
 
-export default function InventoryScreen() {
+export default function InventoryScreen({ embedded }: { embedded?: boolean }) {
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<TabKey>('badges');
   const { userBadges, allBadges, items, fetchAll, isLoading } = useInventoryStore();
@@ -82,9 +82,11 @@ export default function InventoryScreen() {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-        <Text style={styles.headerTitle}>가방</Text>
-      </View>
+      {!embedded && (
+        <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+          <Text style={styles.headerTitle}>가방</Text>
+        </View>
+      )}
 
       {/* Tabs */}
       <View style={styles.tabBar}>

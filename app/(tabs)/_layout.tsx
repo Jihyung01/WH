@@ -26,46 +26,32 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen
-        name="quests"
-        options={{
-          title: '탐험',
-          tabBarAccessibilityLabel: '탐험 화면으로 이동',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'compass' : 'compass-outline'} size={24} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="map"
         options={{
           title: '지도',
           tabBarAccessibilityLabel: '지도 화면으로 이동',
           tabBarIcon: ({ color, focused }) => (
-            <View
-              style={[
-                styles.centerIcon,
-                { backgroundColor: focused ? BRAND.primary : colors.surfaceLight },
-                focused && styles.centerIconActive,
-              ]}
-              accessibilityRole="button"
-            >
-              <Ionicons
-                name={focused ? 'map' : 'map-outline'}
-                size={28}
-                color={focused ? '#FFFFFF' : color}
-              />
-            </View>
+            <Ionicons name={focused ? 'map' : 'map-outline'} size={24} color={color} />
           ),
-          tabBarLabel: () => null,
         }}
       />
       <Tabs.Screen
-        name="inventory"
+        name="social"
         options={{
-          title: '가방',
-          tabBarAccessibilityLabel: '가방 화면으로 이동',
+          title: '소셜',
+          tabBarAccessibilityLabel: '소셜 화면으로 이동',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'bag-handle' : 'bag-handle-outline'} size={24} color={color} />
+            <Ionicons name={focused ? 'people' : 'people-outline'} size={24} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="character"
+        options={{
+          title: '캐릭터',
+          tabBarAccessibilityLabel: '캐릭터 대화 화면으로 이동',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'chatbubble-ellipses' : 'chatbubble-ellipses-outline'} size={24} color={color} />
           ),
         }}
       />
@@ -79,6 +65,9 @@ export default function TabsLayout() {
           ),
         }}
       />
+      {/* Hidden tabs */}
+      <Tabs.Screen name="quests" options={{ href: null }} />
+      <Tabs.Screen name="inventory" options={{ href: null }} />
       <Tabs.Screen name="explore" options={{ href: null }} />
       <Tabs.Screen name="missions" options={{ href: null }} />
     </Tabs>
@@ -100,19 +89,5 @@ const styles = StyleSheet.create({
   },
   tabBarItem: {
     paddingTop: 2,
-  },
-  centerIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: -20,
-    borderWidth: 3,
-    borderColor: 'transparent',
-  },
-  centerIconActive: {
-    borderColor: BRAND.primaryLight + '40',
-    ...SHADOWS.glow,
   },
 });

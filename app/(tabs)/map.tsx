@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useCallback, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Platform } from 'react-native';
 import ClusteredMapView from 'react-native-map-clustering';
-import { PROVIDER_GOOGLE, type Region } from 'react-native-maps';
+import MapView, { PROVIDER_GOOGLE, type Region } from 'react-native-maps';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -291,7 +291,7 @@ export default function MapScreen() {
           style={[styles.iconBtn, { backgroundColor: colors.surface + 'E0' }]}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            router.push('/social');
+            router.push('/(tabs)/social');
           }}
           accessibilityLabel="소셜 · 친구 위치"
           accessibilityRole="button"

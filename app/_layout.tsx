@@ -6,9 +6,10 @@ import '../src/services/geofencing';
 import '../src/services/backgroundLocation';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Alert } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Notifications from 'expo-notifications';
+import * as Linking from 'expo-linking';
 
 import { initSentry, Sentry } from '../src/config/sentry';
 import { initAnalytics } from '../src/config/analytics';
@@ -17,6 +18,7 @@ import { ThemeProvider, useTheme, useThemeStore } from '../src/providers/ThemePr
 import { notificationService } from '../src/services/notificationService';
 import { useNotificationStore } from '../src/stores/notificationStore';
 import { backgroundLocationService } from '../src/services/backgroundLocation';
+import { joinCrew } from '../src/lib/api';
 
 initSentry();
 
@@ -69,10 +71,39 @@ function AppContent() {
       },
     );
 
+    // Handle deep links (e.g. wherehere://join?code=XXX)
+    function handleDeepLink(event: { url: string }) {
+      const parsed = Linking.parse(event.url);
+      if (parsed.path === 'join' && parsed.queryParams?.code) {
+        const code = String(parsed.queryParams.code);
+        Alert.alert('크루 가입', `초대 코드 "${code}"로 크루에 가입하시겠어요?`, [
+          { text: '취소', style: 'cancel' },
+          {
+            text: '가입',
+            onPress: async () => {
+              try {
+                await joinCrew(code);
+                Alert.alert('가입 완료', '크루에 가입되었어요!');
+                router.push('/(tabs)/social');
+              } catch {
+                Alert.alert('오류', '크루 가입에 실패했어요. 코드를 확인해주세요.');
+              }
+            },
+          },
+        ]);
+      }
+    }
+
+    const linkingSub = Linking.addEventListener('url', handleDeepLink);
+    Linking.getInitialURL().then((url) => {
+      if (url) handleDeepLink({ url });
+    });
+
     return () => {
       if (responseListener.current) {
         Notifications.removeNotificationSubscription(responseListener.current);
       }
+      linkingSub.remove();
     };
   }, []);
 

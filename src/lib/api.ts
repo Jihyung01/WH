@@ -909,3 +909,11 @@ export async function toggleLocationSharing(enabled: boolean): Promise<void> {
   const { error } = await supabase.rpc('toggle_location_sharing', { p_enabled: enabled });
   if (error) console.warn('Failed to toggle location sharing:', error);
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 22. Account Deletion
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function deleteAccount(): Promise<{ success: boolean }> {
+  return invokeEdgeFunction<{ success: boolean }>('delete-account', {});
+}

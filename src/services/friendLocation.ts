@@ -46,13 +46,14 @@ export async function startLocationSharing(): Promise<boolean> {
   return true;
 }
 
-export function stopLocationSharing() {
+export async function stopLocationSharing(): Promise<void> {
   if (intervalId) {
     clearInterval(intervalId);
     intervalId = null;
   }
   isRunning = false;
-  supabase.rpc('toggle_location_sharing', { p_enabled: false }).catch(() => {});
+  const { error } = await supabase.rpc('toggle_location_sharing', { p_enabled: false });
+  if (error) console.warn('toggle_location_sharing:', error);
 }
 
 export async function getFriendLocations(): Promise<FriendLocation[]> {
