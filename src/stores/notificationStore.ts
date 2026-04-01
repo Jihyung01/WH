@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { savePushToken } from '../lib/api';
 import { zustandStorage } from './storage';
 
 export interface NotificationPrefs {
@@ -47,7 +46,10 @@ export const useNotificationStore = create<NotificationState>()(
       setPushToken: (token) => {
         set({ pushToken: token });
         if (token) {
-          savePushToken(token).catch((err) => console.warn('Failed to sync push token:', err));
+          // Lazy-load API module so app startup doesn't fail if API init has a transient issue.
+          Promise.resolve()
+            .then(() => require('../lib/api').savePushToken(token))
+            .catch((err) => console.warn('Failed to sync push token:', err));
         }
       },
       setPermission: (perm) => set({ notifPermission: perm }),

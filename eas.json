@@ -38,6 +38,7 @@
       }
     },
     "production": {
+      "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://mdhnxxeyjkmsznbresaq.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kaG54eGV5amttc3puYnJlc2FxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1NzA3MzYsImV4cCI6MjA5MDE0NjczNn0.tGEgVhaHQoyCdxN7glY0bYdLN5wbTG11BVP4wGXFz5o",
@@ -46,6 +47,10 @@
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "ascAppId": "6761450806"
+      }
+    }
   }
 }

@@ -12,9 +12,7 @@ import { initSentry, Sentry } from '../src/config/sentry';
 import { initAnalytics } from '../src/config/analytics';
 import { initPurchases } from '../src/config/purchases';
 import { ThemeProvider, useTheme, useThemeStore } from '../src/providers/ThemeProvider';
-import { notificationService } from '../src/services/notificationService';
 import { useNotificationStore } from '../src/stores/notificationStore';
-import { joinCrew } from '../src/lib/api';
 
 initSentry();
 
@@ -28,6 +26,16 @@ function AppContent() {
   useEffect(() => {
     async function bootstrap() {
       try {
+        let notificationService:
+          | null
+          | {
+              configure: () => void;
+              registerPushToken: () => Promise<string | null>;
+              scheduleDailyReminder: () => Promise<void>;
+              scheduleStreakWarning: (streakDays: number) => Promise<void>;
+              handleNotificationTap: (response: Notifications.NotificationResponse) => string | null;
+            } = null;
+
         // Load background task modules defensively so startup doesn't crash
         // if a native task module is temporarily inconsistent on a given build.
         let backgroundLocationService:
@@ -39,18 +47,25 @@ function AppContent() {
         } catch (taskLoadErr) {
           console.warn('Background task modules load failed (non-fatal):', taskLoadErr);
         }
+        try {
+          notificationService = require('../src/services/notificationService').notificationService;
+        } catch (notifLoadErr) {
+          console.warn('Notification service load failed (non-fatal):', notifLoadErr);
+        }
 
         await initAnalytics();
         await initPurchases();
         await useThemeStore.getState().loadOverride();
         await useNotificationStore.getState().loadPrefs();
 
-        notificationService.configure();
-        await notificationService.registerPushToken().catch(() => {});
-        await notificationService.scheduleDailyReminder().catch(() => {});
-        await notificationService.scheduleStreakWarning(
-          useNotificationStore.getState().prefs.streakWarning ? 7 : 0,
-        ).catch(() => {});
+        if (notificationService) {
+          notificationService.configure();
+          await notificationService.registerPushToken().catch(() => {});
+          await notificationService.scheduleDailyReminder().catch(() => {});
+          await notificationService.scheduleStreakWarning(
+            useNotificationStore.getState().prefs.streakWarning ? 7 : 0,
+          ).catch(() => {});
+        }
 
         const { backgroundLocationEnabled, powerSaveMode } = useNotificationStore.getState();
         if (backgroundLocationEnabled && !powerSaveMode && backgroundLocationService) {
@@ -67,7 +82,13 @@ function AppContent() {
 
     responseListener.current = Notifications.addNotificationResponseReceivedListener(
       (response) => {
-        const deepLink = notificationService.handleNotificationTap(response);
+        let deepLink: string | null = null;
+        try {
+          const notificationService = require('../src/services/notificationService').notificationService;
+          deepLink = notificationService.handleNotificationTap(response);
+        } catch {
+          deepLink = null;
+        }
         if (deepLink) {
           const path = deepLink.replace('wherehere://', '/');
           try {
@@ -90,6 +111,7 @@ function AppContent() {
             text: '가입',
             onPress: async () => {
               try {
+                const { joinCrew } = require('../src/lib/api');
                 await joinCrew(code);
                 Alert.alert('가입 완료', '크루에 가입되었어요!');
                 router.push('/(tabs)/social');

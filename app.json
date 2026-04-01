@@ -3,7 +3,7 @@
     "name": "WhereHere",
     "slug": "wherehere-app",
     "version": "1.0.0",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "wherehere",
@@ -128,7 +128,9 @@
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/ff328bbb-ad49-47b0-809a-aebfbf70bb8b"
+      "url": "https://u.expo.dev/ff328bbb-ad49-47b0-809a-aebfbf70bb8b",
+      "checkAutomatically": "ON_ERROR_RECOVERY",
+      "fallbackToCacheTimeout": 0
     }
   }
 }
