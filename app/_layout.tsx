@@ -1,9 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Stack, useRouter } from 'expo-router';
 
-// Register TaskManager tasks before any screen calls startGeofencingAsync / background location
-import '../src/services/geofencing';
-import '../src/services/backgroundLocation';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StyleSheet, Alert } from 'react-native';
@@ -17,7 +14,6 @@ import { initPurchases } from '../src/config/purchases';
 import { ThemeProvider, useTheme, useThemeStore } from '../src/providers/ThemeProvider';
 import { notificationService } from '../src/services/notificationService';
 import { useNotificationStore } from '../src/stores/notificationStore';
-import { backgroundLocationService } from '../src/services/backgroundLocation';
 import { joinCrew } from '../src/lib/api';
 
 initSentry();
@@ -32,6 +28,18 @@ function AppContent() {
   useEffect(() => {
     async function bootstrap() {
       try {
+        // Load background task modules defensively so startup doesn't crash
+        // if a native task module is temporarily inconsistent on a given build.
+        let backgroundLocationService:
+          | { start: () => Promise<boolean> }
+          | null = null;
+        try {
+          require('../src/services/geofencing');
+          backgroundLocationService = require('../src/services/backgroundLocation').backgroundLocationService;
+        } catch (taskLoadErr) {
+          console.warn('Background task modules load failed (non-fatal):', taskLoadErr);
+        }
+
         await initAnalytics();
         await initPurchases();
         await useThemeStore.getState().loadOverride();
@@ -45,7 +53,7 @@ function AppContent() {
         ).catch(() => {});
 
         const { backgroundLocationEnabled, powerSaveMode } = useNotificationStore.getState();
-        if (backgroundLocationEnabled && !powerSaveMode) {
+        if (backgroundLocationEnabled && !powerSaveMode && backgroundLocationService) {
           await backgroundLocationService.start().catch(() => {});
         }
       } catch (err) {
