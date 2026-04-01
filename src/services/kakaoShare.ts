@@ -1,5 +1,4 @@
 import { Platform } from 'react-native';
-import KakaoShare, { type KakaoTextTemplate } from '@react-native-kakao/share';
 
 type ShareLinkParams = {
   /** Landing page when app is not installed / on desktop */
@@ -37,7 +36,8 @@ export async function shareKakaoText({
   buttonTitle?: string;
   linkParams?: ShareLinkParams;
 }) {
-  const template: KakaoTextTemplate = {
+  const KakaoShare = require('@react-native-kakao/share').default;
+  const template = {
     text,
     link: buildDefaultLink(linkParams),
     buttons: [
@@ -56,6 +56,31 @@ export async function shareKakaoText({
     serverCallbackArgs: {
       platform: Platform.OS,
     },
+  });
+}
+
+export async function sendKakaoTextToFriends({
+  text,
+  receiverUuids,
+  buttonTitle = '앱 열기',
+  linkParams,
+}: {
+  text: string;
+  receiverUuids: string[];
+  buttonTitle?: string;
+  linkParams?: ShareLinkParams;
+}) {
+  const KakaoShare = require('@react-native-kakao/share').default;
+  const link = buildDefaultLink(linkParams);
+  const template = {
+    text,
+    link,
+    buttons: [{ title: buttonTitle, link }],
+  };
+
+  return KakaoShare.sendTextTemplateToFriends({
+    template,
+    receiverUuids,
   });
 }
 
