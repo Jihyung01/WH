@@ -102,7 +102,7 @@
         {
           "photosPermission": "WhereHere needs photo library access to set your profile picture."
         }
-      ],
+      ]
     ],
     "experiments": {
       "typedRoutes": true

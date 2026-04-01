@@ -30,6 +30,7 @@ import {
   getEvolutionEmoji,
   getLevelTitle,
 } from '../../stores/characterStore';
+import { shareKakaoText } from '../../services/kakaoShare';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const CARD_W = SCREEN_W * 0.88;
@@ -118,6 +119,41 @@ export default function ShareJournalCard({ data, onClose }: Props) {
       setIsSharing(false);
     }
   }, []);
+
+  const handleKakaoShare = useCallback(async () => {
+    try {
+      setIsSharing(true);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+      const text = [
+        `WhereHere 탐험 일지`,
+        ``,
+        data.journalText,
+        ``,
+        `캐릭터: ${data.characterName} (Lv.${data.characterLevel})`,
+        `획득 XP: +${data.xpEarned}`,
+        data.badgesEarned?.length ? `새 배지: ${data.badgesEarned.length}개` : null,
+        ``,
+        `앱에서 보기: wherehere://journal`,
+      ]
+        .filter(Boolean)
+        .join('\n');
+
+      await shareKakaoText({
+        text,
+        buttonTitle: 'WhereHere 열기',
+        linkParams: {
+          iosExecutionParams: { screen: 'journal' },
+          androidExecutionParams: { screen: 'journal' },
+        },
+      });
+    } catch (error) {
+      console.warn('Kakao share failed, falling back:', error);
+      await handleShare();
+    } finally {
+      setIsSharing(false);
+    }
+  }, [data, handleShare]);
 
   return (
     <Animated.View entering={FadeIn.duration(400)} style={styles.container}>
@@ -243,7 +279,7 @@ export default function ShareJournalCard({ data, onClose }: Props) {
 
         <TouchableOpacity
           style={styles.kakaoBtn}
-          onPress={handleShare}
+          onPress={handleKakaoShare}
           disabled={isSharing}
           activeOpacity={0.8}
         >

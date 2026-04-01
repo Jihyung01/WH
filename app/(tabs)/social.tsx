@@ -36,6 +36,9 @@ import {
   stopLocationSharing,
   isLocationSharingActive,
 } from '../../src/services/friendLocation';
+import { shareKakaoText } from '../../src/services/kakaoShare';
+import { pickKakaoFriends } from '../../src/services/kakaoFriends';
+import KakaoShare, { type KakaoTextTemplate } from '@react-native-kakao/share';
 import type { FriendsResult, FriendInfo, MyCrewResult, CrewMember } from '../../src/lib/api';
 import {
   COLORS,
@@ -685,6 +688,7 @@ function HasCrewView({
   bottomInset: number;
 }) {
   const [leaving, setLeaving] = useState(false);
+  const [inviting, setInviting] = useState(false);
   const crew = data.crew!;
   const members = data.members ?? [];
 
@@ -701,11 +705,56 @@ function HasCrewView({
   const handleShareInvite = async () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      await Share.share({
-        message: `WhereHere에서 "${crew.name}" 크루에 함께해요! 🗺️\n\n초대 코드: ${crew.invite_code}\n\n앱에서 바로 가입하기:\nwherehere://join?code=${crew.invite_code}`,
-      });
+      const message = `WhereHere에서 \"${crew.name}\" 크루에 함께해요!\n\n초대 코드: ${crew.invite_code}\n\n앱에서 바로 가입하기:\nwherehere://join?code=${crew.invite_code}`;
+
+      try {
+        await shareKakaoText({
+          text: message,
+          buttonTitle: '크루 가입하기',
+          linkParams: {
+            iosExecutionParams: { screen: 'join', code: crew.invite_code },
+            androidExecutionParams: { screen: 'join', code: crew.invite_code },
+          },
+        });
+      } catch {
+        await Share.share({ message });
+      }
     } catch {
       // user cancelled
+    }
+  };
+
+  const handleInviteKakaoFriends = async () => {
+    try {
+      setInviting(true);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+      const picked = await pickKakaoFriends({ maxPickableCount: 20 });
+      const receiverUuids = (picked.users ?? []).map((u) => u.uuid).filter(Boolean);
+      if (receiverUuids.length === 0) return;
+
+      const text = `WhereHere에서 \"${crew.name}\" 크루에 함께해요!\n\n초대 코드: ${crew.invite_code}\n\n앱에서 바로 가입하기:\nwherehere://join?code=${crew.invite_code}`;
+
+      const link = {
+        iosExecutionParams: { screen: 'join', code: crew.invite_code },
+        androidExecutionParams: { screen: 'join', code: crew.invite_code },
+        webUrl: 'https://jungle-bearskin-b04.notion.site/335048355db7806eab9af84e3afe8f16',
+        mobileWebUrl: 'https://jungle-bearskin-b04.notion.site/335048355db7806eab9af84e3afe8f16',
+      };
+
+      const template: KakaoTextTemplate = {
+        text,
+        link,
+        buttons: [{ title: '크루 가입하기', link }],
+      };
+
+      await KakaoShare.sendTextTemplateToFriends({ template, receiverUuids });
+      onShowToast(`카카오톡으로 ${receiverUuids.length}명에게 초대를 보냈어요!`, 'success');
+    } catch (e) {
+      console.warn('Kakao invite failed:', e);
+      onShowToast('카카오톡 친구 초대에 실패했어요. (권한/카카오톡 설치 확인)', 'error');
+    } finally {
+      setInviting(false);
     }
   };
 
@@ -785,6 +834,10 @@ function HasCrewView({
           <Pressable style={s.copyBtn} onPress={handleShareInvite}>
             <Ionicons name="share-social-outline" size={18} color={BRAND.primary} />
             <Text style={s.copyBtnText}>공유</Text>
+          </Pressable>
+          <Pressable style={[s.copyBtn, inviting && { opacity: 0.6 }]} onPress={handleInviteKakaoFriends} disabled={inviting}>
+            <Ionicons name="chatbubble-ellipses-outline" size={18} color={BRAND.primary} />
+            <Text style={s.copyBtnText}>{inviting ? '전송...' : '카톡초대'}</Text>
           </Pressable>
         </View>
       </Animated.View>
