@@ -3,6 +3,15 @@
     "name": "WhereHere",
     "slug": "wherehere-app",
     "version": "1.0.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "enabled": true,
+      "url": "https://u.expo.dev/ff328bbb-ad49-47b0-809a-aebfbf70bb8b",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 5000
+    },
     "newArchEnabled": true,
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -80,7 +89,6 @@
       "bundler": "metro"
     },
     "plugins": [
-      "@sentry/react-native",
       "expo-router",
       "expo-font",
       "expo-secure-store",
@@ -123,14 +131,6 @@
       "eas": {
         "projectId": "ff328bbb-ad49-47b0-809a-aebfbf70bb8b"
       }
-    },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
-    "updates": {
-      "url": "https://u.expo.dev/ff328bbb-ad49-47b0-809a-aebfbf70bb8b",
-      "checkAutomatically": "ON_LOAD",
-      "fallbackToCacheTimeout": 0
     }
   }
 }

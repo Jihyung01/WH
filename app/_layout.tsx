@@ -1,161 +1,82 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
-import { Stack, usePathname, useRouter } from 'expo-router';
-
+import { useEffect, useRef } from 'react';
+import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { StyleSheet, Alert, InteractionManager } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { StyleSheet, Alert } from 'react-native';
 import * as Linking from 'expo-linking';
 
-import { Sentry } from '../src/config/sentry';
+void SplashScreen.preventAutoHideAsync();
+
 import { initAnalytics } from '../src/config/analytics';
 import { initPurchases } from '../src/config/purchases';
 import { ThemeProvider, useTheme, useThemeStore } from '../src/providers/ThemeProvider';
 import { useNotificationStore } from '../src/stores/notificationStore';
-import { useAuthStore } from '../src/stores/authStore';
-import { startupBreadcrumb, startupWatchdog } from '../src/utils/startupTelemetry';
-
-/**
- * expo-router registers SplashScreen._internal_preventAutoHideAsync on a setTimeout(0)
- * and only dismisses via NavigationContainer onReady → _internal_maybeHideAsync. If that
- * path fails, users stay on the native launch image forever. We force-dismiss the native
- * layer here and repeat on a short schedule to win any race with expo-router's prevent.
- */
-function useForceHideSplash() {
-  useLayoutEffect(() => {
-    startupBreadcrumb('splash_hide_layout');
-    void SplashScreen.hideAsync();
-  }, []);
-
-  useEffect(() => {
-    startupBreadcrumb('splash_hide_effect');
-    void SplashScreen.hideAsync();
-    const run = () => void SplashScreen.hideAsync();
-    const t0 = setTimeout(run, 0);
-    const t1 = setTimeout(run, 32);
-    const t2 = setTimeout(run, 120);
-    const t3 = setTimeout(run, 500);
-    const t4 = setTimeout(run, 1500);
-    const ia = InteractionManager.runAfterInteractions(run);
-    return () => {
-      clearTimeout(t0);
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-      clearTimeout(t4);
-      ia.cancel?.();
-    };
-  }, []);
-}
 
 function AppContent() {
   const router = useRouter();
   const { colors } = useTheme();
   const responseListener = useRef<{ remove: () => void } | undefined>(undefined);
+  const cancelled = useRef(false);
 
   useEffect(() => {
-    startupBreadcrumb('app_content_mounted');
+    SplashScreen.hideAsync().catch(() => {});
   }, []);
 
   useEffect(() => {
-    const BOOTSTRAP_TIMEOUT_MS = 25_000;
+    cancelled.current = false;
 
     async function bootstrap() {
       try {
-        let notificationService:
-          | null
-          | {
-              configure: () => void;
-              registerPushToken: () => Promise<string | null>;
-              scheduleDailyReminder: () => Promise<void>;
-              scheduleStreakWarning: (streakDays: number) => Promise<void>;
-              handleNotificationTap: (response: unknown) => string | null;
-            } = null;
+        await initAnalytics().catch(() => {});
+        await initPurchases().catch(() => {});
+        await useThemeStore.getState().loadOverride().catch(() => {});
+        await useNotificationStore.getState().loadPrefs().catch(() => {});
 
-        // Load background task modules defensively so startup doesn't crash
-        // if a native task module is temporarily inconsistent on a given build.
-        let backgroundLocationService:
-          | { start: () => Promise<boolean> }
-          | null = null;
         try {
-          require('../src/services/geofencing');
-          backgroundLocationService = require('../src/services/backgroundLocation').backgroundLocationService;
-        } catch (taskLoadErr) {
-          console.warn('Background task modules load failed (non-fatal):', taskLoadErr);
-        }
-        try {
-          notificationService = require('../src/services/notificationService').notificationService;
-        } catch (notifLoadErr) {
-          console.warn('Notification service load failed (non-fatal):', notifLoadErr);
-        }
-
-        const stepMs = 6_000;
-        await Promise.race([
-          initAnalytics(),
-          new Promise<void>((resolve) => setTimeout(resolve, stepMs)),
-        ]);
-        await Promise.race([
-          initPurchases(),
-          new Promise<void>((resolve) => setTimeout(resolve, stepMs)),
-        ]);
-        const prefsMs = 5_000;
-        await Promise.race([
-          useThemeStore.getState().loadOverride(),
-          new Promise<void>((resolve) => setTimeout(resolve, prefsMs)),
-        ]);
-        await Promise.race([
-          useNotificationStore.getState().loadPrefs(),
-          new Promise<void>((resolve) => setTimeout(resolve, prefsMs)),
-        ]);
-
-        if (notificationService) {
+          const notificationService = require('../src/services/notificationService').notificationService;
           notificationService.configure();
           await notificationService.registerPushToken().catch(() => {});
           await notificationService.scheduleDailyReminder().catch(() => {});
           await notificationService.scheduleStreakWarning(
             useNotificationStore.getState().prefs.streakWarning ? 7 : 0,
           ).catch(() => {});
+        } catch {
+          // notification module optional in some clients
         }
 
-        const { backgroundLocationEnabled, powerSaveMode } = useNotificationStore.getState();
-        if (backgroundLocationEnabled && !powerSaveMode && backgroundLocationService) {
-          await backgroundLocationService.start().catch(() => {});
-        }
-
-        // Dynamic import avoids SDK 53 Expo Go crash from static expo-notifications import
-        const Notifications = await import('expo-notifications').catch(() => null);
-        if (Notifications) {
-          responseListener.current = Notifications.addNotificationResponseReceivedListener(
-            (response) => {
-              let deepLink: string | null = null;
-              try {
-                const svc = require('../src/services/notificationService').notificationService;
-                deepLink = svc.handleNotificationTap(response);
-              } catch {
-                deepLink = null;
-              }
-              if (deepLink) {
-                const path = deepLink.replace('wherehere://', '/');
-                try {
-                  router.push(path as any);
-                } catch {
-                  // route not found
-                }
-              }
-            },
-          );
+        try {
+          require('../src/services/geofencing');
+          const { backgroundLocationService } = require('../src/services/backgroundLocation');
+          const { backgroundLocationEnabled, powerSaveMode } = useNotificationStore.getState();
+          if (backgroundLocationEnabled && !powerSaveMode) {
+            await backgroundLocationService.start().catch(() => {});
+          }
+        } catch {
+          // background location optional
         }
       } catch (err) {
-        console.warn('Bootstrap error (non-fatal):', err);
+        console.warn('Bootstrap error:', err);
       }
     }
 
-    void Promise.race([
-      bootstrap(),
-      new Promise<void>((resolve) => setTimeout(resolve, BOOTSTRAP_TIMEOUT_MS)),
-    ]);
+    void bootstrap();
 
-    // Handle deep links (e.g. wherehere://join?code=XXX)
+    // Dynamic import: static `expo-notifications` breaks Expo Go SDK 53+ (projectId / push side effects)
+    void (async () => {
+      const Notifications = await import('expo-notifications').catch(() => null);
+      if (!Notifications || cancelled.current) return;
+      responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
+        try {
+          const ns = require('../src/services/notificationService').notificationService;
+          const deepLink = ns.handleNotificationTap(response);
+          if (deepLink) router.push(deepLink.replace('wherehere://', '/') as any);
+        } catch {
+          // ignore
+        }
+      });
+    })();
+
     function handleDeepLink(event: { url: string }) {
       const parsed = Linking.parse(event.url);
       if (parsed.path === 'join' && parsed.queryParams?.code) {
@@ -171,7 +92,7 @@ function AppContent() {
                 Alert.alert('가입 완료', '크루에 가입되었어요!');
                 router.push('/(tabs)/social');
               } catch {
-                Alert.alert('오류', '크루 가입에 실패했어요. 코드를 확인해주세요.');
+                Alert.alert('오류', '크루 가입에 실패했어요.');
               }
             },
           },
@@ -185,6 +106,7 @@ function AppContent() {
     });
 
     return () => {
+      cancelled.current = true;
       responseListener.current?.remove();
       linkingSub.remove();
     };
@@ -222,56 +144,7 @@ function AppContent() {
   );
 }
 
-function RootLayout() {
-  useForceHideSplash();
-  const pathname = usePathname();
-  const pathnameRef = useRef(pathname);
-  pathnameRef.current = pathname;
-
-  useEffect(() => {
-    startupBreadcrumb('root_layout', { pathname: pathname ?? '' });
-  }, [pathname]);
-
-  useEffect(() => {
-    const pulses = [2000, 5000, 10000].map((ms) =>
-      setTimeout(() => {
-        startupBreadcrumb(`js_alive_${ms}ms`, { pathname: pathnameRef.current ?? '' });
-      }, ms),
-    );
-    return () => pulses.forEach(clearTimeout);
-  }, []);
-
-  useEffect(() => {
-    const w15 = setTimeout(() => {
-      const a = useAuthStore.getState();
-      void startupWatchdog('15s', {
-        pathname: pathnameRef.current ?? '',
-        auth: {
-          isAuthenticated: a.isAuthenticated,
-          isLoading: a.isLoading,
-          pendingOnboardingCheck: a.pendingOnboardingCheck,
-          hasCompletedOnboarding: a.hasCompletedOnboarding,
-        },
-      });
-    }, 15_000);
-    const w30 = setTimeout(() => {
-      const a = useAuthStore.getState();
-      void startupWatchdog('30s', {
-        pathname: pathnameRef.current ?? '',
-        auth: {
-          isAuthenticated: a.isAuthenticated,
-          isLoading: a.isLoading,
-          pendingOnboardingCheck: a.pendingOnboardingCheck,
-          hasCompletedOnboarding: a.hasCompletedOnboarding,
-        },
-      });
-    }, 30_000);
-    return () => {
-      clearTimeout(w15);
-      clearTimeout(w30);
-    };
-  }, []);
-
+export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.container}>
       <ThemeProvider>
@@ -281,10 +154,6 @@ function RootLayout() {
   );
 }
 
-export default Sentry.wrap(RootLayout);
-
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
 });

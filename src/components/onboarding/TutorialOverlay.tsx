@@ -105,9 +105,13 @@ export function useTutorial() {
   const [showTutorial, setShowTutorial] = useState(false);
 
   useEffect(() => {
-    const completed = storage.getBoolean(STORAGE_KEY);
-    if (!completed) {
-      setShowTutorial(true);
+    try {
+      const completed = storage.getBoolean(STORAGE_KEY);
+      if (!completed) {
+        setShowTutorial(true);
+      }
+    } catch {
+      setShowTutorial(false);
     }
   }, []);
 

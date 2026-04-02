@@ -1,4 +1,3 @@
-import * as Updates from 'expo-updates';
 import { flush } from '@sentry/react-native';
 import { Sentry } from '../config/sentry';
 
@@ -28,18 +27,9 @@ export async function startupWatchdog(
 ): Promise<void> {
   if (!sentryActive()) return;
   try {
-    const updates = {
-      isEmbeddedLaunch: Updates.isEmbeddedLaunch,
-      isEmergencyLaunch: Updates.isEmergencyLaunch,
-      emergencyLaunchReason: Updates.emergencyLaunchReason ?? null,
-      launchDuration: Updates.launchDuration ?? null,
-      updateId: Updates.updateId ?? null,
-      runtimeVersion: Updates.runtimeVersion ?? null,
-      channel: Updates.channel ?? null,
-    };
     Sentry.captureMessage(`startup_watchdog:${label}`, {
       level: 'warning',
-      extra: { ...extra, updates },
+      extra,
     });
     await flush().catch(() => {});
   } catch {

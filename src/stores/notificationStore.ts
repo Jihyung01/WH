@@ -22,7 +22,7 @@ interface NotificationState {
   updatePref: (key: keyof NotificationPrefs, value: boolean) => void;
   setBackgroundLocation: (enabled: boolean) => void;
   setPowerSaveMode: (enabled: boolean) => void;
-  /** Rehydrate persisted prefs from MMKV (call on app start). */
+  /** Rehydrate persisted prefs from persistent storage (call on app start). */
   loadPrefs: () => Promise<void>;
 }
 
