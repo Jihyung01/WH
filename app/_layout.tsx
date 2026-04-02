@@ -13,7 +13,6 @@ import { initAnalytics } from '../src/config/analytics';
 import { initPurchases } from '../src/config/purchases';
 import { ThemeProvider, useTheme, useThemeStore } from '../src/providers/ThemeProvider';
 import { useNotificationStore } from '../src/stores/notificationStore';
-import { fetchOtaAndReloadIfNeeded } from '../src/utils/otaLaunch';
 
 initSentry();
 
@@ -22,14 +21,10 @@ SplashScreen.preventAutoHideAsync();
 function AppContent() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
-  const responseListener = useRef<Notifications.EventSubscription>();
+  const responseListener = useRef<Notifications.EventSubscription | undefined>(undefined);
 
-  // Belt-and-suspenders: hide splash even if index route is skipped.
   useEffect(() => {
-    const t = setTimeout(() => {
-      SplashScreen.hideAsync();
-    }, 2_000);
-    return () => clearTimeout(t);
+    void SplashScreen.hideAsync();
   }, []);
 
   useEffect(() => {
@@ -37,9 +32,6 @@ function AppContent() {
 
     async function bootstrap() {
       try {
-        // Never await: fetchUpdateAsync can hang on bad networks and block startup.
-        void fetchOtaAndReloadIfNeeded();
-
         let notificationService:
           | null
           | {
@@ -76,8 +68,15 @@ function AppContent() {
           initPurchases(),
           new Promise<void>((resolve) => setTimeout(resolve, stepMs)),
         ]);
-        await useThemeStore.getState().loadOverride();
-        await useNotificationStore.getState().loadPrefs();
+        const prefsMs = 5_000;
+        await Promise.race([
+          useThemeStore.getState().loadOverride(),
+          new Promise<void>((resolve) => setTimeout(resolve, prefsMs)),
+        ]);
+        await Promise.race([
+          useNotificationStore.getState().loadPrefs(),
+          new Promise<void>((resolve) => setTimeout(resolve, prefsMs)),
+        ]);
 
         if (notificationService) {
           notificationService.configure();
@@ -154,9 +153,7 @@ function AppContent() {
     });
 
     return () => {
-      if (responseListener.current) {
-        Notifications.removeNotificationSubscription(responseListener.current);
-      }
+      responseListener.current?.remove();
       linkingSub.remove();
     };
   }, []);
