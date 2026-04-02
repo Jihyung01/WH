@@ -188,7 +188,7 @@ function AppContent() {
       responseListener.current?.remove();
       linkingSub.remove();
     };
-  }, [router]);
+  }, []);
 
   return (
     <>
