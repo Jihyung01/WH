@@ -3,7 +3,7 @@
     "name": "WhereHere",
     "slug": "wherehere-app",
     "version": "1.0.0",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "wherehere",
@@ -85,7 +85,6 @@
       "expo-font",
       "expo-secure-store",
       "expo-web-browser",
-      "expo-dev-client",
       "expo-task-manager",
       [
         "expo-location",
@@ -130,7 +129,7 @@
     },
     "updates": {
       "url": "https://u.expo.dev/ff328bbb-ad49-47b0-809a-aebfbf70bb8b",
-      "checkAutomatically": "ON_ERROR_RECOVERY",
+      "checkAutomatically": "ON_LOAD",
       "fallbackToCacheTimeout": 0
     }
   }

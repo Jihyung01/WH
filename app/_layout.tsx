@@ -8,19 +8,13 @@ import * as SplashScreen from 'expo-splash-screen';
 import * as Notifications from 'expo-notifications';
 import * as Linking from 'expo-linking';
 
-import { initSentry, Sentry } from '../src/config/sentry';
+import { Sentry } from '../src/config/sentry';
 import { initAnalytics } from '../src/config/analytics';
 import { initPurchases } from '../src/config/purchases';
 import { ThemeProvider, useTheme, useThemeStore } from '../src/providers/ThemeProvider';
 import { useNotificationStore } from '../src/stores/notificationStore';
 import { useAuthStore } from '../src/stores/authStore';
 import { startupBreadcrumb, startupWatchdog } from '../src/utils/startupTelemetry';
-
-try {
-  initSentry();
-} catch (e) {
-  console.warn('initSentry failed (non-fatal):', e);
-}
 
 /**
  * expo-router registers SplashScreen._internal_preventAutoHideAsync on a setTimeout(0)
