@@ -38,6 +38,7 @@
       }
     },
     "production": {
+      "channel": "production",
       "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://mdhnxxeyjkmsznbresaq.supabase.co",

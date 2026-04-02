@@ -13,6 +13,7 @@ import { initAnalytics } from '../src/config/analytics';
 import { initPurchases } from '../src/config/purchases';
 import { ThemeProvider, useTheme, useThemeStore } from '../src/providers/ThemeProvider';
 import { useNotificationStore } from '../src/stores/notificationStore';
+import { fetchOtaAndReloadIfNeeded } from '../src/utils/otaLaunch';
 
 initSentry();
 
@@ -24,8 +25,13 @@ function AppContent() {
   const responseListener = useRef<Notifications.EventSubscription>();
 
   useEffect(() => {
+    const BOOTSTRAP_TIMEOUT_MS = 25_000;
+
     async function bootstrap() {
       try {
+        // Never await: fetchUpdateAsync can hang on bad networks and block startup.
+        void fetchOtaAndReloadIfNeeded();
+
         let notificationService:
           | null
           | {
@@ -53,8 +59,15 @@ function AppContent() {
           console.warn('Notification service load failed (non-fatal):', notifLoadErr);
         }
 
-        await initAnalytics();
-        await initPurchases();
+        const stepMs = 6_000;
+        await Promise.race([
+          initAnalytics(),
+          new Promise<void>((resolve) => setTimeout(resolve, stepMs)),
+        ]);
+        await Promise.race([
+          initPurchases(),
+          new Promise<void>((resolve) => setTimeout(resolve, stepMs)),
+        ]);
         await useThemeStore.getState().loadOverride();
         await useNotificationStore.getState().loadPrefs();
 
@@ -73,12 +86,15 @@ function AppContent() {
         }
       } catch (err) {
         console.warn('Bootstrap error (non-fatal):', err);
-      } finally {
-        SplashScreen.hideAsync();
       }
     }
 
-    bootstrap();
+    Promise.race([
+      bootstrap(),
+      new Promise<void>((resolve) => setTimeout(resolve, BOOTSTRAP_TIMEOUT_MS)),
+    ]).finally(() => {
+      SplashScreen.hideAsync();
+    });
 
     responseListener.current = Notifications.addNotificationResponseReceivedListener(
       (response) => {

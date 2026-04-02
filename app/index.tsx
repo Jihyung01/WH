@@ -5,13 +5,20 @@ import { useAuthStore } from '../src/stores/authStore';
 import { COLORS } from '../src/config/theme';
 
 export default function Index() {
-  const { isAuthenticated, hasCompletedOnboarding, isLoading, initializeAuth } = useAuthStore();
+  const { isAuthenticated, hasCompletedOnboarding, isLoading, pendingOnboardingCheck, initializeAuth } =
+    useAuthStore();
 
   useEffect(() => {
-    initializeAuth();
+    const failSafe = setTimeout(() => {
+      useAuthStore.getState().forceAuthGateOpen();
+    }, 8_000);
+    void initializeAuth();
+    return () => clearTimeout(failSafe);
   }, []);
 
-  if (isLoading) {
+  const showGate = isLoading || (isAuthenticated && pendingOnboardingCheck);
+
+  if (showGate) {
     return (
       <View style={styles.container}>
         <ActivityIndicator size="large" color={COLORS.primary} />

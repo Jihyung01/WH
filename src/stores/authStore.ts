@@ -7,17 +7,24 @@ import type { Session, User } from '@supabase/supabase-js';
 
 WebBrowser.maybeCompleteAuthSession();
 
+/** Avoid stacking Supabase auth listeners if initializeAuth runs more than once. */
+let authStateListenerRegistered = false;
+
 interface AuthState {
   user: User | null;
   session: Session | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  /** Logged-in only: true until character/onboarding check finishes (or times out). */
+  pendingOnboardingCheck: boolean;
   hasCompletedOnboarding: boolean;
 
   setUser: (user: User) => void;
   setSession: (session: Session | null) => void;
   setLoading: (loading: boolean) => void;
   setOnboardingComplete: (complete: boolean) => void;
+  /** Clears session-loading spinner only; does not skip onboarding/character check. */
+  forceAuthGateOpen: () => void;
   signInWithKakao: () => Promise<void>;
   signOut: () => Promise<void>;
   initializeAuth: () => Promise<void>;
@@ -54,12 +61,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   session: null,
   isAuthenticated: false,
   isLoading: true,
+  pendingOnboardingCheck: false,
   hasCompletedOnboarding: false,
 
   setUser: (user) => set({ user, isAuthenticated: true }),
   setSession: (session) => set({ session, isAuthenticated: !!session }),
   setLoading: (loading) => set({ isLoading: loading }),
   setOnboardingComplete: (complete) => set({ hasCompletedOnboarding: complete }),
+  forceAuthGateOpen: () => set({ isLoading: false }),
 
   signInWithKakao: async () => {
     try {
@@ -138,6 +147,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         session: null,
         isAuthenticated: false,
         hasCompletedOnboarding: false,
+        pendingOnboardingCheck: false,
       });
     } catch (error) {
       console.error('Sign out error:', error);
@@ -146,36 +156,72 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   initializeAuth: async () => {
-    try {
-      set({ isLoading: true });
+    const SESSION_TIMEOUT_MS = 10_000;
+    const ONBOARDING_TIMEOUT_MS = 12_000;
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+    try {
+      set({ isLoading: true, pendingOnboardingCheck: false });
+
+      if (!authStateListenerRegistered) {
+        authStateListenerRegistered = true;
+        supabase.auth.onAuthStateChange((_event, session) => {
+          set({
+            session,
+            user: session?.user ?? null,
+            isAuthenticated: !!session,
+          });
+        });
+      }
+
+      let session: Session | null = null;
+      try {
+        const { data } = await Promise.race([
+          supabase.auth.getSession(),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('getSession_timeout')), SESSION_TIMEOUT_MS),
+          ),
+        ]);
+        session = data.session;
+      } catch (e) {
+        console.warn('[auth] getSession failed or timed out:', e);
+      }
 
       if (session) {
         set({
           session,
           user: session.user,
           isAuthenticated: true,
+          pendingOnboardingCheck: true,
+          hasCompletedOnboarding: false,
         });
-
-        const hasOnboarded = await get().checkOnboardingStatus();
-        set({ hasCompletedOnboarding: hasOnboarded });
       }
-
-      supabase.auth.onAuthStateChange((_event, session) => {
-        set({
-          session,
-          user: session?.user ?? null,
-          isAuthenticated: !!session,
-        });
-      });
     } catch (error) {
       console.error('Auth initialization error:', error);
     } finally {
       set({ isLoading: false });
     }
+
+    const s = get().session;
+    if (!s) {
+      set({ pendingOnboardingCheck: false });
+      return;
+    }
+
+    void (async () => {
+      try {
+        const hasOnboarded = await Promise.race([
+          get().checkOnboardingStatus(),
+          new Promise<boolean>((resolve) =>
+            setTimeout(() => resolve(false), ONBOARDING_TIMEOUT_MS),
+          ),
+        ]);
+        set({ hasCompletedOnboarding: hasOnboarded });
+      } catch {
+        set({ hasCompletedOnboarding: false });
+      } finally {
+        set({ pendingOnboardingCheck: false });
+      }
+    })();
   },
 
   checkOnboardingStatus: async () => {

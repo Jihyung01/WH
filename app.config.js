@@ -26,16 +26,17 @@ module.exports = () => {
 
   return {
     ...expo,
-    // Force old architecture — New Arch + some native modules (e.g. Kakao) is a common startup crash source.
-    newArchEnabled: false,
+    // react-native-reanimated v4+ requires New Architecture (see RNReanimated.podspec).
+    newArchEnabled: true,
     plugins: [
       [
         'expo-build-properties',
         {
           ios: {
-            newArchEnabled: false,
+            newArchEnabled: true,
           },
           android: {
+            newArchEnabled: true,
             extraMavenRepos: ['https://devrepo.kakao.com/nexus/content/groups/public/'],
           },
         },
