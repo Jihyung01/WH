@@ -142,6 +142,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   signOut: async () => {
     try {
+      try {
+        const KakaoUser = require('@react-native-kakao/user').default;
+        if (await KakaoUser.isLogined()) await KakaoUser.logout();
+      } catch {
+        /* native Kakao SDK may be unavailable in some builds */
+      }
       await supabase.auth.signOut();
       set({
         user: null,

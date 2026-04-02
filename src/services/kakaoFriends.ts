@@ -2,7 +2,7 @@ import type {
   KakaoTalkFriend,
   KakaoTalkFriendSelectResult,
 } from '@react-native-kakao/social';
-import { ensureKakaoInitialized } from './kakaoCore';
+import { ensureKakaoUserSessionForSocial } from './kakaoCore';
 
 export type KakaoFriend = Pick<
   KakaoTalkFriend,
@@ -13,7 +13,7 @@ export async function getKakaoTalkFriends(params?: {
   offset?: number;
   limit?: number;
 }): Promise<{ totalCount: number; friends: KakaoFriend[] }> {
-  await ensureKakaoInitialized();
+  await ensureKakaoUserSessionForSocial();
   const KakaoSocial = require('@react-native-kakao/social').default;
   const { offset = 0, limit = 100 } = params ?? {};
   const res = await KakaoSocial.getFriends({
@@ -25,7 +25,7 @@ export async function getKakaoTalkFriends(params?: {
 export async function pickKakaoFriends(params?: {
   maxPickableCount?: number;
 }): Promise<KakaoTalkFriendSelectResult> {
-  await ensureKakaoInitialized();
+  await ensureKakaoUserSessionForSocial();
   const KakaoSocial = require('@react-native-kakao/social').default;
   const { maxPickableCount = 10 } = params ?? {};
   return KakaoSocial.selectMultipleFriends({

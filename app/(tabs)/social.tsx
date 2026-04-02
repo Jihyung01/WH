@@ -36,8 +36,13 @@ import {
   stopLocationSharing,
   isLocationSharingActive,
 } from '../../src/services/friendLocation';
-import { sendKakaoTextToFriends, shareKakaoText } from '../../src/services/kakaoShare';
+import {
+  KAKAO_SHARE_FALLBACK_WEB_URL,
+  sendKakaoTextToFriends,
+  shareKakaoText,
+} from '../../src/services/kakaoShare';
 import { pickKakaoFriends } from '../../src/services/kakaoFriends';
+import { captureError } from '../../src/utils/errorReporting';
 import type { FriendsResult, FriendInfo, MyCrewResult, CrewMember } from '../../src/lib/api';
 import {
   COLORS,
@@ -731,7 +736,10 @@ function HasCrewView({
       // Keep picker broad, but actual send is chunked safely in kakaoShare service.
       const picked = await pickKakaoFriends({ maxPickableCount: 20 });
       const receiverUuids = (picked.users ?? []).map((u) => u.uuid).filter(Boolean);
-      if (receiverUuids.length === 0) return;
+      if (receiverUuids.length === 0) {
+        onShowToast('초대할 친구를 선택해 주세요.', 'error');
+        return;
+      }
 
       const text = `WhereHere에서 \"${crew.name}\" 크루에 함께해요!\n\n초대 코드: ${crew.invite_code}\n\n앱에서 바로 가입하기:\nwherehere://join?code=${crew.invite_code}`;
 
@@ -742,13 +750,17 @@ function HasCrewView({
         linkParams: {
           iosExecutionParams: { screen: 'join', code: crew.invite_code },
           androidExecutionParams: { screen: 'join', code: crew.invite_code },
-          webUrl: 'https://jungle-bearskin-b04.notion.site/335048355db7806eab9af84e3afe8f16',
-          mobileWebUrl: 'https://jungle-bearskin-b04.notion.site/335048355db7806eab9af84e3afe8f16',
+          webUrl: KAKAO_SHARE_FALLBACK_WEB_URL,
+          mobileWebUrl: KAKAO_SHARE_FALLBACK_WEB_URL,
         },
       });
       const count = Array.isArray(sent) ? sent.length : receiverUuids.length;
       onShowToast(`카카오톡으로 ${count}명에게 초대를 보냈어요!`, 'success');
     } catch (e) {
+      captureError(e instanceof Error ? e : new Error(String(e)), {
+        flow: 'kakao_crew_invite',
+        crewId: crew.id,
+      });
       console.warn('Kakao invite failed:', e);
       onShowToast('카카오톡 친구 초대에 실패했어요. (권한/카카오톡 설치 확인)', 'error');
     } finally {

@@ -1,5 +1,9 @@
 import { Platform } from 'react-native';
-import { ensureKakaoInitialized } from './kakaoCore';
+import { ensureKakaoInitialized, ensureKakaoUserSessionForSocial } from './kakaoCore';
+
+/** Must match a domain registered under Kakao Developers → 앱 → 제품 링크 관리 → 웹 도메인. */
+export const KAKAO_SHARE_FALLBACK_WEB_URL =
+  'https://jungle-bearskin-b04.notion.site/335048355db7806eab9af84e3afe8f16';
 
 type ShareLinkParams = {
   /** Landing page when app is not installed / on desktop */
@@ -18,7 +22,7 @@ function buildDefaultLink(params: ShareLinkParams = {}) {
   const fallbackUrl =
     params.mobileWebUrl ??
     params.webUrl ??
-    'https://jungle-bearskin-b04.notion.site/335048355db7806eab9af84e3afe8f16';
+    KAKAO_SHARE_FALLBACK_WEB_URL;
 
   const link = {
     webUrl: params.webUrl ?? fallbackUrl,
@@ -59,10 +63,10 @@ export async function shareKakaoText({
     ],
   };
 
-  // Use web fallback when KakaoTalk is not installed.
+  // Avoid sharer.kakao.com in Safari — misconfigured keys/domains often return 4019; callers use Share fallback.
   return KakaoShare.shareTextTemplate({
     template,
-    useWebBrowserIfKakaoTalkNotAvailable: true,
+    useWebBrowserIfKakaoTalkNotAvailable: false,
     // Optional analytics on Kakao side
     serverCallbackArgs: {
       platform: Platform.OS,
@@ -81,7 +85,7 @@ export async function sendKakaoTextToFriends({
   buttonTitle?: string;
   linkParams?: ShareLinkParams;
 }) {
-  await ensureKakaoInitialized();
+  await ensureKakaoUserSessionForSocial();
   const KakaoShare = require('@react-native-kakao/share').default;
   const link = buildDefaultLink(linkParams);
   const template = {

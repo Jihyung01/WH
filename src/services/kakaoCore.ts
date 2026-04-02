@@ -16,3 +16,15 @@ export function ensureKakaoInitialized(): Promise<void> {
   return kakaoInitPromise;
 }
 
+/**
+ * Supabase 카카오 OAuth alone does not create a native SDK session. Talk Social (picker, send-to-friends)
+ * needs KakaoUser.login — same Kakao account, SDK-only authorization (not your Supabase session).
+ */
+export async function ensureKakaoUserSessionForSocial(): Promise<void> {
+  await ensureKakaoInitialized();
+  const KakaoUser = require('@react-native-kakao/user').default;
+  if (await KakaoUser.isLogined()) return;
+  await KakaoUser.login({
+    scopes: ['profile_nickname', 'profile_image'],
+  });
+}

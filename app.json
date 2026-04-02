@@ -37,7 +37,11 @@
           "comgooglemaps",
           "kakaomap",
           "nmap",
-          "tmap"
+          "tmap",
+          "kakaokompassauth",
+          "kakaolink",
+          "kakaoplus",
+          "kakaotalk"
         ],
         "ITSAppUsesNonExemptEncryption": false
       }
