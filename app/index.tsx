@@ -1,12 +1,18 @@
-import { useEffect } from 'react';
+import { useEffect, useLayoutEffect } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { Redirect } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import { useAuthStore } from '../src/stores/authStore';
 import { COLORS } from '../src/config/theme';
 
 export default function Index() {
   const { isAuthenticated, hasCompletedOnboarding, isLoading, pendingOnboardingCheck, initializeAuth } =
     useAuthStore();
+
+  // Root _layout bootstrap can take many seconds; until hideAsync(), users only see the native splash.
+  useLayoutEffect(() => {
+    void SplashScreen.hideAsync();
+  }, []);
 
   useEffect(() => {
     const failSafe = setTimeout(() => {

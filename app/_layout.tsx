@@ -24,6 +24,14 @@ function AppContent() {
   const { colors, isDark } = useTheme();
   const responseListener = useRef<Notifications.EventSubscription>();
 
+  // Belt-and-suspenders: hide splash even if index route is skipped.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      SplashScreen.hideAsync();
+    }, 2_000);
+    return () => clearTimeout(t);
+  }, []);
+
   useEffect(() => {
     const BOOTSTRAP_TIMEOUT_MS = 25_000;
 
