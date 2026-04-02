@@ -1,9 +1,9 @@
-import { useEffect, useRef } from 'react';
-import { Stack, useRouter } from 'expo-router';
+import { useEffect, useLayoutEffect, useRef } from 'react';
+import { Stack, usePathname, useRouter } from 'expo-router';
 
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { StyleSheet, Alert } from 'react-native';
+import { StyleSheet, Alert, InteractionManager } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Notifications from 'expo-notifications';
 import * as Linking from 'expo-linking';
@@ -13,10 +13,47 @@ import { initAnalytics } from '../src/config/analytics';
 import { initPurchases } from '../src/config/purchases';
 import { ThemeProvider, useTheme, useThemeStore } from '../src/providers/ThemeProvider';
 import { useNotificationStore } from '../src/stores/notificationStore';
+import { useAuthStore } from '../src/stores/authStore';
+import { startupBreadcrumb, startupWatchdog } from '../src/utils/startupTelemetry';
 
-initSentry();
+try {
+  initSentry();
+} catch (e) {
+  console.warn('initSentry failed (non-fatal):', e);
+}
 
-SplashScreen.preventAutoHideAsync();
+/**
+ * expo-router registers SplashScreen._internal_preventAutoHideAsync on a setTimeout(0)
+ * and only dismisses via NavigationContainer onReady → _internal_maybeHideAsync. If that
+ * path fails, users stay on the native launch image forever. We force-dismiss the native
+ * layer here and repeat on a short schedule to win any race with expo-router's prevent.
+ */
+function useForceHideSplash() {
+  useLayoutEffect(() => {
+    startupBreadcrumb('splash_hide_layout');
+    void SplashScreen.hideAsync();
+  }, []);
+
+  useEffect(() => {
+    startupBreadcrumb('splash_hide_effect');
+    void SplashScreen.hideAsync();
+    const run = () => void SplashScreen.hideAsync();
+    const t0 = setTimeout(run, 0);
+    const t1 = setTimeout(run, 32);
+    const t2 = setTimeout(run, 120);
+    const t3 = setTimeout(run, 500);
+    const t4 = setTimeout(run, 1500);
+    const ia = InteractionManager.runAfterInteractions(run);
+    return () => {
+      clearTimeout(t0);
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      clearTimeout(t4);
+      ia.cancel?.();
+    };
+  }, []);
+}
 
 function AppContent() {
   const router = useRouter();
@@ -24,7 +61,7 @@ function AppContent() {
   const responseListener = useRef<Notifications.EventSubscription | undefined>(undefined);
 
   useEffect(() => {
-    void SplashScreen.hideAsync();
+    startupBreadcrumb('app_content_mounted');
   }, []);
 
   useEffect(() => {
@@ -96,12 +133,10 @@ function AppContent() {
       }
     }
 
-    Promise.race([
+    void Promise.race([
       bootstrap(),
       new Promise<void>((resolve) => setTimeout(resolve, BOOTSTRAP_TIMEOUT_MS)),
-    ]).finally(() => {
-      SplashScreen.hideAsync();
-    });
+    ]);
 
     responseListener.current = Notifications.addNotificationResponseReceivedListener(
       (response) => {
@@ -191,6 +226,55 @@ function AppContent() {
 }
 
 function RootLayout() {
+  useForceHideSplash();
+  const pathname = usePathname();
+  const pathnameRef = useRef(pathname);
+  pathnameRef.current = pathname;
+
+  useEffect(() => {
+    startupBreadcrumb('root_layout', { pathname: pathname ?? '' });
+  }, [pathname]);
+
+  useEffect(() => {
+    const pulses = [2000, 5000, 10000].map((ms) =>
+      setTimeout(() => {
+        startupBreadcrumb(`js_alive_${ms}ms`, { pathname: pathnameRef.current ?? '' });
+      }, ms),
+    );
+    return () => pulses.forEach(clearTimeout);
+  }, []);
+
+  useEffect(() => {
+    const w15 = setTimeout(() => {
+      const a = useAuthStore.getState();
+      void startupWatchdog('15s', {
+        pathname: pathnameRef.current ?? '',
+        auth: {
+          isAuthenticated: a.isAuthenticated,
+          isLoading: a.isLoading,
+          pendingOnboardingCheck: a.pendingOnboardingCheck,
+          hasCompletedOnboarding: a.hasCompletedOnboarding,
+        },
+      });
+    }, 15_000);
+    const w30 = setTimeout(() => {
+      const a = useAuthStore.getState();
+      void startupWatchdog('30s', {
+        pathname: pathnameRef.current ?? '',
+        auth: {
+          isAuthenticated: a.isAuthenticated,
+          isLoading: a.isLoading,
+          pendingOnboardingCheck: a.pendingOnboardingCheck,
+          hasCompletedOnboarding: a.hasCompletedOnboarding,
+        },
+      });
+    }, 30_000);
+    return () => {
+      clearTimeout(w15);
+      clearTimeout(w30);
+    };
+  }, []);
+
   return (
     <GestureHandlerRootView style={styles.container}>
       <ThemeProvider>

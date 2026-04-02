@@ -8,6 +8,7 @@ export function initSentry() {
     return;
   }
 
+  try {
   Sentry.init({
     dsn: SENTRY_DSN,
     // Verbose TouchEvents / integration logs only when explicitly debugging Sentry
@@ -21,6 +22,9 @@ export function initSentry() {
       return event;
     },
   });
+  } catch (e) {
+    console.warn('Sentry init failed:', e);
+  }
 }
 
 export { Sentry };

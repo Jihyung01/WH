@@ -1,8 +1,8 @@
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useEffect, useLayoutEffect } from 'react';
-import * as SplashScreen from 'expo-splash-screen';
+import { useEffect } from 'react';
 import { useAuthStore } from '../../src/stores/authStore';
+import { startupBreadcrumb } from '../../src/utils/startupTelemetry';
 
 export default function WelcomeScreen() {
   const router = useRouter();
@@ -14,11 +14,8 @@ export default function WelcomeScreen() {
     initializeAuth,
   } = useAuthStore();
 
-  useLayoutEffect(() => {
-    void SplashScreen.hideAsync();
-  }, []);
-
   useEffect(() => {
+    startupBreadcrumb('welcome_screen_mounted');
     const id = setTimeout(() => {
       void initializeAuth();
     }, 0);
