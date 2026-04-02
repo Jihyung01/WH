@@ -728,13 +728,14 @@ function HasCrewView({
       setInviting(true);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
+      // Keep picker broad, but actual send is chunked safely in kakaoShare service.
       const picked = await pickKakaoFriends({ maxPickableCount: 20 });
       const receiverUuids = (picked.users ?? []).map((u) => u.uuid).filter(Boolean);
       if (receiverUuids.length === 0) return;
 
       const text = `WhereHere에서 \"${crew.name}\" 크루에 함께해요!\n\n초대 코드: ${crew.invite_code}\n\n앱에서 바로 가입하기:\nwherehere://join?code=${crew.invite_code}`;
 
-      await sendKakaoTextToFriends({
+      const sent = await sendKakaoTextToFriends({
         text,
         receiverUuids,
         buttonTitle: '크루 가입하기',
@@ -745,7 +746,8 @@ function HasCrewView({
           mobileWebUrl: 'https://jungle-bearskin-b04.notion.site/335048355db7806eab9af84e3afe8f16',
         },
       });
-      onShowToast(`카카오톡으로 ${receiverUuids.length}명에게 초대를 보냈어요!`, 'success');
+      const count = Array.isArray(sent) ? sent.length : receiverUuids.length;
+      onShowToast(`카카오톡으로 ${count}명에게 초대를 보냈어요!`, 'success');
     } catch (e) {
       console.warn('Kakao invite failed:', e);
       onShowToast('카카오톡 친구 초대에 실패했어요. (권한/카카오톡 설치 확인)', 'error');

@@ -32,6 +32,13 @@
         "NSLocationWhenInUseUsageDescription": "WhereHere needs your location to discover nearby events and verify check-ins.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "WhereHere uses background location to notify you of nearby events.",
         "NSPhotoLibraryUsageDescription": "WhereHere needs photo library access to set your profile picture.",
+        "LSApplicationQueriesSchemes": [
+          "maps",
+          "comgooglemaps",
+          "kakaomap",
+          "nmap",
+          "tmap"
+        ],
         "ITSAppUsesNonExemptEncryption": false
       }
     },

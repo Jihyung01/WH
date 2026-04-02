@@ -30,6 +30,9 @@ function AppContent() {
       try {
         await initAnalytics().catch(() => {});
         await initPurchases().catch(() => {});
+        await import('../src/services/kakaoCore')
+          .then(({ ensureKakaoInitialized }) => ensureKakaoInitialized())
+          .catch((e) => console.warn('Kakao SDK init skipped:', e));
         await useThemeStore.getState().loadOverride().catch(() => {});
         await useNotificationStore.getState().loadPrefs().catch(() => {});
 

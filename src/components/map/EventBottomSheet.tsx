@@ -87,17 +87,12 @@ export function EventBottomSheet({ event, userLocation, onDismiss, onChallenge }
       ios: `maps:0,0?daddr=${event.lat},${event.lng}&dirflg=w`,
       android: `google.navigation:q=${event.lat},${event.lng}&mode=w`,
     });
-    if (url) {
-      Linking.canOpenURL(url).then((supported) => {
-        if (supported) {
-          Linking.openURL(url);
-        } else {
-          Linking.openURL(
-            `https://www.google.com/maps/dir/?api=1&destination=${event.lat},${event.lng}&destination_place_id=${encodedTitle}&travelmode=walking`,
-          );
-        }
-      });
-    }
+    const webFallback =
+      `https://www.google.com/maps/dir/?api=1&destination=${event.lat},${event.lng}&destination_place_id=${encodedTitle}&travelmode=walking`;
+    if (!url) return;
+    Linking.canOpenURL(url)
+      .then((supported) => (supported ? Linking.openURL(url) : Linking.openURL(webFallback)))
+      .catch(() => Linking.openURL(webFallback));
   };
 
   return (
