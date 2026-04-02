@@ -5,7 +5,6 @@ import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StyleSheet, Alert, InteractionManager } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
-import * as Notifications from 'expo-notifications';
 import * as Linking from 'expo-linking';
 
 import { Sentry } from '../src/config/sentry';
@@ -51,8 +50,8 @@ function useForceHideSplash() {
 
 function AppContent() {
   const router = useRouter();
-  const { colors, isDark } = useTheme();
-  const responseListener = useRef<Notifications.EventSubscription | undefined>(undefined);
+  const { colors } = useTheme();
+  const responseListener = useRef<{ remove: () => void } | undefined>(undefined);
 
   useEffect(() => {
     startupBreadcrumb('app_content_mounted');
@@ -70,7 +69,7 @@ function AppContent() {
               registerPushToken: () => Promise<string | null>;
               scheduleDailyReminder: () => Promise<void>;
               scheduleStreakWarning: (streakDays: number) => Promise<void>;
-              handleNotificationTap: (response: Notifications.NotificationResponse) => string | null;
+              handleNotificationTap: (response: unknown) => string | null;
             } = null;
 
         // Load background task modules defensively so startup doesn't crash
@@ -122,6 +121,30 @@ function AppContent() {
         if (backgroundLocationEnabled && !powerSaveMode && backgroundLocationService) {
           await backgroundLocationService.start().catch(() => {});
         }
+
+        // Dynamic import avoids SDK 53 Expo Go crash from static expo-notifications import
+        const Notifications = await import('expo-notifications').catch(() => null);
+        if (Notifications) {
+          responseListener.current = Notifications.addNotificationResponseReceivedListener(
+            (response) => {
+              let deepLink: string | null = null;
+              try {
+                const svc = require('../src/services/notificationService').notificationService;
+                deepLink = svc.handleNotificationTap(response);
+              } catch {
+                deepLink = null;
+              }
+              if (deepLink) {
+                const path = deepLink.replace('wherehere://', '/');
+                try {
+                  router.push(path as any);
+                } catch {
+                  // route not found
+                }
+              }
+            },
+          );
+        }
       } catch (err) {
         console.warn('Bootstrap error (non-fatal):', err);
       }
@@ -131,26 +154,6 @@ function AppContent() {
       bootstrap(),
       new Promise<void>((resolve) => setTimeout(resolve, BOOTSTRAP_TIMEOUT_MS)),
     ]);
-
-    responseListener.current = Notifications.addNotificationResponseReceivedListener(
-      (response) => {
-        let deepLink: string | null = null;
-        try {
-          const notificationService = require('../src/services/notificationService').notificationService;
-          deepLink = notificationService.handleNotificationTap(response);
-        } catch {
-          deepLink = null;
-        }
-        if (deepLink) {
-          const path = deepLink.replace('wherehere://', '/');
-          try {
-            router.push(path as any);
-          } catch {
-            // route not found
-          }
-        }
-      },
-    );
 
     // Handle deep links (e.g. wherehere://join?code=XXX)
     function handleDeepLink(event: { url: string }) {
@@ -185,7 +188,7 @@ function AppContent() {
       responseListener.current?.remove();
       linkingSub.remove();
     };
-  }, []);
+  }, [router]);
 
   return (
     <>

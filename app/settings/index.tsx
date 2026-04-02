@@ -7,8 +7,6 @@ import * as Haptics from 'expo-haptics';
 import { useAuthStore } from '../../src/stores/authStore';
 import { deleteAccount } from '../../src/lib/api';
 import { useNotificationStore, type NotificationPrefs } from '../../src/stores/notificationStore';
-import { notificationService } from '../../src/services/notificationService';
-import { backgroundLocationService } from '../../src/services/backgroundLocation';
 import { useTheme, useThemeStore } from '../../src/providers/ThemeProvider';
 import { PressableScale } from '../../src/components/ui';
 import { BRAND, SPACING, FONT_SIZE, FONT_WEIGHT, BORDER_RADIUS, SHADOWS, A11Y } from '../../src/config/theme';
@@ -48,34 +46,43 @@ export default function SettingsScreen() {
   const [language, setLanguage] = useState<'ko' | 'en'>('ko');
   const [bgPermGranted, setBgPermGranted] = useState(false);
 
+  const getBgLocation = async () =>
+    (await import('../../src/services/backgroundLocation')).backgroundLocationService;
+  const getNotifService = async () =>
+    (await import('../../src/services/notificationService')).notificationService;
+
   useEffect(() => {
     loadPrefs();
-    backgroundLocationService.hasBackgroundPermission().then(setBgPermGranted);
+    getBgLocation().then((svc) => svc.hasBackgroundPermission().then(setBgPermGranted)).catch(() => {});
   }, []);
 
-  const handleNotifToggle = useCallback((key: keyof NotificationPrefs, value: boolean) => {
+  const handleNotifToggle = useCallback(async (key: keyof NotificationPrefs, value: boolean) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     updatePref(key, !value);
 
-    if (key === 'dailyReminder') {
-      if (!value) notificationService.scheduleDailyReminder();
-      else notificationService.cancelDailyReminder();
-    }
-    if (key === 'streakWarning') {
-      if (value) notificationService.cancelStreakWarning();
-    }
+    try {
+      const svc = await getNotifService();
+      if (key === 'dailyReminder') {
+        if (!value) svc.scheduleDailyReminder();
+        else svc.cancelDailyReminder();
+      }
+      if (key === 'streakWarning') {
+        if (value) svc.cancelStreakWarning();
+      }
+    } catch {}
   }, []);
 
   const handleBgLocationToggle = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const svc = await getBgLocation();
 
     if (backgroundLocationEnabled) {
-      await backgroundLocationService.stop();
+      await svc.stop();
       setBackgroundLocation(false);
       return;
     }
 
-    const hasPerm = await backgroundLocationService.hasBackgroundPermission();
+    const hasPerm = await svc.hasBackgroundPermission();
     if (!hasPerm) {
       Alert.alert(
         '백그라운드 위치 권한',
@@ -85,10 +92,10 @@ export default function SettingsScreen() {
           {
             text: '허용하기',
             onPress: async () => {
-              const granted = await backgroundLocationService.requestBackgroundPermission();
+              const granted = await svc.requestBackgroundPermission();
               setBgPermGranted(granted);
               if (granted) {
-                await backgroundLocationService.start();
+                await svc.start();
                 setBackgroundLocation(true);
               }
             },
@@ -98,17 +105,18 @@ export default function SettingsScreen() {
       return;
     }
 
-    await backgroundLocationService.start();
+    await svc.start();
     setBackgroundLocation(true);
   }, [backgroundLocationEnabled]);
 
-  const handlePowerSaveToggle = useCallback(() => {
+  const handlePowerSaveToggle = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const next = !powerSaveMode;
     setPowerSaveMode(next);
 
     if (next && backgroundLocationEnabled) {
-      backgroundLocationService.stop();
+      const svc = await getBgLocation();
+      svc.stop();
       setBackgroundLocation(false);
     }
   }, [powerSaveMode, backgroundLocationEnabled]);
