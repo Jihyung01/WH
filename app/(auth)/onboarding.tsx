@@ -74,7 +74,25 @@ const STARTER_CHARACTERS: StarterCharacterDef[] = [
 export default function OnboardingScreen() {
   const router = useRouter();
   const { setOnboardingComplete } = useAuthStore();
-  
+
+  /** Already has a character (e.g. auth gate timed out) → skip to map */
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const hasCharacter = await useAuthStore.getState().checkOnboardingStatus();
+        if (cancelled || !hasCharacter) return;
+        useAuthStore.getState().setOnboardingComplete(true);
+        router.replace('/(tabs)/map');
+      } catch {
+        /* stay */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
+
   const [step, setStep] = useState(1);
   const [username, setUsername] = useState('');
   const [selectedCharacter, setSelectedCharacter] = useState<StarterCharacterDef | null>(null);

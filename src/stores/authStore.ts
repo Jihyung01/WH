@@ -23,7 +23,7 @@ interface AuthState {
   setSession: (session: Session | null) => void;
   setLoading: (loading: boolean) => void;
   setOnboardingComplete: (complete: boolean) => void;
-  /** Clears session-loading spinner only; does not skip onboarding/character check. */
+  /** Emergency: stop any auth/onboarding gate (stuck overlay / redirect). */
   forceAuthGateOpen: () => void;
   signInWithKakao: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -68,7 +68,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   setSession: (session) => set({ session, isAuthenticated: !!session }),
   setLoading: (loading) => set({ isLoading: loading }),
   setOnboardingComplete: (complete) => set({ hasCompletedOnboarding: complete }),
-  forceAuthGateOpen: () => set({ isLoading: false }),
+  forceAuthGateOpen: () =>
+    set({ isLoading: false, pendingOnboardingCheck: false }),
 
   signInWithKakao: async () => {
     try {
@@ -156,11 +157,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   initializeAuth: async () => {
-    const SESSION_TIMEOUT_MS = 10_000;
-    const ONBOARDING_TIMEOUT_MS = 12_000;
+    const SESSION_TIMEOUT_MS = 8_000;
+    const ONBOARDING_TIMEOUT_MS = 8_000;
 
     try {
-      set({ isLoading: true, pendingOnboardingCheck: false });
+      // Do not set isLoading for cold start — it only blocked the welcome UI.
+      set({ pendingOnboardingCheck: false });
 
       if (!authStateListenerRegistered) {
         authStateListenerRegistered = true;

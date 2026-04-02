@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useEffect, useLayoutEffect } from 'react';
 import * as SplashScreen from 'expo-splash-screen';
@@ -19,13 +19,16 @@ export default function WelcomeScreen() {
   }, []);
 
   useEffect(() => {
-    void initializeAuth();
+    const id = setTimeout(() => {
+      void initializeAuth();
+    }, 0);
+    return () => clearTimeout(id);
   }, []);
 
   useEffect(() => {
     const t = setTimeout(() => {
       useAuthStore.getState().forceAuthGateOpen();
-    }, 12_000);
+    }, 8_000);
     return () => clearTimeout(t);
   }, []);
 
@@ -38,16 +41,8 @@ export default function WelcomeScreen() {
     }
   }, [isLoading, isAuthenticated, hasCompletedOnboarding, pendingOnboardingCheck, router]);
 
-  const busy = isLoading || (isAuthenticated && pendingOnboardingCheck);
-
   return (
     <View style={styles.container}>
-      {busy ? (
-        <View style={styles.busyOverlay}>
-          <ActivityIndicator size="large" color="#2DD4A8" />
-        </View>
-      ) : null}
-
       <View style={styles.content}>
         <Text style={styles.logo}>📍</Text>
         <Text style={styles.title}>WhereHere</Text>
@@ -55,11 +50,7 @@ export default function WelcomeScreen() {
       </View>
 
       <View style={styles.footer}>
-        <Pressable
-          style={[styles.startButton, busy && styles.startButtonDisabled]}
-          onPress={() => router.push('/(auth)/login')}
-          disabled={busy}
-        >
+        <Pressable style={styles.startButton} onPress={() => router.push('/(auth)/login')}>
           <Text style={styles.startButtonText}>시작하기</Text>
         </Pressable>
       </View>
@@ -74,13 +65,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 24,
     paddingBottom: 48,
-  },
-  busyOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(15, 23, 42, 0.85)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
   },
   content: {
     flex: 1,
@@ -111,9 +95,6 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 16,
     alignItems: 'center',
-  },
-  startButtonDisabled: {
-    opacity: 0.5,
   },
   startButtonText: {
     color: '#FFFFFF',
