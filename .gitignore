@@ -6,6 +6,7 @@ node_modules/
 # Expo
 .expo/
 dist/
+dist-ios-check/
 web-build/
 expo-env.d.ts
 
@@ -48,3 +49,6 @@ supabase/.temp/
 # AI tools
 .claude/
 .cursor/
+
+# accidental local file (should not be a project file)
+/npx
