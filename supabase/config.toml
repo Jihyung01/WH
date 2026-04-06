@@ -50,3 +50,11 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/character-chat/deno.json"
 entrypoint = "./functions/character-chat/index.ts"
+
+# character-chat과 동일: Supabase 게이트웨이 JWT 검증이 React Native 세션 액세스 토큰과 충돌해
+# "Invalid JWT"가 나는 경우가 있음. 인증은 함수 내부 supabase.auth.getUser(jwt)로 처리.
+[functions.generate-ugc-event]
+enabled = true
+verify_jwt = false
+import_map = "./functions/generate-ugc-event/deno.json"
+entrypoint = "./functions/generate-ugc-event/index.ts"

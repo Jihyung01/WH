@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,7 +15,13 @@ import Animated, {
 
 import { useMapStore } from '../../src/stores/mapStore';
 import { useLocationStore } from '../../src/stores/locationStore';
-import { getEvent, getEventMissions, completeMission, grantQuizCoins } from '../../src/lib/api';
+import {
+  getEvent,
+  getEventMissions,
+  completeMission,
+  grantQuizCoins,
+  uploadMissionPhoto,
+} from '../../src/lib/api';
 import { useNarrative } from '../../src/hooks/useNarrative';
 import { getDistance } from '../../src/utils/geo';
 import { formatDistance } from '../../src/utils/format';
@@ -104,21 +110,30 @@ export default function EventDetailScreen() {
   const allCompleted = completedCount === missions.length && missions.length > 0;
   const activeStepIndex = missions.findIndex((m) => !m.is_completed);
 
-  const handleStepComplete = useCallback(async (mission: MissionWithStatus) => {
-    setMissions((prev) =>
-      prev.map((m) => (m.id === mission.id ? { ...m, is_completed: true } : m)),
-    );
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  const handleStepComplete = useCallback(
+    async (mission: MissionWithStatus, proofLocalUri?: string) => {
+      try {
+        let proofUrl: string | undefined;
+        if (mission.mission_type === 'photo' && proofLocalUri) {
+          proofUrl = await uploadMissionPhoto(mission.id, proofLocalUri);
+        }
+        await completeMission(mission.id, id!, undefined, proofUrl);
 
-    try {
-      await completeMission(mission.id, id!);
-      if (mission.mission_type === 'quiz') {
-        grantQuizCoins().catch(() => {});
+        setMissions((prev) =>
+          prev.map((m) => (m.id === mission.id ? { ...m, is_completed: true } : m)),
+        );
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+        if (mission.mission_type === 'quiz') {
+          grantQuizCoins().catch(() => {});
+        }
+      } catch (err) {
+        console.warn('Failed to record mission completion:', err);
+        Alert.alert('오류', '미션 완료 처리에 실패했습니다. 네트워크와 저장소 권한을 확인해 주세요.');
       }
-    } catch (err) {
-      console.warn('Failed to record mission completion:', err);
-    }
-  }, [id]);
+    },
+    [id],
+  );
 
   const handleStartMission = () => {
     if (!isInRange) return;
@@ -302,7 +317,7 @@ export default function EventDetailScreen() {
                       <PhotoMission
                         key={mission.id}
                         description={mission.description ?? mission.title}
-                        onComplete={() => handleStepComplete(mission)}
+                        onComplete={(uri) => handleStepComplete(mission, uri)}
                         isActive={isActive}
                         isCompleted={isStepCompleted}
                       />

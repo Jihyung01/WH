@@ -423,10 +423,10 @@ export default function CreateEventScreen() {
           </View>
           <Text style={styles.successTitle}>이벤트가 등록되었어요!</Text>
           <Text style={styles.successSubtitle}>
-            관리자 검토 후 공개됩니다
+            지도에서 바로 탐험할 수 있어요
           </Text>
           <Text style={styles.successDetail}>
-            검토는 보통 1~2일 소요됩니다.{'\n'}승인되면 알림으로 알려드릴게요.
+            주변 사용자에게도 곧바로 노출됩니다.
           </Text>
 
           <Pressable
@@ -456,7 +456,7 @@ export default function CreateEventScreen() {
           ) : (
             <>
               <Ionicons name="cloud-upload-outline" size={20} color="#FFF" />
-              <Text style={styles.nextBtnText}>등록 요청하기</Text>
+              <Text style={styles.nextBtnText}>이벤트 등록하기</Text>
             </>
           )}
         </Pressable>

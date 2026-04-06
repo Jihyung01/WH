@@ -1,4 +1,4 @@
-import { FunctionsHttpError } from '@supabase/supabase-js';
+import { FunctionsHttpError, FunctionsRelayError } from '@supabase/supabase-js';
 import { supabase } from '../config/supabase';
 import type {
   NearbyEvent,
@@ -101,8 +101,10 @@ function looksLikeJwtAuthFailure(message: string, rawText: string): boolean {
 }
 
 /**
- * `functions.invoke` + SDK `fetchWithAuth`만 사용 (Authorization 중복/불일치 방지).
- * 호출 전 `getUser()`로 Auth 서버와 동기화해 만료된 `getSession` 토큰을 쓰지 않습니다.
+ * Edge Functions 호출. `Authorization` 헤더를 직접 넣지 않습니다.
+ * supabase-js의 `fetchWithAuth`는 헤더에 Authorization이 **없을 때만** `_getAccessToken()`으로
+ * 최신 토큰을 붙입니다. 직접 Bearer를 넣으면 그 분기가 막혀 오래된/잘못된 토큰이 고정되어
+ * `invalid JWT`가 날 수 있습니다.
  */
 async function invokeEdgeFunction<T>(name: string, body: Record<string, unknown>): Promise<T> {
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -118,10 +120,38 @@ async function invokeEdgeFunction<T>(name: string, body: Record<string, unknown>
       throw new AppError('인증이 필요합니다.', 'AUTH_REQUIRED', 401);
     }
 
+    let {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      if (attempt === 0) {
+        await supabase.auth.refreshSession();
+        continue;
+      }
+      throw new AppError('세션이 없습니다. 다시 로그인해 주세요.', 'AUTH_REQUIRED', 401);
+    }
+
     const { data, error } = await supabase.functions.invoke<T>(name, { body });
 
     if (!error) {
+      const raw = data as Record<string, unknown> | null | undefined;
+      if (
+        raw &&
+        typeof raw.error === 'string' &&
+        raw.suggested_event === undefined &&
+        raw.event_id === undefined
+      ) {
+        throw new AppError(raw.error, 'EDGE_FUNCTION_ERROR', 400);
+      }
       return (data ?? {}) as T;
+    }
+
+    if (error instanceof FunctionsRelayError) {
+      throw new AppError(
+        'Edge Function에 연결하지 못했습니다. 네트워크와 Supabase 상태를 확인해 주세요.',
+        'EDGE_FUNCTION_ERROR',
+        502,
+      );
     }
 
     if (error instanceof FunctionsHttpError) {

@@ -18,7 +18,13 @@ import Animated, {
 import { useMapStore } from '../../../src/stores/mapStore';
 import { useCharacterStore } from '../../../src/stores/characterStore';
 import { EventStatus } from '../../../src/types/enums';
+import type { NearbyEvent } from '../../../src/types/models';
 import { COLORS, SPACING, FONT_SIZE, FONT_WEIGHT, BORDER_RADIUS, SHADOWS } from '../../../src/config/theme';
+
+/** Optional extras if store/API ever attach reward metadata */
+type EventWithExtras = NearbyEvent & {
+  rewards?: { name: string }[];
+};
 
 interface RewardItem {
   icon: string;
@@ -36,7 +42,7 @@ export default function MissionCompleteScreen() {
   const addXp = useCharacterStore((s) => s.addXp);
 
   const event = useMemo(
-    () => visibleEvents.find((e) => e.id === id),
+    () => visibleEvents.find((e) => e.id === id) as EventWithExtras | undefined,
     [visibleEvents, id],
   );
 
@@ -49,12 +55,16 @@ export default function MissionCompleteScreen() {
 
   const rewards: RewardItem[] = useMemo(() => {
     if (!event) return [];
+    const xp = event.reward_xp ?? 0;
+    // DB 이벤트에는 코인 필드가 없고, 완료 Edge 함수 기본값과 맞춘 추정치(난이도×20)
+    const coinEstimate = Math.round((event.difficulty ?? 1) * 20);
     const items: RewardItem[] = [
-      { icon: '⚡', label: 'XP', value: `+${event.xpReward}`, color: COLORS.primary },
-      { icon: '🪙', label: '코인', value: `+${event.coinReward}`, color: COLORS.warning },
+      { icon: '⚡', label: 'XP', value: `+${xp}`, color: COLORS.primary },
+      { icon: '🪙', label: '코인', value: `+${coinEstimate}`, color: COLORS.warning },
     ];
-    if (event.rewards.length > 0) {
-      items.push({ icon: '🎁', label: '아이템', value: event.rewards[0].name, color: COLORS.info });
+    const extra = event.rewards;
+    if (Array.isArray(extra) && extra.length > 0 && extra[0]?.name) {
+      items.push({ icon: '🎁', label: '아이템', value: extra[0].name, color: COLORS.info });
     }
     return items;
   }, [event]);
@@ -77,7 +87,7 @@ export default function MissionCompleteScreen() {
         e.id === id ? { ...e, status: EventStatus.EXPIRED } : e,
       );
       setVisibleEvents(updated);
-      addXp(event.xpReward);
+      addXp(event.reward_xp ?? 0);
     }
 
     // Reveal rewards one by one

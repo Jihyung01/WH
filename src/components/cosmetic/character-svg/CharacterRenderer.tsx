@@ -80,7 +80,7 @@ export function CharacterRenderer({
         {/* Background layer (behind everything) */}
         {bgItem?.cosmetic && (
           <View style={styles.absolute}>
-            <BackgroundLayer rarity={bgItem.cosmetic.rarity} size={size} />
+            <BackgroundLayer rarity={bgItem.cosmetic.rarity} emoji={bgItem.cosmetic.preview_emoji} size={size} />
           </View>
         )}
 

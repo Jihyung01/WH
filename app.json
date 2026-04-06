@@ -31,6 +31,7 @@
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "WhereHere needs your location to discover nearby events and verify check-ins.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "WhereHere uses background location to notify you of nearby events.",
+        "NSCameraUsageDescription": "WhereHere needs camera access to complete mission photos.",
         "NSPhotoLibraryUsageDescription": "WhereHere needs photo library access to set your profile picture.",
         "LSApplicationQueriesSchemes": [
           "maps",
@@ -130,7 +131,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "WhereHere needs photo library access to set your profile picture."
+          "photosPermission": "WhereHere needs photo library access to set your profile picture.",
+          "cameraPermission": "WhereHere needs camera access to complete mission photos."
         }
       ]
     ],

@@ -215,8 +215,8 @@ async function handleSave(
       reward_xp: eventData.reward_xp,
       creator_type: "user",
       creator_id: userId,
-      status: "pending",
-      is_active: false,
+      status: "approved",
+      is_active: true,
       is_seasonal: false,
     })
     .select("id")

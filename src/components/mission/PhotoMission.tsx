@@ -1,43 +1,59 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, Alert, Image as RNImage } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import * as ImagePicker from 'expo-image-picker';
 import { COLORS, SPACING, FONT_SIZE, FONT_WEIGHT, BORDER_RADIUS } from '../../config/theme';
 
 interface PhotoMissionProps {
   description: string;
-  onComplete: (photoUri: string) => void;
+  onComplete: (photoUri: string) => void | Promise<void>;
   isActive: boolean;
   isCompleted: boolean;
 }
 
 export function PhotoMission({ description, onComplete, isActive, isCompleted }: PhotoMissionProps) {
-  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const handleTakePhoto = async () => {
-    if (!isActive) return;
+    if (!isActive || busy) return;
 
     try {
-      // In a real app, use expo-image-picker / expo-camera.
-      // For demo, simulate a captured photo.
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          '카메라 권한 필요',
+          '설정에서 WhereHere의 카메라 접근을 허용한 뒤 다시 시도해 주세요.',
+        );
+        return;
+      }
+
+      setBusy(true);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-      Alert.alert(
-        '📸 사진 촬영',
-        '데모 모드에서는 자동으로 완료됩니다.',
-        [{
-          text: '촬영 완료',
-          onPress: () => {
-            const mockUri = 'demo://photo-captured';
-            setPhotoUri(mockUri);
-            onComplete(mockUri);
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          },
-        }],
-      );
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        quality: 0.85,
+      });
+
+      if (result.canceled) {
+        return;
+      }
+
+      const uri = result.assets[0]?.uri;
+      if (!uri) {
+        Alert.alert('오류', '사진을 가져오지 못했습니다.');
+        return;
+      }
+
+      await Promise.resolve(onComplete(uri));
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
       console.error('Photo capture error:', error);
       Alert.alert('오류', '사진 촬영 중 문제가 발생했습니다.');
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -58,9 +74,19 @@ export function PhotoMission({ description, onComplete, isActive, isCompleted }:
         {isCompleted ? (
           <Text style={styles.sublabelSuccess}>사진 업로드 완료</Text>
         ) : isActive ? (
-          <Pressable style={styles.captureBtn} onPress={handleTakePhoto}>
-            <Ionicons name="camera" size={16} color={COLORS.textPrimary} />
-            <Text style={styles.captureBtnText}>사진 촬영하기</Text>
+          <Pressable
+            style={[styles.captureBtn, busy && styles.captureBtnDisabled]}
+            onPress={handleTakePhoto}
+            disabled={busy}
+          >
+            {busy ? (
+              <ActivityIndicator size="small" color={COLORS.textPrimary} />
+            ) : (
+              <>
+                <Ionicons name="camera" size={16} color={COLORS.textPrimary} />
+                <Text style={styles.captureBtnText}>사진 촬영하기</Text>
+              </>
+            )}
           </Pressable>
         ) : (
           <Text style={styles.sublabel}>이전 단계를 완료해주세요</Text>
@@ -117,6 +143,11 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.sm,
     borderRadius: BORDER_RADIUS.sm,
     gap: 6,
+    minWidth: 140,
+    justifyContent: 'center',
+  },
+  captureBtnDisabled: {
+    opacity: 0.85,
   },
   captureBtnText: {
     fontSize: FONT_SIZE.sm,
