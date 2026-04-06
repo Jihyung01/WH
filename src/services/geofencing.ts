@@ -1,3 +1,4 @@
+import Constants from 'expo-constants';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import * as Notifications from 'expo-notifications';
@@ -18,25 +19,25 @@ interface CachedEvent {
 }
 
 const CHARACTER_MESSAGES: Record<string, Record<string, string>> = {
-  pathfinder: {
+  explorer: {
     exploration: '이가 근처에서 탐험 포인트를 발견했어요! 🌿',
     photo: '이가 사진 찍기 좋은 곳을 찾았어요! 📸',
     quiz: '이가 수상한 퀴즈를 발견했어요! 🧩',
     partnership: '이가 특별한 제휴 이벤트를 발견했어요! ⭐',
   },
-  observer: {
+  foodie: {
     exploration: '이가 새로운 바람의 흔적을 감지했어요! 🍃',
     photo: '이가 멋진 풍경을 포착했어요! 🌊',
     quiz: '이가 신비한 문제를 발견했어요! 💨',
     partnership: '이가 특별한 장소를 발견했어요! 🌟',
   },
-  scholar: {
+  artist: {
     exploration: '이가 미지의 지식을 감지했어요! 🌤️',
     photo: '이가 빛나는 순간을 포착했어요! ☀️',
     quiz: '이가 지식의 단서를 찾았어요! 🔥',
     partnership: '이가 특별한 학습 기회를 발견했어요! 💎',
   },
-  connector: {
+  socialite: {
     exploration: '이가 새로운 연결 고리를 감지했어요! ✨',
     photo: '이가 별빛 같은 순간을 포착했어요! ⭐',
     quiz: '이가 별자리 퀴즈를 발견했어요! 🌟',
@@ -45,9 +46,9 @@ const CHARACTER_MESSAGES: Record<string, Record<string, string>> = {
 };
 
 function getNotificationMessage(event: CachedEvent): { title: string; body: string } {
-  const charType = event.characterName ? getCharTypeFromStorage() : 'pathfinder';
+  const charType = event.characterName ? getCharTypeFromStorage() : 'explorer';
   const charName = event.characterName ?? '도담';
-  const messages = CHARACTER_MESSAGES[charType] ?? CHARACTER_MESSAGES.pathfinder;
+  const messages = CHARACTER_MESSAGES[charType] ?? CHARACTER_MESSAGES.explorer;
   const suffix = messages[event.category] ?? messages.exploration;
 
   return {
@@ -59,11 +60,11 @@ function getNotificationMessage(event: CachedEvent): { title: string; body: stri
 function getCharTypeFromStorage(): string {
   try {
     const raw = storage.getString('wherehere-character');
-    if (!raw) return 'pathfinder';
+    if (!raw) return 'explorer';
     const parsed = JSON.parse(raw);
     return parsed?.state?.character?.character_type ?? 'pathfinder';
   } catch {
-    return 'pathfinder';
+    return 'explorer';
   }
 }
 
@@ -146,6 +147,12 @@ TaskManager.defineTask(GEOFENCE_TASK, async ({ data, error }) => {
 export async function registerGeofences(
   events: CachedEvent[],
 ): Promise<number> {
+  // Expo Go는 호스트 앱 Info.plist/백그라운드 위치 조합이 달라 지오펜스 등록이 실패하는 경우가 많음.
+  // 실제 기능은 development / production 빌드에서 검증.
+  if (Constants.appOwnership === 'expo') {
+    return 0;
+  }
+
   try {
     const { status: bgStatus } = await Location.requestBackgroundPermissionsAsync();
     if (bgStatus !== 'granted') {

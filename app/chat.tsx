@@ -105,7 +105,7 @@ export default function ChatScreen() {
   const [remainingChats, setRemainingChats] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const characterType = character?.character_type ?? 'pathfinder';
+  const characterType = character?.character_type ?? 'explorer';
   const characterLevel = character?.level ?? 1;
   const stage = getEvolutionStage(characterLevel);
   const emoji = getEvolutionEmoji(characterType, stage);

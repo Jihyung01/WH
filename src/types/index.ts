@@ -15,11 +15,22 @@ export type {
   LeaderboardEntry,
   StarterCharacter,
   CheckInResult,
+  CosmeticDropResult,
   CompleteEventResult,
   NarrativeResult,
   QuizResult,
   UserStats,
   VisitedLocation,
+  Cosmetic,
+  UserCosmetic,
+  CharacterLoadout,
+  CharacterTitle,
+  UserTitle,
+  PurchaseResult,
+  EquipResult,
+  TitleCheckResult,
+  PersonalityResult,
+  EquippedEffects,
 } from './models';
 
 export type {
@@ -39,5 +50,11 @@ export {
   CharacterClass,
   RewardType,
   District,
+  CosmeticSlot,
+  CosmeticEffect,
+  CharacterMood,
+  UnlockMethod,
+  AcquiredVia,
+  TitleCategory,
 } from './enums';
 export type { EvolutionLabel } from './enums';

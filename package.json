@@ -8,7 +8,9 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "eas": "eas",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "eas:android:prod": "eas build --platform android --profile production",
+    "eas:update:prod": "eas update --channel production"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

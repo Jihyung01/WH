@@ -21,6 +21,7 @@ import Animated, {
 
 import { claimDailyReward, getStreakInfo } from '../../lib/api';
 import type { DailyRewardResult, StreakInfo } from '../../lib/api';
+import { useCharacterStore } from '../../stores/characterStore';
 import { COLORS, SPACING, FONT_SIZE, FONT_WEIGHT, BORDER_RADIUS, SHADOWS, BRAND } from '../../config/theme';
 
 interface Props {
@@ -37,6 +38,7 @@ const MILESTONE_EMOJIS: Record<string, string> = {
 };
 
 export default function DailyRewardModal({ visible, onClose }: Props) {
+  const fetchCoins = useCharacterStore((s) => s.fetchCoins);
   const [streakInfo, setStreakInfo] = useState<StreakInfo | null>(null);
   const [result, setResult] = useState<DailyRewardResult | null>(null);
   const [isClaiming, setIsClaiming] = useState(false);
@@ -92,9 +94,10 @@ export default function DailyRewardModal({ visible, onClose }: Props) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         xpScale.value = withSpring(1, { damping: 6, stiffness: 100 });
 
-        // Reload streak info
+        // Reload streak info & sync coins
         const info = await getStreakInfo();
         setStreakInfo(info);
+        fetchCoins();
       }
     } catch (err) {
       console.warn('Claim daily reward error:', err);
@@ -182,6 +185,9 @@ export default function DailyRewardModal({ visible, onClose }: Props) {
                 <Animated.View entering={FadeInUp.springify()} style={styles.resultBox}>
                   <Animated.View style={[styles.xpBurst, xpStyle]}>
                     <Text style={styles.xpBurstText}>+{result.xp_earned} XP</Text>
+                    {!!result.coins_earned && (
+                      <Text style={styles.coinText}>+{result.coins_earned} 🪙</Text>
+                    )}
                     {result.bonus_type && (
                       <Text style={styles.bonusText}>
                         {MILESTONE_EMOJIS[result.bonus_type] ?? '🎁'} {result.message}
@@ -328,6 +334,12 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: FONT_WEIGHT.extrabold,
     color: BRAND.primary,
+  },
+  coinText: {
+    fontSize: 24,
+    fontWeight: FONT_WEIGHT.bold,
+    color: BRAND.gold,
+    marginTop: SPACING.xs,
   },
   bonusText: {
     fontSize: FONT_SIZE.sm,

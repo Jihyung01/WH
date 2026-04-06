@@ -119,7 +119,7 @@ export default function JournalScreen() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [showShare, setShowShare] = useState(false);
 
-  const characterType = character?.character_type ?? 'pathfinder';
+  const characterType = character?.character_type ?? 'explorer';
   const characterLevel = character?.level ?? 1;
   const stage = getEvolutionStage(characterLevel);
   const emoji = getEvolutionEmoji(characterType, stage);

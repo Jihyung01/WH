@@ -1,4 +1,4 @@
-export type CharacterType = 'pathfinder' | 'observer' | 'scholar' | 'connector';
+export type CharacterType = 'explorer' | 'foodie' | 'artist' | 'socialite';
 
 export type DialogueSituation =
   | 'app_open'
@@ -13,10 +13,10 @@ export type DialogueSituation =
   | 'morning';
 
 export const CHARACTER_TYPE_MAP: Record<string, string> = {
-  pathfinder: 'dodam',
-  observer: 'narae',
-  scholar: 'haram',
-  connector: 'byeolzzi',
+  explorer: 'dodam',
+  foodie: 'narae',
+  artist: 'haram',
+  socialite: 'byeolzzi',
 };
 
 export const DIALOGUES: Record<string, Record<DialogueSituation, string[]>> = {

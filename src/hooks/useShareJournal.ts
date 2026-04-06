@@ -38,7 +38,7 @@ export function useShareJournal() {
         const data: ShareJournalData = {
           date: dateStr,
           characterName: character?.name ?? '탐험가',
-          characterType: character?.character_type ?? 'pathfinder',
+          characterType: character?.character_type ?? 'explorer',
           characterLevel: rewardResult.character?.new_level ?? character?.level ?? 1,
           journalText,
           placesVisited: [eventTitle],

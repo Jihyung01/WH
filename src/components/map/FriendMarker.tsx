@@ -5,10 +5,10 @@ import { COLORS, BRAND } from '../../config/theme';
 import type { FriendLocation } from '../../services/friendLocation';
 
 const CHARACTER_EMOJIS: Record<string, string> = {
-  pathfinder: '🌿',
-  observer: '🔭',
-  scholar: '📚',
-  connector: '⭐',
+  explorer: '🌿',
+  foodie: '🔭',
+  artist: '📚',
+  socialite: '⭐',
 };
 
 interface Props {

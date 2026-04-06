@@ -15,7 +15,7 @@ import Animated, {
 
 import { useMapStore } from '../../src/stores/mapStore';
 import { useLocationStore } from '../../src/stores/locationStore';
-import { getEvent, getEventMissions, completeMission } from '../../src/lib/api';
+import { getEvent, getEventMissions, completeMission, grantQuizCoins } from '../../src/lib/api';
 import { useNarrative } from '../../src/hooks/useNarrative';
 import { getDistance } from '../../src/utils/geo';
 import { formatDistance } from '../../src/utils/format';
@@ -112,6 +112,9 @@ export default function EventDetailScreen() {
 
     try {
       await completeMission(mission.id, id!);
+      if (mission.mission_type === 'quiz') {
+        grantQuizCoins().catch(() => {});
+      }
     } catch (err) {
       console.warn('Failed to record mission completion:', err);
     }

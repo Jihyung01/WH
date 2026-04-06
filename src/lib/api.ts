@@ -542,6 +542,7 @@ export interface DailyRewardResult {
   reward_id?: string;
   streak_day?: number;
   xp_earned?: number;
+  coins_earned?: number;
   base_xp?: number;
   streak_bonus?: number;
   bonus_type?: string | null;
@@ -916,4 +917,150 @@ export async function toggleLocationSharing(enabled: boolean): Promise<void> {
 
 export async function deleteAccount(): Promise<{ success: boolean }> {
   return invokeEdgeFunction<{ success: boolean }>('delete-account', {});
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 23. Cosmetics
+// ─────────────────────────────────────────────────────────────────────────────
+
+import type {
+  Cosmetic,
+  UserCosmetic,
+  CharacterLoadout,
+  CharacterTitle,
+  UserTitle,
+  PurchaseResult,
+  EquipResult,
+  TitleCheckResult,
+  PersonalityResult,
+} from '../types/models';
+import type { CosmeticSlot } from '../types/enums';
+
+export async function getAllCosmetics(slot?: CosmeticSlot): Promise<Cosmetic[]> {
+  let query = supabase.from('character_cosmetics').select('*').order('slot').order('rarity');
+  if (slot) query = query.eq('slot', slot);
+  const { data, error } = await query;
+  if (error) throw new AppError(error.message, 'COSMETICS_FETCH_FAILED');
+  return (data ?? []) as Cosmetic[];
+}
+
+export async function getMyCosmetics(): Promise<UserCosmetic[]> {
+  const { data, error } = await supabase
+    .from('user_cosmetics')
+    .select('*, cosmetic:character_cosmetics(*)')
+    .order('acquired_at', { ascending: false });
+  if (error) throw new AppError(error.message, 'USER_COSMETICS_FETCH_FAILED');
+  return (data ?? []) as UserCosmetic[];
+}
+
+export async function getMyLoadout(): Promise<CharacterLoadout[]> {
+  const { data, error } = await supabase
+    .from('character_loadout')
+    .select('*, cosmetic:character_cosmetics(*)');
+  if (error) throw new AppError(error.message, 'LOADOUT_FETCH_FAILED');
+  return (data ?? []) as CharacterLoadout[];
+}
+
+export async function purchaseCosmetic(cosmeticId: string): Promise<PurchaseResult> {
+  const user = await getCurrentUser();
+  const { data, error } = await supabase.rpc('purchase_cosmetic', {
+    p_user_id: user.id,
+    p_cosmetic_id: cosmeticId,
+  });
+  if (error) throw new AppError(error.message, 'PURCHASE_FAILED');
+  return data as PurchaseResult;
+}
+
+export async function equipCosmetic(cosmeticId: string, slot: CosmeticSlot): Promise<EquipResult> {
+  const user = await getCurrentUser();
+  const { data, error } = await supabase.rpc('equip_cosmetic', {
+    p_user_id: user.id,
+    p_cosmetic_id: cosmeticId,
+    p_slot: slot,
+  });
+  if (error) throw new AppError(error.message, 'EQUIP_FAILED');
+  return data as EquipResult;
+}
+
+export async function unequipCosmetic(slot: CosmeticSlot): Promise<EquipResult> {
+  const user = await getCurrentUser();
+  const { data, error } = await supabase.rpc('unequip_cosmetic', {
+    p_user_id: user.id,
+    p_slot: slot,
+  });
+  if (error) throw new AppError(error.message, 'UNEQUIP_FAILED');
+  return data as EquipResult;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 24. Titles
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function getAllTitles(): Promise<CharacterTitle[]> {
+  const { data, error } = await supabase
+    .from('character_titles')
+    .select('*')
+    .order('rarity')
+    .order('category');
+  if (error) throw new AppError(error.message, 'TITLES_FETCH_FAILED');
+  return (data ?? []) as CharacterTitle[];
+}
+
+export async function getMyTitles(): Promise<UserTitle[]> {
+  const { data, error } = await supabase
+    .from('user_titles')
+    .select('*, title:character_titles(*)')
+    .order('earned_at', { ascending: false });
+  if (error) throw new AppError(error.message, 'USER_TITLES_FETCH_FAILED');
+  return (data ?? []) as UserTitle[];
+}
+
+export async function setActiveTitle(titleId: string | null): Promise<void> {
+  const user = await getCurrentUser();
+  const { error } = await supabase
+    .from('profiles')
+    .update({ active_title_id: titleId })
+    .eq('id', user.id);
+  if (error) throw new AppError(error.message, 'SET_TITLE_FAILED');
+}
+
+export async function checkAndGrantTitles(): Promise<TitleCheckResult> {
+  const user = await getCurrentUser();
+  const { data, error } = await supabase.rpc('check_and_grant_titles', {
+    p_user_id: user.id,
+  });
+  if (error) throw new AppError(error.message, 'TITLE_CHECK_FAILED');
+  return data as TitleCheckResult;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 25. Character Personality & Coins
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function updatePersonality(): Promise<PersonalityResult> {
+  const user = await getCurrentUser();
+  const { data, error } = await supabase.rpc('update_character_personality', {
+    p_user_id: user.id,
+  });
+  if (error) throw new AppError(error.message, 'PERSONALITY_UPDATE_FAILED');
+  return data as PersonalityResult;
+}
+
+export async function getMyCoins(): Promise<number> {
+  const user = await getCurrentUser();
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('coins')
+    .eq('id', user.id)
+    .single();
+  if (error) throw new AppError(error.message, 'COINS_FETCH_FAILED');
+  return (data?.coins as number) ?? 0;
+}
+
+export async function grantQuizCoins(): Promise<void> {
+  const user = await getCurrentUser();
+  const { error } = await supabase.rpc('grant_quiz_coins', {
+    p_user_id: user.id,
+  });
+  if (error) console.warn('Failed to grant quiz coins:', error.message);
 }

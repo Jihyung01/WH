@@ -1,16 +1,5 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  Pressable,
-  FlatList,
-  KeyboardAvoidingView,
-  Platform,
-  ActivityIndicator,
-  Keyboard,
-} from 'react-native';
+import React, { useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -18,10 +7,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
+  withSequence,
+  withSpring,
   withRepeat,
   withTiming,
-  withDelay,
-  withSequence,
+  Easing,
   FadeIn,
   FadeInUp,
 } from 'react-native-reanimated';
@@ -30,545 +20,453 @@ import {
   useCharacterStore,
   getEvolutionStage,
   getEvolutionEmoji,
+  getLevelTitle,
+  xpForLevel,
 } from '../../src/stores/characterStore';
-import { sendCharacterChat, getChatHistory, AppError } from '../../src/lib/api';
-import type { ChatMessage } from '../../src/lib/api';
-import {
-  COLORS,
-  SPACING,
-  FONT_SIZE,
-  FONT_WEIGHT,
-  BORDER_RADIUS,
-  SHADOWS,
-  BRAND,
-} from '../../src/config/theme';
+import { COLORS, SPACING, FONT_SIZE, FONT_WEIGHT, BORDER_RADIUS, SHADOWS, BRAND, RARITY } from '../../src/config/theme';
+import { MOOD_DISPLAY, SLOT_CONFIG } from '../../src/components/cosmetic/constants';
+import { EquippedEffectBar } from '../../src/components/cosmetic/EquippedEffectBar';
+import type { CharacterLoadout } from '../../src/types';
+import type { CosmeticSlot } from '../../src/types/enums';
 
-const SUGGESTED_QUESTIONS = [
-  '이 동네 맛집 추천해줘',
-  '오늘 어디 탐험하면 좋을까?',
-  '재미있는 이야기 해줘',
-];
-
-interface DisplayMessage {
-  id: string;
-  role: 'user' | 'ai';
-  text: string;
-  createdAt: string;
+function getSlotEmoji(loadout: CharacterLoadout[], slot: CosmeticSlot): string | null {
+  return loadout.find((l) => l.slot === slot)?.cosmetic?.preview_emoji ?? null;
 }
 
-function TypingIndicator() {
-  const dot1 = useSharedValue(0);
-  const dot2 = useSharedValue(0);
-  const dot3 = useSharedValue(0);
+export default function CharacterScreen() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const {
+    character, loadout, equippedEffects, coins, mood,
+    personalityTraits, activeTitle, isLoading,
+    fetchCharacter, fetchLoadout, fetchCoins, refreshPersonality,
+  } = useCharacterStore();
+
+  const [refreshing, setRefreshing] = React.useState(false);
+
+  const characterType = character?.character_type ?? 'explorer';
+  const level = character?.level ?? 1;
+  const xp = character?.xp ?? 0;
+  const stage = getEvolutionStage(level);
+  const emoji = getEvolutionEmoji(characterType, stage);
+  const charName = character?.name ?? '도담';
+  const levelTitle = getLevelTitle(characterType, level);
+  const nextLevelXp = xpForLevel(level);
+  const xpProgress = nextLevelXp > 0 ? Math.min(xp / nextLevelXp, 1) : 0;
+  const moodInfo = MOOD_DISPLAY[mood] ?? MOOD_DISPLAY.happy;
+
+  // Bounce animation for character tap
+  const bounceY = useSharedValue(0);
+  const bounceStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: bounceY.value }],
+  }));
+
+  // Aura pulse
+  const auraPulse = useSharedValue(0);
+  const hasAura = loadout.some((l) => l.slot === 'aura');
+  useEffect(() => {
+    if (hasAura) {
+      auraPulse.value = withRepeat(
+        withTiming(1, { duration: 2500, easing: Easing.inOut(Easing.ease) }),
+        -1,
+        true,
+      );
+    }
+  }, [hasAura]);
+  const auraStyle = useAnimatedStyle(() => {
+    if (!hasAura) return { opacity: 0 };
+    return { opacity: 0.25 + auraPulse.value * 0.35, transform: [{ scale: 1 + auraPulse.value * 0.08 }] };
+  });
 
   useEffect(() => {
-    const bounce = (delay: number) =>
-      withRepeat(
-        withDelay(
-          delay,
-          withSequence(
-            withTiming(-6, { duration: 300 }),
-            withTiming(0, { duration: 300 }),
-          ),
-        ),
-        -1,
-      );
-    dot1.value = bounce(0);
-    dot2.value = bounce(150);
-    dot3.value = bounce(300);
+    fetchCharacter();
+    fetchLoadout();
+    fetchCoins();
   }, []);
 
-  const s1 = useAnimatedStyle(() => ({ transform: [{ translateY: dot1.value }] }));
-  const s2 = useAnimatedStyle(() => ({ transform: [{ translateY: dot2.value }] }));
-  const s3 = useAnimatedStyle(() => ({ transform: [{ translateY: dot3.value }] }));
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([fetchCharacter(), fetchLoadout(), fetchCoins()]);
+    setRefreshing(false);
+  }, []);
+
+  const handleCharTap = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    bounceY.value = withSequence(
+      withSpring(-16, { damping: 4, stiffness: 300 }),
+      withSpring(0, { damping: 8 }),
+    );
+  };
+
+  const hatEmoji = getSlotEmoji(loadout, 'hat');
+  const outfitEmoji = getSlotEmoji(loadout, 'outfit');
+  const accessoryEmoji = getSlotEmoji(loadout, 'accessory');
+  const auraEmoji = getSlotEmoji(loadout, 'aura');
+  const bgItem = loadout.find((l) => l.slot === 'background');
 
   return (
-    <View style={styles.typingRow}>
-      <View style={styles.typingBubble}>
-        <Animated.View style={[styles.dot, s1]} />
-        <Animated.View style={[styles.dot, s2]} />
-        <Animated.View style={[styles.dot, s3]} />
-      </View>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={BRAND.primary} />
+        }
+      >
+        {/* ── Header ── */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>캐릭터</Text>
+          <View style={styles.coinBadge}>
+            <Text style={styles.coinText}>🪙 {coins.toLocaleString()}</Text>
+          </View>
+        </View>
+
+        {/* ── Character Avatar Area ── */}
+        <Animated.View entering={FadeIn.duration(400)} style={[styles.avatarSection, bgItem && styles.avatarSectionBg]}>
+          {/* Title & Level */}
+          <Pressable onPress={() => router.push('/titles' as any)} style={styles.titleRow}>
+            <Text style={styles.titleText}>
+              {activeTitle ?? levelTitle}
+            </Text>
+            <Ionicons name="chevron-forward" size={14} color={COLORS.textMuted} />
+          </Pressable>
+
+          {/* Character display */}
+          <Pressable onPress={handleCharTap} style={styles.charTouchArea}>
+            {/* Aura ring */}
+            {hasAura && (
+              <Animated.View style={[styles.auraRing, auraStyle]}>
+                {auraEmoji && <Text style={styles.auraEmoji}>{auraEmoji}</Text>}
+              </Animated.View>
+            )}
+
+            {/* Hat */}
+            {hatEmoji && <Text style={styles.hatSlot}>{hatEmoji}</Text>}
+
+            {/* Character emoji */}
+            <Animated.View style={bounceStyle}>
+              <Text style={styles.charEmoji}>{emoji}</Text>
+            </Animated.View>
+
+            {/* Outfit */}
+            {outfitEmoji && <Text style={styles.outfitSlot}>{outfitEmoji}</Text>}
+
+            {/* Accessory */}
+            {accessoryEmoji && <Text style={styles.accessorySlot}>{accessoryEmoji}</Text>}
+          </Pressable>
+
+          {/* Name & Level bar */}
+          <Text style={styles.charName}>Lv.{level} {charName}</Text>
+          <View style={styles.xpBarContainer}>
+            <View style={styles.xpBarBg}>
+              <View style={[styles.xpBarFill, { width: `${xpProgress * 100}%` }]} />
+            </View>
+            <Text style={styles.xpText}>{xp} / {nextLevelXp} XP</Text>
+          </View>
+
+          {/* Mood */}
+          <Text style={styles.moodText}>
+            {charName}의 기분: {moodInfo.emoji} {moodInfo.label}
+          </Text>
+
+          {/* Equipped effects */}
+          <EquippedEffectBar effects={equippedEffects} />
+        </Animated.View>
+
+        {/* ── Equipped Slots Preview ── */}
+        <Animated.View entering={FadeInUp.delay(100)} style={styles.slotsRow}>
+          {SLOT_CONFIG.map(({ key, emoji: slotEmoji, label }) => {
+            const equipped = getSlotEmoji(loadout, key);
+            return (
+              <View key={key} style={styles.slotItem}>
+                <View style={[styles.slotCircle, equipped ? styles.slotCircleFilled : undefined]}>
+                  <Text style={styles.slotItemEmoji}>{equipped ?? slotEmoji}</Text>
+                </View>
+                <Text style={styles.slotLabel}>{label}</Text>
+              </View>
+            );
+          })}
+        </Animated.View>
+
+        {/* ── Personality Traits ── */}
+        {personalityTraits.length > 0 && (
+          <Animated.View entering={FadeInUp.delay(200)} style={styles.section}>
+            <Text style={styles.sectionTitle}>성격 특성</Text>
+            <View style={styles.traitsRow}>
+              {personalityTraits.slice(0, 5).map((trait) => (
+                <View key={trait} style={styles.traitBadge}>
+                  <Text style={styles.traitText}>{trait}</Text>
+                </View>
+              ))}
+            </View>
+          </Animated.View>
+        )}
+
+        {/* ── Action Buttons ── */}
+        <Animated.View entering={FadeInUp.delay(300)} style={styles.actionsGrid}>
+          <ActionButton
+            icon="color-palette"
+            label="꾸미기"
+            color={BRAND.primary}
+            onPress={() => router.push('/character-customize' as any)}
+          />
+          <ActionButton
+            icon="storefront"
+            label="상점"
+            color={BRAND.gold}
+            onPress={() => router.push('/shop' as any)}
+          />
+          <ActionButton
+            icon="ribbon"
+            label="칭호"
+            color={BRAND.purple}
+            onPress={() => router.push('/titles' as any)}
+          />
+          <ActionButton
+            icon="chatbubble-ellipses"
+            label="대화"
+            color={BRAND.coral}
+            onPress={() => router.push('/chat' as any)}
+          />
+        </Animated.View>
+
+        <View style={{ height: 100 }} />
+      </ScrollView>
     </View>
   );
 }
 
-export default function ChatScreen() {
-  const router = useRouter();
-  const insets = useSafeAreaInsets();
-  const { character } = useCharacterStore();
-  const flatListRef = useRef<FlatList<DisplayMessage>>(null);
-
-  const [messages, setMessages] = useState<DisplayMessage[]>([]);
-  const [inputText, setInputText] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-  const [remainingChats, setRemainingChats] = useState<number | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  const characterType = character?.character_type ?? 'pathfinder';
-  const characterLevel = character?.level ?? 1;
-  const stage = getEvolutionStage(characterLevel);
-  const emoji = getEvolutionEmoji(characterType, stage);
-  const characterName = character?.name ?? '도담';
-
-  useEffect(() => {
-    loadHistory();
-  }, []);
-
-  async function loadHistory() {
-    try {
-      const history = await getChatHistory(50);
-      const mapped: DisplayMessage[] = [];
-      for (const row of history) {
-        mapped.push({
-          id: `${row.id}-user`,
-          role: 'user',
-          text: row.user_message,
-          createdAt: row.created_at,
-        });
-        mapped.push({
-          id: `${row.id}-ai`,
-          role: 'ai',
-          text: row.ai_reply,
-          createdAt: row.created_at,
-        });
-      }
-      setMessages(mapped);
-    } catch {
-      // silently fail — user sees empty chat
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  const scrollToBottom = useCallback(() => {
-    setTimeout(() => {
-      flatListRef.current?.scrollToEnd({ animated: true });
-    }, 100);
-  }, []);
-
-  useEffect(() => {
-    const event = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const sub = Keyboard.addListener(event, () => {
-      scrollToBottom();
-    });
-    return () => sub.remove();
-  }, [scrollToBottom]);
-
-  async function handleSend(text?: string) {
-    const msg = (text ?? inputText).trim();
-    if (!msg) return;
-
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setInputText('');
-
-    const userMsg: DisplayMessage = {
-      id: `u-${Date.now()}`,
-      role: 'user',
-      text: msg,
-      createdAt: new Date().toISOString(),
-    };
-    setMessages((prev) => [...prev, userMsg]);
-    scrollToBottom();
-
-    setIsTyping(true);
-    try {
-      const reply = await sendCharacterChat(msg);
-      const aiMsg: DisplayMessage = {
-        id: `a-${Date.now()}`,
-        role: 'ai',
-        text: reply.reply,
-        createdAt: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, aiMsg]);
-      setRemainingChats(reply.remaining_chats_today);
-    } catch (err) {
-      const detail =
-        err instanceof AppError ? err.message : '잠시 후 다시 시도해주세요.';
-      const errorMsg: DisplayMessage = {
-        id: `e-${Date.now()}`,
-        role: 'ai',
-        text: `⚠️ ${detail}`,
-        createdAt: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, errorMsg]);
-    } finally {
-      setIsTyping(false);
-      scrollToBottom();
-    }
-  }
-
-  function renderMessage({ item }: { item: DisplayMessage }) {
-    const isUser = item.role === 'user';
-
-    if (isUser) {
-      return (
-        <Animated.View entering={FadeInUp.duration(200)} style={styles.userRow}>
-          <View style={styles.userBubble}>
-            <Text style={styles.userText}>{item.text}</Text>
-          </View>
-        </Animated.View>
-      );
-    }
-
-    return (
-      <Animated.View entering={FadeInUp.duration(200)} style={styles.aiRow}>
-        <View style={styles.avatarCircle}>
-          <Text style={styles.avatarEmoji}>{emoji}</Text>
-        </View>
-        <View style={styles.aiBubble}>
-          <Text style={styles.aiText}>{item.text}</Text>
-        </View>
-      </Animated.View>
-    );
-  }
-
-  const hasMessages = messages.length > 0;
-
+function ActionButton({ icon, label, color, onPress }: {
+  icon: string;
+  label: string;
+  color: string;
+  onPress: () => void;
+}) {
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { paddingTop: insets.top }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
+    <Pressable
+      style={styles.actionBtn}
+      onPress={() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        onPress();
+      }}
     >
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <View style={styles.headerAvatar}>
-            <Text style={styles.headerAvatarEmoji}>{emoji}</Text>
-          </View>
-          <View>
-            <Text style={styles.headerName}>{characterName}</Text>
-            <Text style={styles.headerSub}>AI 대화</Text>
-          </View>
-        </View>
-        <View style={styles.closeBtn} />
+      <View style={[styles.actionIcon, { backgroundColor: `${color}20` }]}>
+        <Ionicons name={icon as any} size={24} color={color} />
       </View>
-
-      {/* Messages */}
-      {isLoading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="small" color={BRAND.primary} />
-        </View>
-      ) : (
-        <FlatList
-          ref={flatListRef}
-          style={styles.messageListFlex}
-          data={messages}
-          renderItem={renderMessage}
-          keyExtractor={(item) => item.id}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="interactive"
-          contentContainerStyle={[
-            styles.messageList,
-            !hasMessages && styles.messageListEmpty,
-          ]}
-          showsVerticalScrollIndicator={false}
-          onContentSizeChange={() => {
-            if (hasMessages) scrollToBottom();
-          }}
-          ListEmptyComponent={
-            <Animated.View entering={FadeIn.duration(400)} style={styles.emptyContainer}>
-              <View style={styles.emptyAvatarLarge}>
-                <Text style={{ fontSize: 48 }}>{emoji}</Text>
-              </View>
-              <Text style={styles.emptyTitle}>
-                {characterName}에게 말을 걸어보세요!
-              </Text>
-              <Text style={styles.emptySubtitle}>
-                동네 이야기, 맛집 추천, 탐험 팁 등{'\n'}무엇이든 물어보세요
-              </Text>
-              <View style={styles.chipContainer}>
-                {SUGGESTED_QUESTIONS.map((q) => (
-                  <Pressable
-                    key={q}
-                    style={styles.chip}
-                    onPress={() => handleSend(q)}
-                  >
-                    <Text style={styles.chipText}>{q}</Text>
-                  </Pressable>
-                ))}
-              </View>
-            </Animated.View>
-          }
-          ListFooterComponent={isTyping ? <TypingIndicator /> : null}
-        />
-      )}
-
-      {/* Input bar */}
-      <View style={[styles.inputBar, { paddingBottom: Math.max(insets.bottom, SPACING.sm) }]}>
-        {remainingChats !== null && (
-          <Text style={styles.remainingLabel}>
-            오늘 {remainingChats}회 남음
-          </Text>
-        )}
-        <View style={styles.inputRow}>
-          <TextInput
-            style={styles.textInput}
-            value={inputText}
-            onChangeText={setInputText}
-            placeholder="메시지를 입력하세요..."
-            placeholderTextColor={COLORS.textMuted}
-            multiline
-            maxLength={500}
-            returnKeyType="default"
-          />
-          <Pressable
-            style={[
-              styles.sendBtn,
-              !inputText.trim() && styles.sendBtnDisabled,
-            ]}
-            onPress={() => handleSend()}
-            disabled={!inputText.trim() || isTyping}
-          >
-            <Ionicons
-              name="send"
-              size={20}
-              color={inputText.trim() ? '#FFF' : COLORS.textMuted}
-            />
-          </Pressable>
-        </View>
-      </View>
-    </KeyboardAvoidingView>
+      <Text style={styles.actionLabel}>{label}</Text>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  messageListFlex: {
-    flex: 1,
-  },
+  container: { flex: 1, backgroundColor: COLORS.background },
 
   // Header
   header: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-    backgroundColor: COLORS.surface,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.md,
-  },
-  headerAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: COLORS.surfaceLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerAvatarEmoji: {
-    fontSize: 20,
-  },
-  headerName: {
-    fontSize: FONT_SIZE.md,
-    fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary,
-  },
-  headerSub: {
-    fontSize: FONT_SIZE.xs,
-    color: COLORS.textSecondary,
-  },
-  closeBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: COLORS.surfaceLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  // Loading
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  // Message list
-  messageList: {
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-  },
-  messageListEmpty: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-
-  // User bubble
-  userRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginBottom: SPACING.md,
-  },
-  userBubble: {
-    maxWidth: '75%',
-    backgroundColor: COLORS.surfaceLight,
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg,
-    borderTopRightRadius: BORDER_RADIUS.sm / 2,
-  },
-  userText: {
-    fontSize: FONT_SIZE.md,
-    color: COLORS.textPrimary,
-    lineHeight: FONT_SIZE.md * 1.5,
-  },
-
-  // AI bubble
-  aiRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    marginBottom: SPACING.md,
-    gap: SPACING.sm,
-  },
-  avatarCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: `${BRAND.primary}20`,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 2,
-  },
-  avatarEmoji: {
-    fontSize: 16,
-  },
-  aiBubble: {
-    maxWidth: '70%',
-    backgroundColor: `${BRAND.primary}15`,
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg,
-    borderTopLeftRadius: BORDER_RADIUS.sm / 2,
-  },
-  aiText: {
-    fontSize: FONT_SIZE.md,
-    color: COLORS.textPrimary,
-    lineHeight: FONT_SIZE.md * 1.5,
-  },
-
-  // Typing indicator
-  typingRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    marginBottom: SPACING.md,
-    paddingLeft: 32 + SPACING.sm,
-  },
-  typingBubble: {
-    flexDirection: 'row',
-    backgroundColor: `${BRAND.primary}15`,
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg,
-    borderTopLeftRadius: BORDER_RADIUS.sm / 2,
-    gap: 4,
-    alignItems: 'center',
-    height: 40,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: BRAND.primary,
-    opacity: 0.6,
-  },
-
-  // Empty state
-  emptyContainer: {
     alignItems: 'center',
     paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.lg,
   },
-  emptyAvatarLarge: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: `${BRAND.primary}15`,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: SPACING.lg,
-  },
-  emptyTitle: {
-    fontSize: FONT_SIZE.lg,
+  headerTitle: {
+    fontSize: FONT_SIZE.xxl,
     fontWeight: FONT_WEIGHT.bold,
     color: COLORS.textPrimary,
-    marginBottom: SPACING.sm,
   },
-  emptySubtitle: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    lineHeight: FONT_SIZE.sm * 1.6,
-    marginBottom: SPACING.xl,
-  },
-  chipContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: SPACING.sm,
-  },
-  chip: {
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: BRAND.primary,
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.sm,
+  coinBadge: {
+    backgroundColor: `${BRAND.gold}20`,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
     borderRadius: BORDER_RADIUS.full,
   },
-  chipText: {
+  coinText: {
     fontSize: FONT_SIZE.sm,
-    color: BRAND.primary,
+    fontWeight: FONT_WEIGHT.bold,
+    color: BRAND.gold,
+  },
+
+  // Avatar section
+  avatarSection: {
+    alignItems: 'center',
+    paddingVertical: SPACING.xl,
+    marginHorizontal: SPACING.lg,
+    borderRadius: BORDER_RADIUS.xl,
+    gap: SPACING.sm,
+  },
+  avatarSectionBg: {
+    backgroundColor: `${BRAND.purple}08`,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+  },
+  titleText: {
+    fontSize: FONT_SIZE.sm,
+    fontWeight: FONT_WEIGHT.semibold,
+    color: COLORS.textSecondary,
+  },
+  charTouchArea: {
+    width: 180,
+    height: 180,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  auraRing: {
+    position: 'absolute',
+    width: 170,
+    height: 170,
+    borderRadius: 85,
+    borderWidth: 2,
+    borderColor: BRAND.gold,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  auraEmoji: {
+    fontSize: 16,
+    position: 'absolute',
+    top: -2,
+    right: 14,
+  },
+  hatSlot: {
+    fontSize: 32,
+    position: 'absolute',
+    top: 4,
+    zIndex: 1,
+  },
+  charEmoji: {
+    fontSize: 80,
+  },
+  outfitSlot: {
+    fontSize: 24,
+    position: 'absolute',
+    bottom: 16,
+  },
+  accessorySlot: {
+    fontSize: 24,
+    position: 'absolute',
+    right: 8,
+    top: '45%',
+  },
+  charName: {
+    fontSize: FONT_SIZE.xl,
+    fontWeight: FONT_WEIGHT.bold,
+    color: COLORS.textPrimary,
+  },
+  xpBarContainer: {
+    width: '70%',
+    alignItems: 'center',
+    gap: 4,
+  },
+  xpBarBg: {
+    width: '100%',
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: COLORS.surfaceHighlight,
+    overflow: 'hidden',
+  },
+  xpBarFill: {
+    height: '100%',
+    borderRadius: 4,
+    backgroundColor: BRAND.primary,
+  },
+  xpText: {
+    fontSize: FONT_SIZE.xs,
+    color: COLORS.textMuted,
+  },
+  moodText: {
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.textSecondary,
+  },
+
+  // Slots row
+  slotsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.xl,
+  },
+  slotItem: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  slotCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: COLORS.surfaceLight,
+    borderWidth: 2,
+    borderColor: COLORS.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  slotCircleFilled: {
+    borderColor: BRAND.primary,
+    backgroundColor: `${BRAND.primary}10`,
+  },
+  slotItemEmoji: {
+    fontSize: 22,
+  },
+  slotLabel: {
+    fontSize: FONT_SIZE.xs,
+    color: COLORS.textMuted,
     fontWeight: FONT_WEIGHT.medium,
   },
 
-  // Input bar
-  inputBar: {
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    backgroundColor: COLORS.surface,
-    paddingHorizontal: SPACING.lg,
-    paddingTop: SPACING.sm,
+  // Section
+  section: {
+    paddingHorizontal: SPACING.xl,
+    marginBottom: SPACING.lg,
   },
-  remainingLabel: {
-    fontSize: FONT_SIZE.xs,
-    color: COLORS.textMuted,
-    textAlign: 'center',
-    marginBottom: SPACING.xs,
+  sectionTitle: {
+    fontSize: FONT_SIZE.md,
+    fontWeight: FONT_WEIGHT.bold,
+    color: COLORS.textPrimary,
+    marginBottom: SPACING.md,
   },
-  inputRow: {
+  traitsRow: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    flexWrap: 'wrap',
     gap: SPACING.sm,
   },
-  textInput: {
-    flex: 1,
-    backgroundColor: COLORS.surfaceLight,
-    borderRadius: BORDER_RADIUS.xl,
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: Platform.OS === 'ios' ? SPACING.md : SPACING.sm,
-    fontSize: FONT_SIZE.md,
-    color: COLORS.textPrimary,
-    maxHeight: 100,
+  traitBadge: {
+    backgroundColor: `${BRAND.purple}15`,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+    borderRadius: BORDER_RADIUS.full,
   },
-  sendBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: BRAND.primary,
+  traitText: {
+    fontSize: FONT_SIZE.sm,
+    color: BRAND.purple,
+    fontWeight: FONT_WEIGHT.medium,
+  },
+
+  // Action buttons
+  actionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: SPACING.lg,
+    gap: SPACING.md,
+  },
+  actionBtn: {
+    width: '47%',
+    backgroundColor: COLORS.surfaceLight,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.lg,
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: SPACING.sm,
     ...SHADOWS.sm,
   },
-  sendBtnDisabled: {
-    backgroundColor: COLORS.surfaceLight,
+  actionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionLabel: {
+    fontSize: FONT_SIZE.sm,
+    fontWeight: FONT_WEIGHT.bold,
+    color: COLORS.textPrimary,
   },
 });

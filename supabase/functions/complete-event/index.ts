@@ -28,6 +28,14 @@ const EVOLUTION_THRESHOLDS: { minLevel: number; stage: number; label: string }[]
   { minLevel: 6, stage: 2, label: "Teen" },
 ];
 
+// ── 코스메틱 드롭 확률 테이블 ──────────────────────────────────────────
+const COSMETIC_DROP_TABLE: { rarity: string; baseChance: number }[] = [
+  { rarity: "common", baseChance: 0.25 },
+  { rarity: "rare", baseChance: 0.08 },
+  { rarity: "epic", baseChance: 0.015 },
+  { rarity: "legendary", baseChance: 0.003 },
+];
+
 function xpForLevel(level: number): number {
   return level * 500;
 }
@@ -156,7 +164,7 @@ Deno.serve(async (req) => {
       .single();
 
     const xpEarned = event.reward_xp ?? 0;
-    let characterResult = null;
+    let characterResult: Record<string, unknown> | null = null;
 
     if (character) {
       const prevLevel = character.level;
@@ -189,15 +197,19 @@ Deno.serve(async (req) => {
         evolution_stage: newStage,
         total_xp: newXp,
         stats_increased: statsIncrease,
+        personality_updated: false,
+        new_traits: null,
       };
     }
 
-    // ── 7. 프로필 XP 갱신 ───────────────────────────────────────────
+    // ── 7. 프로필 XP 갱신 + 장착 효과 조회 ───────────────────────────
     const { data: profile } = await supabase
       .from("profiles")
-      .select("total_xp, level")
+      .select("total_xp, level, coins, is_premium")
       .eq("id", user.id)
       .single();
+
+    const isPremium = profile?.is_premium ?? false;
 
     if (profile) {
       const newTotalXp = (profile.total_xp ?? 0) + xpEarned;
@@ -208,7 +220,34 @@ Deno.serve(async (req) => {
         .eq("id", user.id);
     }
 
-    // ── 8. 배지 확인 & 부여 ─────────────────────────────────────────
+    // 장착 효과 조회 (coin_bonus)
+    let coinBonusRate = 0;
+    const { data: loadoutItems } = await supabase
+      .from("character_loadout")
+      .select("cosmetic_id, cosmetic:character_cosmetics(effect_type, effect_value)")
+      .eq("user_id", user.id);
+
+    if (loadoutItems) {
+      for (const item of loadoutItems) {
+        const cosmetic = item.cosmetic as { effect_type: string; effect_value: number } | null;
+        if (cosmetic?.effect_type === "coin_bonus") {
+          coinBonusRate += cosmetic.effect_value ?? 0;
+        }
+      }
+    }
+
+    // ── 8. 코인 보상 ──────────────────────────────────────────────────
+    const difficulty = event.difficulty ?? 1;
+    let coinsEarned = difficulty * 20;
+    coinsEarned = Math.round(coinsEarned * (1 + coinBonusRate));
+    if (isPremium) coinsEarned = Math.round(coinsEarned * 1.5);
+
+    await supabase
+      .from("profiles")
+      .update({ coins: (profile?.coins ?? 0) + coinsEarned })
+      .eq("id", user.id);
+
+    // ── 9. 배지 확인 & 부여 ─────────────────────────────────────────
     const badgesEarned: { id: string; name: string; rarity: string }[] = [];
 
     const { count: totalCompleted } = await supabase
@@ -329,18 +368,18 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── 9. 아이템 드롭 (난이도 기반 확률) ───────────────────────────
+    // ── 10. 기존 아이템 드롭 (부스터) ─────────────────────────────────
     const itemsEarned: { id: string; name: string; rarity: string }[] = [];
 
-    const dropTable: { name: string; rarity: string; chance: number; minDifficulty: number }[] = [
+    const boosterDropTable: { name: string; rarity: string; chance: number; minDifficulty: number }[] = [
       { name: "일반 부스터", rarity: "common", chance: 0.5, minDifficulty: 1 },
       { name: "고급 부스터", rarity: "rare", chance: 0.25, minDifficulty: 2 },
       { name: "골든 부스터", rarity: "epic", chance: 0.1, minDifficulty: 3 },
       { name: "전설의 부스터", rarity: "legendary", chance: 0.03, minDifficulty: 4 },
     ];
 
-    for (const drop of dropTable) {
-      if (event.difficulty >= drop.minDifficulty && Math.random() < drop.chance) {
+    for (const drop of boosterDropTable) {
+      if (difficulty >= drop.minDifficulty && Math.random() < drop.chance) {
         const { data: item } = await supabase
           .from("inventory_items")
           .insert({
@@ -363,11 +402,106 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── 10. event_completions 기록 ──────────────────────────────────
+    // ── 11. 코스메틱 드롭 ──────────────────────────────────────────────
+    const cosmeticsDropped: { id: string; name: string; rarity: string; slot: string; preview_emoji: string }[] = [];
+
+    // 유저가 이미 보유한 코스메틱 ID 조회
+    const { data: ownedCosmetics } = await supabase
+      .from("user_cosmetics")
+      .select("cosmetic_id")
+      .eq("user_id", user.id);
+    const ownedCosmeticIds = new Set(
+      (ownedCosmetics ?? []).map((c: { cosmetic_id: string }) => c.cosmetic_id),
+    );
+
+    // quest/drop 가능한 코스메틱 조회
+    const { data: droppableCosmetics } = await supabase
+      .from("character_cosmetics")
+      .select("id, name, rarity, slot, preview_emoji")
+      .eq("unlock_method", "quest");
+
+    if (droppableCosmetics && droppableCosmetics.length > 0) {
+      const difficultyMultiplier = 1 + (difficulty - 1) * 0.2; // diff 1=1.0, diff 5=1.8
+      const premiumMultiplier = isPremium ? 1.5 : 1;
+      const bonusMultiplier = 1 + coinBonusRate;
+
+      for (const dropEntry of COSMETIC_DROP_TABLE) {
+        const adjustedChance = dropEntry.baseChance * difficultyMultiplier * premiumMultiplier * bonusMultiplier;
+
+        if (Math.random() < adjustedChance) {
+          // 해당 레어리티의 미보유 코스메틱 중 랜덤 선택
+          const candidates = droppableCosmetics.filter(
+            (c: { id: string; rarity: string }) =>
+              c.rarity === dropEntry.rarity && !ownedCosmeticIds.has(c.id),
+          );
+
+          if (candidates.length > 0) {
+            const picked = candidates[Math.floor(Math.random() * candidates.length)];
+
+            await supabase.from("user_cosmetics").insert({
+              user_id: user.id,
+              cosmetic_id: picked.id,
+              acquired_via: "drop",
+            });
+
+            cosmeticsDropped.push({
+              id: picked.id,
+              name: picked.name,
+              rarity: picked.rarity,
+              slot: picked.slot,
+              preview_emoji: picked.preview_emoji,
+            });
+
+            ownedCosmeticIds.add(picked.id);
+          }
+        }
+      }
+    }
+
+    // ── 12. 칭호 달성 체크 ────────────────────────────────────────────
+    let titlesEarned: { id: string; name: string; rarity: string }[] = [];
+    try {
+      const { data: titleResult } = await supabase.rpc("check_and_grant_titles", {
+        p_user_id: user.id,
+      });
+      if (titleResult?.newly_earned_titles) {
+        titlesEarned = titleResult.newly_earned_titles;
+      }
+    } catch (titleErr) {
+      console.error("check_and_grant_titles error (non-fatal):", titleErr);
+    }
+
+    // ── 13. 성격 업데이트 (매 5회마다) ────────────────────────────────
+    let personalityUpdated = false;
+    let newTraits: string[] | null = null;
+
+    if (completedCount % 5 === 0) {
+      try {
+        const { data: personalityResult } = await supabase.rpc("update_character_personality", {
+          p_user_id: user.id,
+        });
+        if (personalityResult) {
+          personalityUpdated = true;
+          newTraits = personalityResult.traits ?? null;
+        }
+      } catch (persErr) {
+        console.error("update_character_personality error (non-fatal):", persErr);
+      }
+    }
+
+    if (characterResult) {
+      characterResult.personality_updated = personalityUpdated;
+      characterResult.new_traits = newTraits;
+    }
+
+    // ── 14. event_completions 기록 ───────────────────────────────────
     const rewardsPayload = {
       xp: xpEarned,
+      coins: coinsEarned,
       badges: badgesEarned.map((b) => b.id),
       items: itemsEarned.map((i) => i.id),
+      cosmetics: cosmeticsDropped.map((c) => c.id),
+      titles: titlesEarned.map((t) => t.id),
     };
 
     await supabase.from("event_completions").insert({
@@ -377,13 +511,16 @@ Deno.serve(async (req) => {
       xp_earned: xpEarned,
     });
 
-    // ── 11. 응답 ────────────────────────────────────────────────────
+    // ── 15. 응답 ────────────────────────────────────────────────────
     return json({
       success: true,
       rewards: {
         xp_earned: xpEarned,
+        coins_earned: coinsEarned,
         badges_earned: badgesEarned,
         items_earned: itemsEarned,
+        cosmetics_dropped: cosmeticsDropped,
+        titles_earned: titlesEarned,
       },
       character: characterResult,
     });

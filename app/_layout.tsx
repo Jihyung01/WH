@@ -141,6 +141,9 @@ function AppContent() {
         <Stack.Screen name="premium" options={{ presentation: 'modal', headerShown: false, animation: 'slide_from_bottom' }} />
         <Stack.Screen name="social" options={{ headerShown: false, animation: 'slide_from_right' }} />
         <Stack.Screen name="settings" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="character-customize" options={{ headerShown: false, animation: 'slide_from_right' }} />
+        <Stack.Screen name="shop" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="titles" options={{ headerShown: false, animation: 'slide_from_right' }} />
         <Stack.Screen name="+not-found" />
       </Stack>
     </>

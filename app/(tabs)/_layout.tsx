@@ -49,9 +49,9 @@ export default function TabsLayout() {
         name="character"
         options={{
           title: '캐릭터',
-          tabBarAccessibilityLabel: '캐릭터 대화 화면으로 이동',
+          tabBarAccessibilityLabel: '캐릭터 화면으로 이동',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'chatbubble-ellipses' : 'chatbubble-ellipses-outline'} size={24} color={color} />
+            <Ionicons name={focused ? 'sparkles' : 'sparkles-outline'} size={24} color={color} />
           ),
         }}
       />

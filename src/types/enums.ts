@@ -84,3 +84,63 @@ export const District = {
 export type District = (typeof District)[keyof typeof District];
 
 export type EvolutionLabel = 'Baby' | 'Teen' | 'Adult' | 'Legendary';
+
+// ── Cosmetic System ──────────────────────────────────────────────────
+
+export const CosmeticSlot = {
+  HAT: 'hat',
+  OUTFIT: 'outfit',
+  ACCESSORY: 'accessory',
+  BACKGROUND: 'background',
+  AURA: 'aura',
+} as const;
+export type CosmeticSlot = (typeof CosmeticSlot)[keyof typeof CosmeticSlot];
+
+export const CosmeticEffect = {
+  XP_BOOST: 'xp_boost',
+  DISCOVERY_RANGE: 'discovery_range',
+  STREAK_SHIELD: 'streak_shield',
+  COIN_BONUS: 'coin_bonus',
+  COSMETIC_ONLY: 'cosmetic_only',
+} as const;
+export type CosmeticEffect = (typeof CosmeticEffect)[keyof typeof CosmeticEffect];
+
+export const CharacterMood = {
+  HAPPY: 'happy',
+  EXCITED: 'excited',
+  TIRED: 'tired',
+  CURIOUS: 'curious',
+  PROUD: 'proud',
+  ADVENTUROUS: 'adventurous',
+} as const;
+export type CharacterMood = (typeof CharacterMood)[keyof typeof CharacterMood];
+
+export const UnlockMethod = {
+  QUEST: 'quest',
+  PURCHASE: 'purchase',
+  ACHIEVEMENT: 'achievement',
+  SEASON: 'season',
+  EVENT: 'event',
+  SPECIAL: 'special',
+} as const;
+export type UnlockMethod = (typeof UnlockMethod)[keyof typeof UnlockMethod];
+
+export const AcquiredVia = {
+  QUEST: 'quest',
+  PURCHASE: 'purchase',
+  ACHIEVEMENT: 'achievement',
+  GIFT: 'gift',
+  DROP: 'drop',
+  SEASON: 'season',
+  EVENT: 'event',
+} as const;
+export type AcquiredVia = (typeof AcquiredVia)[keyof typeof AcquiredVia];
+
+export const TitleCategory = {
+  EXPLORATION: 'exploration',
+  DISTRICT: 'district',
+  SOCIAL: 'social',
+  ACHIEVEMENT: 'achievement',
+  SEASON: 'season',
+} as const;
+export type TitleCategory = (typeof TitleCategory)[keyof typeof TitleCategory];

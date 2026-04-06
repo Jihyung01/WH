@@ -50,9 +50,9 @@ type TabKey = 'friends' | 'crew';
 
 const CHARACTER_ICONS: Record<string, string> = {
   explorer: '🧭',
-  photographer: '📸',
-  scholar: '📚',
-  social: '🤝',
+  foodie: '📸',
+  artist: '📚',
+  socialite: '🤝',
 };
 
 const CREW_EMOJI_PRESETS = [

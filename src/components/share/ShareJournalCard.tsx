@@ -49,10 +49,10 @@ export interface ShareJournalData {
 }
 
 const CHARACTER_GRADIENTS: Record<string, [string, string, string]> = {
-  pathfinder: ['#0F4C3A', '#1A7A5C', '#0F4C3A'],
-  observer:   ['#1A365D', '#2B6CB0', '#1A365D'],
-  scholar:    ['#44337A', '#6B46C1', '#44337A'],
-  connector:  ['#7B341E', '#C05621', '#7B341E'],
+  explorer:  ['#0F4C3A', '#1A7A5C', '#0F4C3A'],
+  foodie:    ['#1A365D', '#2B6CB0', '#1A365D'],
+  artist:    ['#44337A', '#6B46C1', '#44337A'],
+  socialite: ['#7B341E', '#C05621', '#7B341E'],
 };
 
 const RARITY_GLOW: Record<string, string> = {

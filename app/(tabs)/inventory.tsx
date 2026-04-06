@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, RefreshControl, FlatList } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeIn } from 'react-native-reanimated';
@@ -7,25 +8,16 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useInventoryStore } from '../../src/stores/inventoryStore';
+import { useCharacterStore } from '../../src/stores/characterStore';
+import { getMyCosmetics } from '../../src/lib/api';
 import { BadgeGridSkeleton, ItemListSkeleton } from '../../src/components/ui';
-import { COLORS, SPACING, FONT_SIZE, FONT_WEIGHT, BORDER_RADIUS, SHADOWS } from '../../src/config/theme';
-import type { UserBadge, Badge, InventoryItem } from '../../src/types';
+import { COLORS, SPACING, FONT_SIZE, FONT_WEIGHT, BORDER_RADIUS, SHADOWS, BRAND } from '../../src/config/theme';
+import type { UserBadge, Badge, InventoryItem, UserCosmetic } from '../../src/types';
+import { SLOT_CONFIG, RARITY_COLORS, RARITY_LABELS } from '../../src/components/cosmetic/constants';
 
-type TabKey = 'badges' | 'items' | 'collection';
+type TabKey = 'badges' | 'items' | 'collection' | 'cosmetics';
 
-const RARITY_COLORS: Record<string, string> = {
-  common: COLORS.common,
-  rare: COLORS.rare,
-  epic: COLORS.epic,
-  legendary: COLORS.legendary,
-};
-
-const RARITY_LABELS: Record<string, string> = {
-  common: '일반',
-  rare: '희귀',
-  epic: '영웅',
-  legendary: '전설',
-};
+// Rarity colors/labels now imported from cosmetic/constants
 
 const BADGE_EMOJIS: Record<string, string> = {
   exploration: '🗺️',
@@ -41,12 +33,16 @@ const ITEM_EMOJIS: Record<string, string> = {
 };
 
 export default function InventoryScreen({ embedded }: { embedded?: boolean }) {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<TabKey>('badges');
   const { userBadges, allBadges, items, fetchAll, isLoading } = useInventoryStore();
+  const { loadout, equipItem, unequipItem } = useCharacterStore();
+  const [myCosmetics, setMyCosmetics] = useState<UserCosmetic[]>([]);
 
   useEffect(() => {
     fetchAll();
+    getMyCosmetics().then(setMyCosmetics).catch(() => {});
   }, []);
 
   const earnedBadgeIds = useMemo(
@@ -66,6 +62,7 @@ export default function InventoryScreen({ embedded }: { embedded?: boolean }) {
   const tabs: { key: TabKey; label: string; count: string }[] = [
     { key: 'badges', label: '배지', count: `${userBadges.length}/${allBadges.length}` },
     { key: 'items', label: '아이템', count: `${items.length}` },
+    { key: 'cosmetics', label: '코스메틱', count: `${myCosmetics.length}` },
     { key: 'collection', label: '도감', count: `${collectionPercent}%` },
   ];
 
@@ -207,6 +204,75 @@ export default function InventoryScreen({ embedded }: { embedded?: boolean }) {
           </Animated.View>
         )}
 
+        {activeTab === 'cosmetics' && (
+          <Animated.View entering={FadeIn}>
+            {myCosmetics.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyEmoji}>🎭</Text>
+                <Text style={styles.emptyText}>코스메틱이 아직 없어요</Text>
+                <Pressable
+                  style={styles.shopBtn}
+                  onPress={() => router.push('/shop')}
+                >
+                  <Text style={styles.shopBtnText}>상점 가기</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <>
+                {SLOT_CONFIG.map(({ key: slot, emoji: slotEmoji, label }) => {
+                  const slotItems = myCosmetics.filter((c) => c.cosmetic?.slot === slot);
+                  if (slotItems.length === 0) return null;
+                  const equippedId = loadout.find((l) => l.slot === slot)?.cosmetic_id;
+                  return (
+                    <View key={slot} style={styles.cosmeticSlotSection}>
+                      <Text style={styles.cosmeticSlotTitle}>{slotEmoji} {label}</Text>
+                      <View style={styles.cosmeticRow}>
+                        {slotItems.map((uc) => {
+                          const c = uc.cosmetic;
+                          if (!c) return null;
+                          const isEquipped = c.id === equippedId;
+                          const rarityColor = RARITY_COLORS[c.rarity] ?? RARITY_COLORS.common;
+                          return (
+                            <Pressable
+                              key={uc.id}
+                              style={[styles.cosmeticItem, { borderColor: rarityColor }]}
+                              onPress={() => {
+                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                if (isEquipped) {
+                                  unequipItem(slot);
+                                } else {
+                                  equipItem(c.id, slot);
+                                }
+                              }}
+                            >
+                              {isEquipped && (
+                                <View style={[styles.cosmeticEquipped, { backgroundColor: rarityColor }]}>
+                                  <Ionicons name="checkmark" size={10} color="#FFF" />
+                                </View>
+                              )}
+                              <Text style={styles.cosmeticEmoji}>{c.preview_emoji}</Text>
+                              <Text style={styles.cosmeticName} numberOfLines={1}>{c.name}</Text>
+                              <Text style={[styles.cosmeticRarity, { color: rarityColor }]}>
+                                {RARITY_LABELS[c.rarity]}
+                              </Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  );
+                })}
+                <Pressable
+                  style={styles.shopBtn}
+                  onPress={() => router.push('/shop')}
+                >
+                  <Text style={styles.shopBtnText}>상점 가기</Text>
+                </Pressable>
+              </>
+            )}
+          </Animated.View>
+        )}
+
         {activeTab === 'collection' && (
           <Animated.View entering={FadeIn}>
             {/* Progress */}
@@ -336,6 +402,30 @@ const styles = StyleSheet.create({
   emptyState: { alignItems: 'center', paddingVertical: SPACING.xxxl },
   emptyEmoji: { fontSize: 48, marginBottom: SPACING.md },
   emptyText: { fontSize: FONT_SIZE.md, color: COLORS.textMuted },
+
+  // ── Cosmetics ──
+  cosmeticSlotSection: { marginBottom: SPACING.xl },
+  cosmeticSlotTitle: { fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.semibold, color: COLORS.textPrimary, marginBottom: SPACING.md },
+  cosmeticRow: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.md },
+  cosmeticItem: {
+    width: '30%', alignItems: 'center', padding: SPACING.sm,
+    backgroundColor: COLORS.surfaceLight, borderRadius: BORDER_RADIUS.md, borderWidth: 2,
+  },
+  cosmeticEquipped: {
+    position: 'absolute', top: 4, right: 4,
+    width: 16, height: 16, borderRadius: 8,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  cosmeticEmoji: { fontSize: 28, marginBottom: SPACING.xs },
+  cosmeticName: { fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.semibold, color: COLORS.textPrimary, textAlign: 'center' },
+  cosmeticRarity: { fontSize: 10, fontWeight: FONT_WEIGHT.bold, marginTop: 2 },
+  shopBtn: {
+    alignSelf: 'center', marginTop: SPACING.lg,
+    paddingHorizontal: SPACING.xl, paddingVertical: SPACING.md,
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 1, borderColor: BRAND.primary,
+  },
+  shopBtnText: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.bold, color: BRAND.primary },
 
   // ── Collection ──
   collectionProgress: { marginBottom: SPACING.xl },

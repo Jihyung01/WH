@@ -3,6 +3,12 @@ import type {
   MissionType,
   BadgeCategory,
   RarityLevel,
+  CosmeticSlot,
+  CosmeticEffect,
+  UnlockMethod,
+  AcquiredVia,
+  CharacterMood,
+  TitleCategory,
 } from './enums';
 
 // ──────────────────────────── Primitives ────────────────────────────
@@ -24,6 +30,8 @@ export interface Profile {
   level: number;
   login_streak: number;
   push_token: string | null;
+  coins: number;
+  active_title_id: string | null;
 }
 
 export interface Character {
@@ -39,6 +47,11 @@ export interface Character {
   stat_knowledge: number;
   stat_connection: number;
   stat_creativity: number;
+  personality_traits: string[] | null;
+  mood: string | null;
+  total_distance_km: number;
+  favorite_district: string | null;
+  equipped_title: string | null;
   created_at: string;
 }
 
@@ -171,14 +184,26 @@ export interface CheckInResult {
   distance_meters: number;
   message: string;
   checkin_id: string | null;
+  coins_earned: number;
+}
+
+export interface CosmeticDropResult {
+  id: string;
+  name: string;
+  rarity: string;
+  slot: string;
+  preview_emoji: string;
 }
 
 export interface CompleteEventResult {
   success: boolean;
   rewards: {
     xp_earned: number;
+    coins_earned: number;
     badges_earned: { id: string; name: string; rarity: string }[];
     items_earned: { id: string; name: string; rarity: string }[];
+    cosmetics_dropped: CosmeticDropResult[];
+    titles_earned: { id: string; name: string; rarity: string }[];
   };
   character: {
     previous_level: number;
@@ -188,6 +213,8 @@ export interface CompleteEventResult {
     evolution_stage: number;
     total_xp: number;
     stats_increased: Record<string, number>;
+    personality_updated: boolean;
+    new_traits: string[] | null;
   } | null;
 }
 
@@ -222,4 +249,98 @@ export interface VisitedLocation {
   lat: number;
   lng: number;
   completed_at: string;
+}
+
+// ──────────────────────────── Cosmetic System ────────────────────────────
+
+export interface Cosmetic {
+  id: string;
+  name: string;
+  description: string | null;
+  slot: CosmeticSlot;
+  rarity: RarityLevel;
+  preview_emoji: string;
+  effect_type: CosmeticEffect | null;
+  effect_value: number;
+  effect_description: string | null;
+  unlock_method: UnlockMethod;
+  coin_price: number;
+  is_premium: boolean;
+  character_class_restriction: string[] | null;
+  min_level: number;
+  is_limited: boolean;
+  released_at: string;
+  expires_at: string | null;
+  created_at: string;
+}
+
+export interface UserCosmetic {
+  id: string;
+  user_id: string;
+  cosmetic_id: string;
+  acquired_at: string;
+  acquired_via: AcquiredVia;
+  cosmetic?: Cosmetic; // joined
+}
+
+export interface CharacterLoadout {
+  id: string;
+  user_id: string;
+  character_id: string;
+  slot: CosmeticSlot;
+  cosmetic_id: string;
+  equipped_at: string;
+  cosmetic?: Cosmetic; // joined
+}
+
+export interface CharacterTitle {
+  id: string;
+  name: string;
+  description: string | null;
+  rarity: RarityLevel;
+  unlock_condition: Record<string, unknown>;
+  category: TitleCategory | null;
+  icon_emoji: string;
+  created_at: string;
+}
+
+export interface UserTitle {
+  id: string;
+  user_id: string;
+  title_id: string;
+  earned_at: string;
+  title?: CharacterTitle; // joined
+}
+
+export interface PurchaseResult {
+  success: boolean;
+  error?: string;
+  remaining_coins?: number;
+  cosmetic_name?: string;
+  required?: number;
+  current?: number;
+}
+
+export interface EquipResult {
+  success: boolean;
+  error?: string;
+  slot?: string;
+  cosmetic_name?: string;
+}
+
+export interface TitleCheckResult {
+  newly_earned_titles: { id: string; name: string; rarity: string }[];
+}
+
+export interface PersonalityResult {
+  traits: string[];
+  mood: CharacterMood;
+  favorite_district: string | null;
+}
+
+export interface EquippedEffects {
+  xp_boost: number;
+  discovery_range: number;
+  streak_shield: boolean;
+  coin_bonus: number;
 }
