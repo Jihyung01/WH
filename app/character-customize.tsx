@@ -8,8 +8,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   useCharacterStore,
   getEvolutionStage,
-  getEvolutionEmoji,
-  getLevelTitle,
 } from '../src/stores/characterStore';
 import { getAllCosmetics, getMyCosmetics } from '../src/lib/api';
 import type { Cosmetic, UserCosmetic } from '../src/types';
@@ -44,7 +42,6 @@ export default function CharacterCustomizeScreen() {
   const characterType = character?.character_type ?? 'explorer';
   const level = character?.level ?? 1;
   const stage = getEvolutionStage(level);
-  const emoji = getEvolutionEmoji(characterType, stage);
   const charName = character?.name ?? '도담';
 
   useEffect(() => {
@@ -153,7 +150,8 @@ export default function CharacterCustomizeScreen() {
       <Header coins={coins} onBack={() => router.back()} onShop={() => router.push('/shop')} />
 
       <CharacterPreview
-        emoji={emoji}
+        characterType={characterType}
+        evolutionStage={stage}
         name={charName}
         level={level}
         title={activeTitle}

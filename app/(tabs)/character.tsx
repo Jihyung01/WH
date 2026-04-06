@@ -26,6 +26,7 @@ import {
 import { COLORS, SPACING, FONT_SIZE, FONT_WEIGHT, BORDER_RADIUS, SHADOWS, BRAND, RARITY } from '../../src/config/theme';
 import { MOOD_DISPLAY, SLOT_CONFIG } from '../../src/components/cosmetic/constants';
 import { EquippedEffectBar } from '../../src/components/cosmetic/EquippedEffectBar';
+import { CharacterRenderer } from '../../src/components/cosmetic/character-svg';
 import type { CharacterLoadout } from '../../src/types';
 import type { CosmeticSlot } from '../../src/types/enums';
 
@@ -55,28 +56,7 @@ export default function CharacterScreen() {
   const xpProgress = nextLevelXp > 0 ? Math.min(xp / nextLevelXp, 1) : 0;
   const moodInfo = MOOD_DISPLAY[mood] ?? MOOD_DISPLAY.happy;
 
-  // Bounce animation for character tap
-  const bounceY = useSharedValue(0);
-  const bounceStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: bounceY.value }],
-  }));
-
-  // Aura pulse
-  const auraPulse = useSharedValue(0);
-  const hasAura = loadout.some((l) => l.slot === 'aura');
-  useEffect(() => {
-    if (hasAura) {
-      auraPulse.value = withRepeat(
-        withTiming(1, { duration: 2500, easing: Easing.inOut(Easing.ease) }),
-        -1,
-        true,
-      );
-    }
-  }, [hasAura]);
-  const auraStyle = useAnimatedStyle(() => {
-    if (!hasAura) return { opacity: 0 };
-    return { opacity: 0.25 + auraPulse.value * 0.35, transform: [{ scale: 1 + auraPulse.value * 0.08 }] };
-  });
+  // Character tap handled by CharacterRenderer internally
 
   useEffect(() => {
     fetchCharacter();
@@ -90,18 +70,7 @@ export default function CharacterScreen() {
     setRefreshing(false);
   }, []);
 
-  const handleCharTap = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    bounceY.value = withSequence(
-      withSpring(-16, { damping: 4, stiffness: 300 }),
-      withSpring(0, { damping: 8 }),
-    );
-  };
-
-  const hatEmoji = getSlotEmoji(loadout, 'hat');
-  const outfitEmoji = getSlotEmoji(loadout, 'outfit');
-  const accessoryEmoji = getSlotEmoji(loadout, 'accessory');
-  const auraEmoji = getSlotEmoji(loadout, 'aura');
+  const handleCharTap = () => {};
   const bgItem = loadout.find((l) => l.slot === 'background');
 
   return (
@@ -130,29 +99,14 @@ export default function CharacterScreen() {
             <Ionicons name="chevron-forward" size={14} color={COLORS.textMuted} />
           </Pressable>
 
-          {/* Character display */}
-          <Pressable onPress={handleCharTap} style={styles.charTouchArea}>
-            {/* Aura ring */}
-            {hasAura && (
-              <Animated.View style={[styles.auraRing, auraStyle]}>
-                {auraEmoji && <Text style={styles.auraEmoji}>{auraEmoji}</Text>}
-              </Animated.View>
-            )}
-
-            {/* Hat */}
-            {hatEmoji && <Text style={styles.hatSlot}>{hatEmoji}</Text>}
-
-            {/* Character emoji */}
-            <Animated.View style={bounceStyle}>
-              <Text style={styles.charEmoji}>{emoji}</Text>
-            </Animated.View>
-
-            {/* Outfit */}
-            {outfitEmoji && <Text style={styles.outfitSlot}>{outfitEmoji}</Text>}
-
-            {/* Accessory */}
-            {accessoryEmoji && <Text style={styles.accessorySlot}>{accessoryEmoji}</Text>}
-          </Pressable>
+          {/* Character display — SVG layered renderer */}
+          <CharacterRenderer
+            characterType={characterType}
+            evolutionStage={stage}
+            loadout={loadout}
+            size={200}
+            onPress={handleCharTap}
+          />
 
           {/* Name & Level bar */}
           <Text style={styles.charName}>Lv.{level} {charName}</Text>
