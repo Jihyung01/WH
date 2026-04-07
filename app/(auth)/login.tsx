@@ -12,6 +12,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
@@ -38,6 +39,10 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [appleAvailable, setAppleAvailable] = useState(false);
+
+  const isExpoGo =
+    Constants.executionEnvironment === ExecutionEnvironment.StoreClient ||
+    Constants.appOwnership === 'expo';
 
   useEffect(() => {
     if (Platform.OS !== 'ios') return;
@@ -126,9 +131,13 @@ export default function LoginScreen() {
     } catch (error: any) {
       if (error?.code === 'ERR_REQUEST_CANCELED' || error?.message?.includes('cancel')) return;
       console.error('Apple login error:', error);
+      const msg = String(error?.message ?? '');
+      const audienceMismatch = msg.includes('audience') || msg.includes('host.exp.Exponent');
       Alert.alert(
         '로그인 실패',
-        'Apple 로그인에 실패했습니다. Supabase에 Apple 제공자를 설정했는지 확인하세요.',
+        audienceMismatch
+          ? 'Expo Go에서는 Apple 토큰 audience가 host.exp.Exponent로 나와 Supabase(앱 번들 ID)와 맞지 않습니다. EAS 개발 빌드·TestFlight·스토어 빌드에서 Apple 로그인을 테스트하세요.'
+          : 'Apple 로그인에 실패했습니다. Supabase Apple 제공자·Client ID(번들 ID)를 확인하세요.',
         [{ text: '확인' }],
       );
     } finally {
@@ -209,17 +218,25 @@ export default function LoginScreen() {
         </Animated.View>
 
         {Platform.OS === 'ios' && appleAvailable ? (
-          <Animated.View style={[buttonAnimatedStyle, { marginTop: 12 }]}>
-            <AppleAuthentication.AppleAuthenticationButton
-              buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-              buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-              cornerRadius={12}
-              style={styles.appleBtnNative}
-              onPress={() => {
-                if (isLoading) return;
-                void handleAppleLogin();
-              }}
-            />
+          <Animated.View style={[buttonAnimatedStyle, { marginTop: 12, gap: SPACING.sm }]}>
+            {isExpoGo ? (
+              <Text style={[styles.expoGoAppleHint, { color: colors.textSecondary }]}>
+                Apple 로그인은 Expo Go에서 사용할 수 없습니다. Supabase Client ID는 실제 앱 번들 ID와
+                일치해야 하는데, Expo Go에서는 토큰 audience가 달라집니다. EAS 빌드 또는 TestFlight에서
+                테스트하세요.
+              </Text>
+            ) : (
+              <AppleAuthentication.AppleAuthenticationButton
+                buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+                buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                cornerRadius={12}
+                style={styles.appleBtnNative}
+                onPress={() => {
+                  if (isLoading) return;
+                  void handleAppleLogin();
+                }}
+              />
+            )}
           </Animated.View>
         ) : null}
 
@@ -295,6 +312,12 @@ const styles = StyleSheet.create({
   appleBtnNative: {
     width: '100%',
     height: 48,
+  },
+  expoGoAppleHint: {
+    fontSize: FONT_SIZE.sm,
+    lineHeight: 20,
+    textAlign: 'center',
+    paddingHorizontal: SPACING.md,
   },
   emailToggle: {
     alignItems: 'center',
