@@ -30,9 +30,8 @@ function AppContent() {
       try {
         await initAnalytics().catch(() => {});
         await initPurchases().catch(() => {});
-        await import('../src/services/kakaoCore')
-          .then(({ ensureKakaoInitialized }) => ensureKakaoInitialized())
-          .catch((e) => console.warn('Kakao SDK init skipped:', e));
+        // Kakao: do NOT init on cold start — initializeKakaoSDK touches native TurboModules early and
+        // can race Hermes / Sentry / display link (~20s crashes). First share/social/login path calls ensureKakaoInitialized().
         await useThemeStore.getState().loadOverride().catch(() => {});
         await useNotificationStore.getState().loadPrefs().catch(() => {});
 

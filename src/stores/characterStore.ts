@@ -127,6 +127,8 @@ interface CharacterState {
     characterType: string,
   ) => Promise<void>;
   clear: () => void;
+  /** Local optimistic XP after missions (server is authoritative on next fetch). */
+  addXp: (amount: number) => void;
 
   // Cosmetic actions
   fetchLoadout: () => Promise<void>;
@@ -213,6 +215,18 @@ export const useCharacterStore = create<CharacterState>()(
         favoriteDistrict: null,
         activeTitle: null,
       }),
+
+      addXp: (amount: number) => {
+        set((state) => {
+          if (!state.character) return state;
+          return {
+            character: {
+              ...state.character,
+              xp: Math.max(0, state.character.xp + amount),
+            },
+          };
+        });
+      },
 
       // ── Cosmetic actions ────────────────────────────────────────────
 

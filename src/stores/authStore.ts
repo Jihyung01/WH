@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { supabase } from '../config/supabase';
@@ -143,8 +144,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   signOut: async () => {
     try {
       try {
-        const KakaoUser = require('@react-native-kakao/user').default;
-        if (await KakaoUser.isLogined()) await KakaoUser.logout();
+        if (Platform.OS === 'android') {
+          const KakaoUser = require('@react-native-kakao/user').default;
+          if (await KakaoUser.isLogined()) await KakaoUser.logout();
+        }
       } catch {
         /* native Kakao SDK may be unavailable in some builds */
       }

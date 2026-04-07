@@ -1,4 +1,4 @@
-import { Platform } from 'react-native';
+import { Platform, Share } from 'react-native';
 import { ensureKakaoInitialized, ensureKakaoUserSessionForSocial } from './kakaoCore';
 
 /** Must match a domain registered under Kakao Developers → 앱 → 제품 링크 관리 → 웹 도메인. */
@@ -39,6 +39,19 @@ function buildDefaultLink(params: ShareLinkParams = {}) {
   };
 }
 
+/**
+ * iOS + New Architecture: @react-native-kakao/share void TurboModule calls can raise NSException → SIGABRT.
+ * Same copy + registered web URL via system Share (user can pick KakaoTalk) without loading the native share module.
+ */
+async function shareTextWithSystemSheet(text: string, linkParams?: ShareLinkParams) {
+  const link = buildDefaultLink(linkParams);
+  const url = link.mobileWebUrl ?? link.webUrl;
+  const message = url ? `${text}\n\n${url}` : text;
+  await Share.share(
+    Platform.OS === 'ios' ? { message, url } : { message, title: 'WhereHere' },
+  );
+}
+
 const KAKAO_FRIEND_SEND_BATCH_SIZE = 5;
 
 export async function shareKakaoText({
@@ -50,6 +63,11 @@ export async function shareKakaoText({
   buttonTitle?: string;
   linkParams?: ShareLinkParams;
 }) {
+  if (Platform.OS === 'ios') {
+    await shareTextWithSystemSheet(text, linkParams);
+    return;
+  }
+
   await ensureKakaoInitialized();
   const KakaoShare = require('@react-native-kakao/share').default;
   const template = {
@@ -67,7 +85,6 @@ export async function shareKakaoText({
   return KakaoShare.shareTextTemplate({
     template,
     useWebBrowserIfKakaoTalkNotAvailable: false,
-    // Optional analytics on Kakao side
     serverCallbackArgs: {
       platform: Platform.OS,
     },
@@ -85,6 +102,14 @@ export async function sendKakaoTextToFriends({
   buttonTitle?: string;
   linkParams?: ShareLinkParams;
 }) {
+  const uniqueUuids = Array.from(new Set(receiverUuids.filter(Boolean)));
+  if (uniqueUuids.length === 0) return [];
+
+  if (Platform.OS === 'ios') {
+    await shareTextWithSystemSheet(text, linkParams);
+    return uniqueUuids;
+  }
+
   await ensureKakaoUserSessionForSocial();
   const KakaoShare = require('@react-native-kakao/share').default;
   const link = buildDefaultLink(linkParams);
@@ -94,10 +119,6 @@ export async function sendKakaoTextToFriends({
     buttons: [{ title: buttonTitle, link }],
   };
 
-  const uniqueUuids = Array.from(new Set(receiverUuids.filter(Boolean)));
-  if (uniqueUuids.length === 0) return [];
-
-  // Kakao friends message APIs are safer when sent in small batches.
   const sent: string[] = [];
   for (let i = 0; i < uniqueUuids.length; i += KAKAO_FRIEND_SEND_BATCH_SIZE) {
     const chunk = uniqueUuids.slice(i, i + KAKAO_FRIEND_SEND_BATCH_SIZE);
@@ -109,4 +130,3 @@ export async function sendKakaoTextToFriends({
   }
   return sent;
 }
-

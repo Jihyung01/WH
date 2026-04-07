@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
+import { fireImpactMedium, fireNotificationSuccess } from '../../../src/utils/hapticsSafe';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useSharedValue,
@@ -21,7 +21,6 @@ import { EventStatus } from '../../../src/types/enums';
 import type { NearbyEvent } from '../../../src/types/models';
 import { COLORS, SPACING, FONT_SIZE, FONT_WEIGHT, BORDER_RADIUS, SHADOWS } from '../../../src/config/theme';
 
-/** Optional extras if store/API ever attach reward metadata */
 type EventWithExtras = NearbyEvent & {
   rewards?: { name: string }[];
 };
@@ -33,6 +32,19 @@ interface RewardItem {
   color: string;
 }
 
+const CONFETTI = ['🎊', '✨', '🎉', '⭐', '🌟', '💫'];
+
+/**
+ * Git b67a172: full Reanimated + haptics + gradient celebration.
+ * Regression fix: `setVisibleEvents` must receive an array OR an updater — passing only an
+ * updater without mapStore support stored a Function in `visibleEvents` and corrupted the app.
+ * mapStore now supports `(prev) => next`; we use that and deps `[id, event]` so store updates
+ * when the resolved event exists (same intent as original `setVisibleEvents(updated)`).
+ *
+ * Real crash fix: `mapStore.setVisibleEvents` must accept updater functions — storing a
+ * Function in `visibleEvents` broke Hermes. Haptics use `hapticsSafe` so rejections
+ * do not become unhandled promise errors.
+ */
 export default function MissionCompleteScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -41,14 +53,13 @@ export default function MissionCompleteScreen() {
   const setVisibleEvents = useMapStore((s) => s.setVisibleEvents);
   const addXp = useCharacterStore((s) => s.addXp);
 
-  const event = useMemo(
-    () => visibleEvents.find((e) => e.id === id) as EventWithExtras | undefined,
-    [visibleEvents, id],
-  );
+  const event = useMemo(() => {
+    const list = Array.isArray(visibleEvents) ? visibleEvents : [];
+    return list.find((e) => e.id === id) as EventWithExtras | undefined;
+  }, [visibleEvents, id]);
 
   const [rewardsRevealed, setRewardsRevealed] = useState(false);
 
-  // Animations
   const trophyScale = useSharedValue(0);
   const trophyRotation = useSharedValue(0);
   const confettiOpacity = useSharedValue(0);
@@ -56,7 +67,6 @@ export default function MissionCompleteScreen() {
   const rewards: RewardItem[] = useMemo(() => {
     if (!event) return [];
     const xp = event.reward_xp ?? 0;
-    // DB 이벤트에는 코인 필드가 없고, 완료 Edge 함수 기본값과 맞춘 추정치(난이도×20)
     const coinEstimate = Math.round((event.difficulty ?? 1) * 20);
     const items: RewardItem[] = [
       { icon: '⚡', label: 'XP', value: `+${xp}`, color: COLORS.primary },
@@ -70,7 +80,7 @@ export default function MissionCompleteScreen() {
   }, [event]);
 
   useEffect(() => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    fireNotificationSuccess();
 
     trophyScale.value = withSpring(1, { damping: 6, stiffness: 80 });
     trophyRotation.value = withSequence(
@@ -81,18 +91,16 @@ export default function MissionCompleteScreen() {
     );
     confettiOpacity.value = withDelay(300, withTiming(1, { duration: 400 }));
 
-    // Mark event as completed in store
     if (event) {
-      const updated = visibleEvents.map((e) =>
-        e.id === id ? { ...e, status: EventStatus.EXPIRED } : e,
+      setVisibleEvents((prev) =>
+        prev.map((e) => (e.id === id ? { ...e, status: EventStatus.EXPIRED } : e)),
       );
-      setVisibleEvents(updated);
-      addXp(event.reward_xp ?? 0);
+      addXp?.(event.reward_xp ?? 0);
     }
 
-    // Reveal rewards one by one
-    setTimeout(() => setRewardsRevealed(true), 800);
-  }, []);
+    const t = setTimeout(() => setRewardsRevealed(true), 800);
+    return () => clearTimeout(t);
+  }, [id, event, addXp, setVisibleEvents]);
 
   const trophyStyle = useAnimatedStyle(() => ({
     transform: [
@@ -107,9 +115,8 @@ export default function MissionCompleteScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Confetti background */}
-      <Animated.View style={[styles.confettiLayer, confettiStyle]}>
-        {['🎊', '✨', '🎉', '⭐', '🌟', '💫'].map((emoji, i) => (
+      <Animated.View style={[styles.confettiLayer, confettiStyle]} pointerEvents="none">
+        {CONFETTI.map((emoji, i) => (
           <Text
             key={i}
             style={[
@@ -128,12 +135,8 @@ export default function MissionCompleteScreen() {
       </Animated.View>
 
       <View style={styles.content}>
-        {/* Trophy */}
         <Animated.View style={[styles.trophyContainer, trophyStyle]}>
-          <LinearGradient
-            colors={[COLORS.warning, '#FF9500']}
-            style={styles.trophyGradient}
-          >
+          <LinearGradient colors={[COLORS.warning, '#FF9500']} style={styles.trophyGradient}>
             <Text style={styles.trophyEmoji}>🏆</Text>
           </LinearGradient>
         </Animated.View>
@@ -145,7 +148,6 @@ export default function MissionCompleteScreen() {
           {event?.title ?? '이벤트'}을 성공적으로 완료했습니다
         </Animated.Text>
 
-        {/* Rewards */}
         {rewardsRevealed && (
           <View style={styles.rewardsList}>
             {rewards.map((reward, i) => (
@@ -157,9 +159,7 @@ export default function MissionCompleteScreen() {
                 <Text style={styles.rewardIcon}>{reward.icon}</Text>
                 <View style={styles.rewardInfo}>
                   <Text style={styles.rewardLabel}>{reward.label}</Text>
-                  <Text style={[styles.rewardValue, { color: reward.color }]}>
-                    {reward.value}
-                  </Text>
+                  <Text style={[styles.rewardValue, { color: reward.color }]}>{reward.value}</Text>
                 </View>
               </Animated.View>
             ))}
@@ -167,12 +167,11 @@ export default function MissionCompleteScreen() {
         )}
       </View>
 
-      {/* Bottom */}
       <Animated.View entering={FadeIn.delay(1400)} style={styles.footer}>
         <Pressable
           style={styles.primaryBtn}
           onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            fireImpactMedium();
             router.replace('/(tabs)/map');
           }}
         >
@@ -180,10 +179,7 @@ export default function MissionCompleteScreen() {
           <Text style={styles.primaryBtnText}>지도로 돌아가기</Text>
         </Pressable>
 
-        <Pressable
-          style={styles.secondaryBtn}
-          onPress={() => router.replace('/(tabs)/inventory')}
-        >
+        <Pressable style={styles.secondaryBtn} onPress={() => router.replace('/(tabs)/inventory')}>
           <Text style={styles.secondaryBtnText}>보상 확인하기</Text>
         </Pressable>
       </Animated.View>
@@ -210,8 +206,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.xl,
     zIndex: 1,
   },
-
-  // ── Trophy ──
   trophyContainer: {
     marginBottom: SPACING.xxl,
   },
@@ -226,7 +220,6 @@ const styles = StyleSheet.create({
   trophyEmoji: {
     fontSize: 56,
   },
-
   title: {
     fontSize: FONT_SIZE.xxxl,
     fontWeight: FONT_WEIGHT.extrabold,
@@ -239,8 +232,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: SPACING.xxxl,
   },
-
-  // ── Rewards ──
   rewardsList: {
     width: '100%',
     gap: SPACING.md,
@@ -270,8 +261,6 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.xl,
     fontWeight: FONT_WEIGHT.bold,
   },
-
-  // ── Footer ──
   footer: {
     paddingHorizontal: SPACING.xl,
     paddingBottom: 48,

@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import type {
   KakaoTalkFriend,
   KakaoTalkFriendSelectResult,
@@ -13,6 +14,9 @@ export async function getKakaoTalkFriends(params?: {
   offset?: number;
   limit?: number;
 }): Promise<{ totalCount: number; friends: KakaoFriend[] }> {
+  if (Platform.OS === 'ios') {
+    return { totalCount: 0, friends: [] };
+  }
   await ensureKakaoUserSessionForSocial();
   const KakaoSocial = require('@react-native-kakao/social').default;
   const { offset = 0, limit = 100 } = params ?? {};
@@ -25,6 +29,11 @@ export async function getKakaoTalkFriends(params?: {
 export async function pickKakaoFriends(params?: {
   maxPickableCount?: number;
 }): Promise<KakaoTalkFriendSelectResult> {
+  if (Platform.OS === 'ios') {
+    throw new Error(
+      'pickKakaoFriends is Android-only: iOS uses system Share to avoid Kakao TurboModule crashes.',
+    );
+  }
   await ensureKakaoUserSessionForSocial();
   const KakaoSocial = require('@react-native-kakao/social').default;
   const { maxPickableCount = 10 } = params ?? {};

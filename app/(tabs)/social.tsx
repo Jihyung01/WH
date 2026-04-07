@@ -733,7 +733,32 @@ function HasCrewView({
       setInviting(true);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-      // Keep picker broad, but actual send is chunked safely in kakaoShare service.
+      const text = `WhereHere에서 \"${crew.name}\" 크루에 함께해요!\n\n초대 코드: ${crew.invite_code}\n\n앱에서 바로 가입하기:\nwherehere://join?code=${crew.invite_code}`;
+      const linkParams = {
+        iosExecutionParams: { screen: 'join', code: crew.invite_code },
+        androidExecutionParams: { screen: 'join', code: crew.invite_code },
+        webUrl: KAKAO_SHARE_FALLBACK_WEB_URL,
+        mobileWebUrl: KAKAO_SHARE_FALLBACK_WEB_URL,
+      };
+
+      /**
+       * iOS New Architecture: @react-native-kakao/social + user + core TurboModules still throw NSException
+       * (see ObjCTurboModule::performVoidMethodInvocation). Never open the native friend picker on iOS.
+       */
+      if (Platform.OS === 'ios') {
+        try {
+          await shareKakaoText({
+            text,
+            buttonTitle: '크루 가입하기',
+            linkParams,
+          });
+        } catch {
+          await Share.share({ message: text });
+        }
+        onShowToast('공유 시트에서 카카오톡을 선택해 초대를 보내 주세요.', 'success');
+        return;
+      }
+
       const picked = await pickKakaoFriends({ maxPickableCount: 20 });
       const receiverUuids = (picked.users ?? []).map((u) => u.uuid).filter(Boolean);
       if (receiverUuids.length === 0) {
@@ -741,23 +766,16 @@ function HasCrewView({
         return;
       }
 
-      const text = `WhereHere에서 \"${crew.name}\" 크루에 함께해요!\n\n초대 코드: ${crew.invite_code}\n\n앱에서 바로 가입하기:\nwherehere://join?code=${crew.invite_code}`;
-
       const sent = await sendKakaoTextToFriends({
         text,
         receiverUuids,
         buttonTitle: '크루 가입하기',
-        linkParams: {
-          iosExecutionParams: { screen: 'join', code: crew.invite_code },
-          androidExecutionParams: { screen: 'join', code: crew.invite_code },
-          webUrl: KAKAO_SHARE_FALLBACK_WEB_URL,
-          mobileWebUrl: KAKAO_SHARE_FALLBACK_WEB_URL,
-        },
+        linkParams,
       });
       const count = Array.isArray(sent) ? sent.length : receiverUuids.length;
       onShowToast(`카카오톡으로 ${count}명에게 초대를 보냈어요!`, 'success');
     } catch (e) {
-      captureError(e instanceof Error ? e : new Error(String(e)), {
+      captureError(e, {
         flow: 'kakao_crew_invite',
         crewId: crew.id,
       });

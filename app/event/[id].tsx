@@ -1,9 +1,17 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
+import { fireImpactHeavy, fireNotificationSuccess } from '../../src/utils/hapticsSafe';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -75,8 +83,9 @@ export default function EventDetailScreen() {
 
   useEffect(() => {
     (async () => {
+      const list = Array.isArray(visibleEvents) ? visibleEvents : [];
       try {
-        const cached = visibleEvents.find((e) => e.id === id);
+        const cached = list.find((e) => e.id === id);
         if (cached) {
           setEvent(cached);
         } else {
@@ -87,7 +96,7 @@ export default function EventDetailScreen() {
         setMissions(missionsData);
       } catch (err) {
         console.error('Failed to load event:', err);
-        const fallback = visibleEvents.find((e) => e.id === id) ?? visibleEvents[0];
+        const fallback = list.find((e) => e.id === id) ?? list[0];
         if (fallback) setEvent(fallback);
       } finally {
         setLoading(false);
@@ -111,18 +120,22 @@ export default function EventDetailScreen() {
   const activeStepIndex = missions.findIndex((m) => !m.is_completed);
 
   const handleStepComplete = useCallback(
-    async (mission: MissionWithStatus, proofLocalUri?: string) => {
+    async (
+      mission: MissionWithStatus,
+      options?: { proofLocalUri?: string; answer?: string },
+    ) => {
       try {
         let proofUrl: string | undefined;
-        if (mission.mission_type === 'photo' && proofLocalUri) {
-          proofUrl = await uploadMissionPhoto(mission.id, proofLocalUri);
+        if (mission.mission_type === 'photo' && options?.proofLocalUri) {
+          proofUrl = await uploadMissionPhoto(mission.id, options.proofLocalUri);
         }
-        await completeMission(mission.id, id!, undefined, proofUrl);
+        const answer = mission.mission_type === 'text' ? options?.answer : undefined;
+        await completeMission(mission.id, id!, answer, proofUrl);
 
         setMissions((prev) =>
           prev.map((m) => (m.id === mission.id ? { ...m, is_completed: true } : m)),
         );
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        fireNotificationSuccess();
 
         if (mission.mission_type === 'quiz') {
           grantQuizCoins().catch(() => {});
@@ -137,12 +150,12 @@ export default function EventDetailScreen() {
 
   const handleStartMission = () => {
     if (!isInRange) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    fireImpactHeavy();
     setMissionStarted(true);
   };
 
   const handleCompleteEvent = () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    fireNotificationSuccess();
     router.push(`/mission/complete/${id}`);
   };
 
@@ -317,7 +330,7 @@ export default function EventDetailScreen() {
                       <PhotoMission
                         key={mission.id}
                         description={mission.description ?? mission.title}
-                        onComplete={(uri) => handleStepComplete(mission, uri)}
+                        onComplete={(uri) => handleStepComplete(mission, { proofLocalUri: uri })}
                         isActive={isActive}
                         isCompleted={isStepCompleted}
                       />
@@ -345,7 +358,7 @@ export default function EventDetailScreen() {
                       <TextMission
                         key={mission.id}
                         description={mission.description ?? mission.title}
-                        onComplete={() => handleStepComplete(mission)}
+                        onComplete={(text) => handleStepComplete(mission, { answer: text })}
                         isActive={isActive}
                         isCompleted={isStepCompleted}
                       />

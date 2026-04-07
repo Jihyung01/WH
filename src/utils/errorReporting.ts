@@ -1,19 +1,29 @@
 import { Sentry } from '../config/sentry';
 
+function toError(error: unknown): Error {
+  if (error instanceof Error) return error;
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    const m = (error as { message?: unknown }).message;
+    if (typeof m === 'string' && m.length > 0) return new Error(m);
+  }
+  try {
+    return new Error(JSON.stringify(error));
+  } catch {
+    return new Error(String(error));
+  }
+}
+
 export function captureError(error: unknown, context?: Record<string, unknown>) {
-  if (error instanceof Error) {
-    if (context) {
-      Sentry.withScope((scope) => {
-        Object.entries(context).forEach(([key, value]) => {
-          scope.setExtra(key, value);
-        });
-        Sentry.captureException(error);
+  const err = toError(error);
+  if (context) {
+    Sentry.withScope((scope) => {
+      Object.entries(context).forEach(([key, value]) => {
+        scope.setExtra(key, value);
       });
-    } else {
-      Sentry.captureException(error);
-    }
+      Sentry.captureException(err);
+    });
   } else {
-    Sentry.captureMessage(String(error));
+    Sentry.captureException(err);
   }
 }
 

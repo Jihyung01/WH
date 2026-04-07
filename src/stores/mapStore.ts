@@ -21,7 +21,10 @@ interface MapState {
 
   setRegion: (region: Region) => void;
   selectEvent: (eventId: string | null) => void;
-  setVisibleEvents: (events: NearbyEvent[]) => void;
+  /** Pass a new list, or an updater `(prev) => next` (Zustand-style). */
+  setVisibleEvents: (
+    events: NearbyEvent[] | ((prev: NearbyEvent[]) => NearbyEvent[]),
+  ) => void;
   setFollowingUser: (following: boolean) => void;
   setFilters: (filters: Partial<MapState['activeFilters']>) => void;
   resetFilters: () => void;
@@ -48,7 +51,15 @@ export const useMapStore = create<MapState>()(
 
       setRegion: (region) => set({ region }),
       selectEvent: (eventId) => set({ selectedEventId: eventId }),
-      setVisibleEvents: (events) => set({ visibleEvents: events }),
+      setVisibleEvents: (events) =>
+        set((state) => {
+          const prev = Array.isArray(state.visibleEvents) ? state.visibleEvents : [];
+          const next =
+            typeof events === 'function'
+              ? (events as (p: NearbyEvent[]) => NearbyEvent[])(prev)
+              : events;
+          return { visibleEvents: Array.isArray(next) ? next : prev };
+        }),
       setFollowingUser: (following) => set({ isFollowingUser: following }),
       setFilters: (filters) =>
         set((state) => ({
@@ -82,6 +93,15 @@ export const useMapStore = create<MapState>()(
         lastFetchTimestamp: state.lastFetchTimestamp,
         activeFilters: state.activeFilters,
       }),
+      merge: (persisted, current) => {
+        const p = persisted as Partial<MapState> | undefined;
+        const vis = p?.visibleEvents;
+        return {
+          ...current,
+          ...p,
+          visibleEvents: Array.isArray(vis) ? vis : current.visibleEvents,
+        };
+      },
     },
   ),
 );
