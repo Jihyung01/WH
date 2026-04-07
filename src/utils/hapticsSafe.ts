@@ -15,3 +15,7 @@ export function fireImpactMedium(): void {
 export function fireImpactHeavy(): void {
   void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
 }
+
+export function fireImpactLight(): void {
+  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+}

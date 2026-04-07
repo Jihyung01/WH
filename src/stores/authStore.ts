@@ -5,6 +5,7 @@ import * as Linking from 'expo-linking';
 import { supabase } from '../config/supabase';
 import { getMyCharacter } from '../lib/api';
 import type { Session, User } from '@supabase/supabase-js';
+import { useModerationStore } from './moderationStore';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -27,6 +28,8 @@ interface AuthState {
   /** Emergency: stop any auth/onboarding gate (stuck overlay / redirect). */
   forceAuthGateOpen: () => void;
   signInWithKakao: () => Promise<void>;
+  signInWithApple: () => Promise<void>;
+  signInWithEmailPassword: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   initializeAuth: () => Promise<void>;
   checkOnboardingStatus: () => Promise<boolean>;
@@ -116,6 +119,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             user: sessionData.session.user,
             isAuthenticated: true,
           });
+          void useModerationStore.getState().refreshBlockedUsers();
         }
       } else if (params.code) {
         const { data: sessionData, error: sessionError } =
@@ -129,12 +133,81 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             user: sessionData.session.user,
             isAuthenticated: true,
           });
+          void useModerationStore.getState().refreshBlockedUsers();
         }
       } else {
         throw new Error('인증 토큰을 받지 못했습니다.');
       }
     } catch (error) {
       console.error('Kakao login error:', error);
+      throw error;
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  signInWithApple: async () => {
+    if (Platform.OS !== 'ios') {
+      throw new Error('Apple 로그인은 iOS에서만 사용할 수 있습니다.');
+    }
+    try {
+      set({ isLoading: true });
+      const AppleAuthentication = await import('expo-apple-authentication');
+      const available = await AppleAuthentication.isAvailableAsync();
+      if (!available) throw new Error('이 기기에서 Apple 로그인을 사용할 수 없습니다.');
+
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+
+      if (!credential.identityToken) {
+        throw new Error('Apple 인증 토큰을 받지 못했습니다.');
+      }
+
+      const { data, error } = await supabase.auth.signInWithIdToken({
+        provider: 'apple',
+        token: credential.identityToken,
+      });
+
+      if (error) throw error;
+
+      if (data.session) {
+        set({
+          session: data.session,
+          user: data.session.user,
+          isAuthenticated: true,
+        });
+        void useModerationStore.getState().refreshBlockedUsers();
+      }
+    } catch (error) {
+      console.error('Apple login error:', error);
+      throw error;
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  signInWithEmailPassword: async (email: string, password: string) => {
+    try {
+      set({ isLoading: true });
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+      if (error) throw error;
+      if (data.session) {
+        set({
+          session: data.session,
+          user: data.session.user,
+          isAuthenticated: true,
+        });
+        void useModerationStore.getState().refreshBlockedUsers();
+      }
+    } catch (error) {
+      console.error('Email login error:', error);
       throw error;
     } finally {
       set({ isLoading: false });
@@ -151,6 +224,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       } catch {
         /* native Kakao SDK may be unavailable in some builds */
       }
+      useModerationStore.getState().clearBlocks();
       await supabase.auth.signOut();
       set({
         user: null,
@@ -205,6 +279,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           pendingOnboardingCheck: true,
           hasCompletedOnboarding: false,
         });
+        void useModerationStore.getState().refreshBlockedUsers();
       }
     } catch (error) {
       console.error('Auth initialization error:', error);

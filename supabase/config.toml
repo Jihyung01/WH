@@ -1,7 +1,9 @@
 
 [functions.complete-event]
 enabled = true
-verify_jwt = true
+# 게이트웨이 JWT 검증: 일부 클라이언트(Expo Go 등)에서 유효한 세션인데도 Invalid JWT가 나는 경우가 있어 끔.
+# 함수 본문에서 auth.getUser(Bearer)로 동일하게 검증함. 원격 반영: Dashboard에서 해당 함수 JWT 검증 끄기 또는 `supabase functions deploy complete-event`.
+verify_jwt = false
 import_map = "./functions/complete-event/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx

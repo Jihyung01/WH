@@ -5,10 +5,12 @@ import * as SplashScreen from 'expo-splash-screen';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StyleSheet, Alert } from 'react-native';
 import * as Linking from 'expo-linking';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 
 void SplashScreen.preventAutoHideAsync();
 
 import { initAnalytics } from '../src/config/analytics';
+import { requestAppTrackingTransparency } from '../src/utils/trackingConsent';
 import { initPurchases } from '../src/config/purchases';
 import { ThemeProvider, useTheme, useThemeStore } from '../src/providers/ThemeProvider';
 import { useNotificationStore } from '../src/stores/notificationStore';
@@ -28,6 +30,7 @@ function AppContent() {
 
     async function bootstrap() {
       try {
+        await requestAppTrackingTransparency().catch(() => {});
         await initAnalytics().catch(() => {});
         await initPurchases().catch(() => {});
         // Kakao: do NOT init on cold start — initializeKakaoSDK touches native TurboModules early and
@@ -49,10 +52,16 @@ function AppContent() {
 
         try {
           require('../src/services/geofencing');
-          const { backgroundLocationService } = require('../src/services/backgroundLocation');
-          const { backgroundLocationEnabled, powerSaveMode } = useNotificationStore.getState();
-          if (backgroundLocationEnabled && !powerSaveMode) {
-            await backgroundLocationService.start().catch(() => {});
+          // Expo Go(StoreClient)는 호스트 앱 Info.plist에 우리 위치 설명이 없어 BG 위치 업데이트가 거부됨.
+          const isExpoGo =
+            Constants.executionEnvironment === ExecutionEnvironment.StoreClient ||
+            Constants.appOwnership === 'expo';
+          if (!isExpoGo) {
+            const { backgroundLocationService } = require('../src/services/backgroundLocation');
+            const { backgroundLocationEnabled, powerSaveMode } = useNotificationStore.getState();
+            if (backgroundLocationEnabled && !powerSaveMode) {
+              await backgroundLocationService.start().catch(() => {});
+            }
           }
         } catch {
           // background location optional

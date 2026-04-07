@@ -347,6 +347,25 @@ export default function SettingsScreen() {
             <Text style={[styles.rowLabel, { flex: 1, color: colors.textPrimary }]}>이용약관</Text>
             <Ionicons name="open-outline" size={16} color={colors.textMuted} />
           </Pressable>
+          <Pressable
+            style={[styles.row, { borderBottomColor: colors.surfaceHighlight }]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              Alert.alert(
+                '커뮤니티 가이드라인 · UGC',
+                '욕설·혐오·불법·사기성 콘텐츠는 허용되지 않습니다. 사용자 제작 이벤트에서 신고 및 작성자 차단을 할 수 있으며, 신고는 운영팀이 24시간 이내 검토·조치하는 것을 목표로 합니다.\n\n' +
+                  'Objectionable content is not tolerated. Report events and block creators from the event screen; we aim to act on reports within 24 hours.',
+                [{ text: '확인' }],
+              );
+            }}
+            accessibilityLabel="커뮤니티 가이드라인"
+          >
+            <Ionicons name="shield-checkmark-outline" size={20} color={colors.textSecondary} />
+            <Text style={[styles.rowLabel, { flex: 1, color: colors.textPrimary }]}>
+              커뮤니티 가이드라인 (UGC)
+            </Text>
+            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+          </Pressable>
           <View style={[styles.row, { borderBottomColor: 'transparent' }]}>
             <Ionicons name="information-circle-outline" size={20} color={colors.textSecondary} />
             <Text style={[styles.rowLabel, { flex: 1, color: colors.textPrimary }]}>앱 버전</Text>

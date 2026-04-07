@@ -29,7 +29,10 @@ import {
   completeMission,
   grantQuizCoins,
   uploadMissionPhoto,
+  submitContentReport,
 } from '../../src/lib/api';
+import { useAuthStore } from '../../src/stores/authStore';
+import { useModerationStore } from '../../src/stores/moderationStore';
 import { useNarrative } from '../../src/hooks/useNarrative';
 import { getDistance } from '../../src/utils/geo';
 import { formatDistance } from '../../src/utils/format';
@@ -57,6 +60,8 @@ export default function EventDetailScreen() {
 
   const visibleEvents = useMapStore((s) => s.visibleEvents);
   const currentPosition = useLocationStore((s) => s.currentPosition);
+  const currentUserId = useAuthStore((s) => s.user?.id ?? null);
+  const blockAndRefresh = useModerationStore((s) => s.blockAndRefresh);
 
   const [event, setEvent] = useState<Event | NearbyEvent | null>(null);
   const [loading, setLoading] = useState(true);
@@ -104,6 +109,14 @@ export default function EventDetailScreen() {
     })();
   }, [id]);
 
+  // 이미 DB에 모든 미션이 완료된 상태로 들어오면 `allCompleted`만 true이고 `missionStarted`는 false라
+  // 미션 단계 블록이 렌더되지 않음 → 단계가 "삭제된 것처럼" 보임. 완료된 단계도 목록은 보이게 연다.
+  useEffect(() => {
+    if (missions.length === 0) return;
+    const everyDone = missions.every((m) => m.is_completed);
+    if (everyDone) setMissionStarted(true);
+  }, [missions]);
+
   const distance = useMemo(() => {
     if (!currentPosition || !event) return null;
     if (isNearbyEvent(event)) {
@@ -148,6 +161,86 @@ export default function EventDetailScreen() {
     [id],
   );
 
+  const showUgcSafety =
+    !!currentUserId &&
+    !!event &&
+    event.creator_type === 'user' &&
+    !!event.creator_id &&
+    event.creator_id !== currentUserId;
+
+  const openUgcSafetyMenu = useCallback(() => {
+    if (!event || !showUgcSafety || !event.creator_id) return;
+    Alert.alert('콘텐츠 안전', '이 사용자가 제안한 이벤트입니다.', [
+      { text: '취소', style: 'cancel' },
+      {
+        text: '부적절한 콘텐츠 신고',
+        onPress: () => {
+          Alert.alert('신고 사유', '해당되는 항목을 선택해 주세요.', [
+            {
+              text: '스팸·광고',
+              onPress: async () => {
+                try {
+                  await submitContentReport({
+                    contentType: 'event',
+                    contentId: event.id,
+                    reportedUserId: event.creator_id!,
+                    reason: '스팸·광고',
+                  });
+                  Alert.alert('접수됨', '신고가 접수되었습니다. 운영팀이 검토합니다.');
+                } catch (e: any) {
+                  Alert.alert('오류', e?.message ?? '신고에 실패했습니다.');
+                }
+              },
+            },
+            {
+              text: '혐오·욕설·위험',
+              onPress: async () => {
+                try {
+                  await submitContentReport({
+                    contentType: 'event',
+                    contentId: event.id,
+                    reportedUserId: event.creator_id!,
+                    reason: '혐오·욕설·위험',
+                  });
+                  Alert.alert('접수됨', '신고가 접수되었습니다. 운영팀이 검토합니다.');
+                } catch (e: any) {
+                  Alert.alert('오류', e?.message ?? '신고에 실패했습니다.');
+                }
+              },
+            },
+            { text: '취소', style: 'cancel' },
+          ]);
+        },
+      },
+      {
+        text: '작성자 차단',
+        style: 'destructive',
+        onPress: () => {
+          Alert.alert(
+            '작성자 차단',
+            '이 작성자의 사용자 제작 이벤트가 내 지도 목록에서 즉시 숨겨집니다.',
+            [
+              { text: '취소', style: 'cancel' },
+              {
+                text: '차단',
+                style: 'destructive',
+                onPress: async () => {
+                  try {
+                    await blockAndRefresh(event.creator_id!);
+                    Alert.alert('완료', '차단되었습니다.');
+                    router.back();
+                  } catch (e: any) {
+                    Alert.alert('오류', e?.message ?? '차단에 실패했습니다.');
+                  }
+                },
+              },
+            ],
+          );
+        },
+      },
+    ]);
+  }, [showUgcSafety, event, blockAndRefresh, router]);
+
   const handleStartMission = () => {
     if (!isInRange) return;
     fireImpactHeavy();
@@ -156,7 +249,7 @@ export default function EventDetailScreen() {
 
   const handleCompleteEvent = () => {
     fireNotificationSuccess();
-    router.push(`/mission/complete/${id}`);
+    router.push(`/reward/${id}`);
   };
 
   if (loading || !event) {
@@ -184,6 +277,11 @@ export default function EventDetailScreen() {
           <Pressable style={styles.backBtn} onPress={() => router.back()}>
             <Ionicons name="chevron-back" size={24} color={COLORS.textPrimary} />
           </Pressable>
+          {showUgcSafety ? (
+            <Pressable style={styles.flagBtn} onPress={openUgcSafetyMenu} accessibilityLabel="신고 및 차단">
+              <Ionicons name="flag-outline" size={22} color={COLORS.textPrimary} />
+            </Pressable>
+          ) : null}
         </View>
 
         {/* ── Info Card ── */}
@@ -193,7 +291,9 @@ export default function EventDetailScreen() {
               <Text style={[styles.badgeText, { color: meta.gradient[0] }]}>{meta.label}</Text>
             </View>
             <View style={styles.badge}>
-              <Text style={styles.badgeText}>AI 생성</Text>
+              <Text style={styles.badgeText}>
+                {event.creator_type === 'user' ? '사용자 제작' : 'AI 생성'}
+              </Text>
             </View>
           </View>
 
@@ -336,11 +436,17 @@ export default function EventDetailScreen() {
                       />
                     );
                   case 'quiz': {
-                    const cfg = mission.config as { question?: string; options?: string[]; correctIndex?: number };
+                    const cfg = mission.config as {
+                      question?: string;
+                      options?: string[];
+                      correctIndex?: number;
+                      correct_index?: number;
+                    };
+                    const correctIndex = cfg.correctIndex ?? cfg.correct_index ?? 0;
                     const quizOptions = (cfg.options ?? []).map((text, i) => ({
                       id: String(i),
                       text,
-                      isCorrect: i === (cfg.correctIndex ?? 0),
+                      isCorrect: i === correctIndex,
                     }));
                     return (
                       <QuizMission
@@ -363,17 +469,22 @@ export default function EventDetailScreen() {
                         isCompleted={isStepCompleted}
                       />
                     );
-                  case 'timer':
+                  case 'timer': {
+                    const timerConfig = mission.config as {
+                      duration?: number;
+                      duration_seconds?: number;
+                    };
                     return (
                       <TimerMission
                         key={mission.id}
-                        durationSeconds={(mission.config as { duration?: number }).duration ?? 60}
+                        durationSeconds={timerConfig.duration ?? timerConfig.duration_seconds ?? 60}
                         description={mission.description ?? mission.title}
                         onComplete={() => handleStepComplete(mission)}
                         isActive={isActive}
                         isCompleted={isStepCompleted}
                       />
                     );
+                  }
                   default:
                     return null;
                 }
@@ -442,6 +553,17 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 56,
     left: SPACING.lg,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(10,14,26,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  flagBtn: {
+    position: 'absolute',
+    top: 56,
+    right: SPACING.lg,
     width: 40,
     height: 40,
     borderRadius: 20,

@@ -1,12 +1,22 @@
+import { Platform } from 'react-native';
 import { Mixpanel } from 'mixpanel-react-native';
+import { isMixpanelTrackingAllowed } from '../utils/trackingConsent';
 
 const MIXPANEL_TOKEN = process.env.EXPO_PUBLIC_MIXPANEL_TOKEN ?? '';
 
 let mixpanel: Mixpanel | null = null;
 
+/**
+ * Mixpanel is initialized only when allowed (iOS: user granted App Tracking Transparency).
+ * Aligns with App Store Guideline 5.1.2(i) when privacy labels declare tracking.
+ */
 export async function initAnalytics() {
   if (!MIXPANEL_TOKEN) {
     console.warn('Mixpanel token not configured, skipping initialization');
+    return;
+  }
+  if (Platform.OS === 'ios' && !isMixpanelTrackingAllowed()) {
+    console.warn('Mixpanel skipped: App Tracking Transparency not granted');
     return;
   }
 

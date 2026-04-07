@@ -1,5 +1,4 @@
-import { FunctionsHttpError, FunctionsRelayError } from '@supabase/supabase-js';
-import { supabase } from '../config/supabase';
+import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from '../config/supabase';
 import type {
   NearbyEvent,
   Event,
@@ -101,12 +100,13 @@ function looksLikeJwtAuthFailure(message: string, rawText: string): boolean {
 }
 
 /**
- * Edge Functions 호출. `Authorization` 헤더를 직접 넣지 않습니다.
- * supabase-js의 `fetchWithAuth`는 헤더에 Authorization이 **없을 때만** `_getAccessToken()`으로
- * 최신 토큰을 붙입니다. 직접 Bearer를 넣으면 그 분기가 막혀 오래된/잘못된 토큰이 고정되어
- * `invalid JWT`가 날 수 있습니다.
+ * Edge Functions 호출 (`verify_jwt` 게이트웨이는 apikey + Bearer user JWT 필요).
+ * RN/Expo에서 `supabase.functions.invoke` + 내부 fetch 헤더 병합이 꼬이면 `Invalid JWT`가 날 수 있어
+ * 동일 URL로 `fetch`에 apikey·Authorization을 명시해 호출합니다.
  */
 async function invokeEdgeFunction<T>(name: string, body: Record<string, unknown>): Promise<T> {
+  const fnUrl = `${SUPABASE_URL.replace(/\/$/, '')}/functions/v1/${encodeURIComponent(name)}`;
+
   for (let attempt = 0; attempt < 2; attempt++) {
     const { error: userErr } = await supabase.auth.getUser();
     if (userErr) {
@@ -131,22 +131,28 @@ async function invokeEdgeFunction<T>(name: string, body: Record<string, unknown>
       throw new AppError('세션이 없습니다. 다시 로그인해 주세요.', 'AUTH_REQUIRED', 401);
     }
 
-    const { data, error } = await supabase.functions.invoke<T>(name, { body });
-
-    if (!error) {
-      const raw = data as Record<string, unknown> | null | undefined;
-      if (
-        raw &&
-        typeof raw.error === 'string' &&
-        raw.suggested_event === undefined &&
-        raw.event_id === undefined
-      ) {
-        throw new AppError(raw.error, 'EDGE_FUNCTION_ERROR', 400);
+    const nowSec = Math.floor(Date.now() / 1000);
+    const exp = session.expires_at ?? 0;
+    if (exp > 0 && exp <= nowSec + 120) {
+      const { data: ref, error: refErr } = await supabase.auth.refreshSession();
+      if (!refErr && ref.session?.access_token) {
+        session = ref.session;
       }
-      return (data ?? {}) as T;
     }
 
-    if (error instanceof FunctionsRelayError) {
+    const accessToken = session.access_token.trim();
+    let res: Response;
+    try {
+      res = await fetch(fnUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(body),
+      });
+    } catch {
       throw new AppError(
         'Edge Function에 연결하지 못했습니다. 네트워크와 Supabase 상태를 확인해 주세요.',
         'EDGE_FUNCTION_ERROR',
@@ -154,15 +160,23 @@ async function invokeEdgeFunction<T>(name: string, body: Record<string, unknown>
       );
     }
 
-    if (error instanceof FunctionsHttpError) {
-      const res = error.context as Response;
-      const rawText = await res.text();
-      let parsed: unknown = null;
-      try {
-        parsed = rawText ? JSON.parse(rawText) : null;
-      } catch {
-        parsed = null;
-      }
+    if (res.headers.get('x-relay-error') === 'true') {
+      throw new AppError(
+        'Edge Function에 연결하지 못했습니다. 네트워크와 Supabase 상태를 확인해 주세요.',
+        'EDGE_FUNCTION_ERROR',
+        502,
+      );
+    }
+
+    const rawText = await res.text();
+    let parsed: unknown = null;
+    try {
+      parsed = rawText ? JSON.parse(rawText) : null;
+    } catch {
+      parsed = null;
+    }
+
+    if (!res.ok) {
       const errMsg = parseEdgeFunctionErrorBody(res.status, res.statusText, rawText, parsed);
       if (
         attempt === 0 &&
@@ -175,11 +189,17 @@ async function invokeEdgeFunction<T>(name: string, body: Record<string, unknown>
       throw new AppError(errMsg, 'EDGE_FUNCTION_ERROR', res.status);
     }
 
-    throw new AppError(
-      error instanceof Error ? error.message : 'Edge Function 호출에 실패했습니다.',
-      'EDGE_FUNCTION_ERROR',
-      500,
-    );
+    const data = (parsed ?? {}) as T;
+    const raw = data as Record<string, unknown> | null | undefined;
+    if (
+      raw &&
+      typeof raw.error === 'string' &&
+      raw.suggested_event === undefined &&
+      raw.event_id === undefined
+    ) {
+      throw new AppError(raw.error, 'EDGE_FUNCTION_ERROR', 400);
+    }
+    return data;
   }
 
   throw new AppError('인증에 실패했습니다. 다시 로그인해 주세요.', 'EDGE_FUNCTION_ERROR', 401);
@@ -213,6 +233,74 @@ export async function getEvent(eventId: string): Promise<Event> {
     .single();
   throwIfError(error, '이벤트를 찾을 수 없습니다.');
   return data as Event;
+}
+
+/** Bump when community / UGC legal text changes (App Store Guideline 1.2). */
+export const COMMUNITY_TERMS_VERSION = '2026-04-08';
+
+export async function getCommunityTermsStatus(): Promise<{
+  accepted: boolean;
+  version: string | null;
+}> {
+  const user = await getCurrentUserOrNull();
+  if (!user) return { accepted: false, version: null };
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('community_terms_accepted_at, community_terms_version')
+    .eq('id', user.id)
+    .maybeSingle();
+  if (error || !data) return { accepted: false, version: null };
+  return {
+    accepted: !!data.community_terms_accepted_at,
+    version: (data.community_terms_version as string | null) ?? null,
+  };
+}
+
+export async function acceptCommunityTerms(version: string): Promise<void> {
+  const user = await getCurrentUser();
+  const { error } = await supabase
+    .from('profiles')
+    .update({
+      community_terms_version: version,
+      community_terms_accepted_at: new Date().toISOString(),
+    })
+    .eq('id', user.id);
+  throwIfError(error, '약관 동의 저장에 실패했습니다.');
+}
+
+export async function fetchBlockedUserIds(): Promise<string[]> {
+  const user = await getCurrentUserOrNull();
+  if (!user) return [];
+  const { data, error } = await supabase
+    .from('user_blocks')
+    .select('blocked_id')
+    .eq('blocker_id', user.id);
+  if (error) return [];
+  return (data ?? []).map((r: { blocked_id: string }) => r.blocked_id);
+}
+
+export async function blockAnotherUser(blockedUserId: string): Promise<void> {
+  const { error } = await supabase.rpc('block_user', { p_blocked_user_id: blockedUserId });
+  throwIfError(error, '사용자를 차단하지 못했습니다.');
+}
+
+export async function submitContentReport(params: {
+  contentType: 'event' | 'journal' | 'chat' | 'profile' | 'other';
+  contentId?: string;
+  reportedUserId?: string;
+  reason: string;
+  details?: string;
+}): Promise<void> {
+  const user = await getCurrentUser();
+  const { error } = await supabase.from('content_reports').insert({
+    reporter_id: user.id,
+    content_type: params.contentType,
+    content_id: params.contentId ?? null,
+    reported_user_id: params.reportedUserId ?? null,
+    reason: params.reason,
+    details: params.details ?? null,
+  });
+  throwIfError(error, '신고 접수에 실패했습니다.');
 }
 
 export async function getEventMissions(eventId: string): Promise<MissionWithStatus[]> {

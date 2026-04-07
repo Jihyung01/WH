@@ -32,6 +32,9 @@ export interface Profile {
   push_token: string | null;
   coins: number;
   active_title_id: string | null;
+  is_premium?: boolean;
+  community_terms_version?: string | null;
+  community_terms_accepted_at?: string | null;
 }
 
 export interface Character {
@@ -68,6 +71,9 @@ export interface Event {
   time_limit_minutes: number | null;
   reward_xp: number;
   creator_type: string;
+  /** UGC events: author profile id (for report / block). */
+  creator_id?: string | null;
+  status?: string | null;
   partner_name: string | null;
   is_active: boolean;
   is_seasonal: boolean;

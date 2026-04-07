@@ -1,11 +1,11 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet, View, Platform } from 'react-native';
+import { StyleSheet, Platform } from 'react-native';
 import { useTheme } from '../../src/providers/ThemeProvider';
 import { BRAND, SHADOWS } from '../../src/config/theme';
 
 export default function TabsLayout() {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
 
   return (
     <Tabs
@@ -29,6 +29,7 @@ export default function TabsLayout() {
         name="map"
         options={{
           title: '지도',
+          freezeOnBlur: true,
           tabBarAccessibilityLabel: '지도 화면으로 이동',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'map' : 'map-outline'} size={24} color={color} />
@@ -65,7 +66,6 @@ export default function TabsLayout() {
           ),
         }}
       />
-      {/* Hidden tabs */}
       <Tabs.Screen name="quests" options={{ href: null }} />
       <Tabs.Screen name="inventory" options={{ href: null }} />
       <Tabs.Screen name="explore" options={{ href: null }} />

@@ -1,5 +1,5 @@
 import React, { memo, useEffect } from 'react';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Marker } from 'react-native-maps';
 import Animated, {
   useSharedValue,
@@ -74,7 +74,7 @@ function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps
     <Marker
       coordinate={coordinate}
       onPress={() => onPress(event)}
-      tracksViewChanges={Platform.OS === 'ios'}
+      tracksViewChanges={false}
     >
       <View style={[styles.container, { opacity: markerOpacity }]}>
         {isInRange && !isExpired && (

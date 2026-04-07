@@ -71,11 +71,16 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
+    const token = authHeader.replace(/^Bearer\s+/i, "").trim();
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
-    if (authError || !user) return json({ error: "인증 실패" }, 401);
+    } = await supabase.auth.getUser(token);
+    if (authError || !user) {
+      // 게이트웨이 JWT 검증을 끈 뒤에도 실패하면, 여기 메시지로 원인 구분 가능 (만료/형식 등).
+      const msg = authError?.message?.trim() || "인증 실패";
+      return json({ error: msg }, 401);
+    }
 
     const { event_id } = await req.json();
     if (!event_id) return json({ error: "event_id가 필요합니다." }, 400);

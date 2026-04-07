@@ -4,6 +4,8 @@ import type { Region } from 'react-native-maps';
 import type { GeoPoint, NearbyEvent } from '../types/models';
 import { getNearbyEvents } from '../lib/api';
 import { zustandStorage } from './storage';
+import { useModerationStore } from './moderationStore';
+import { filterByBlockedCreators } from '../utils/moderationFilters';
 
 interface MapState {
   region: Region | null;
@@ -71,7 +73,11 @@ export const useMapStore = create<MapState>()(
         if (get().isFetchingEvents) return;
         set({ isFetchingEvents: true });
         try {
-          const events = await getNearbyEvents(center.latitude, center.longitude, radiusKm);
+          let events = await getNearbyEvents(center.latitude, center.longitude, radiusKm);
+          events = filterByBlockedCreators(
+            events,
+            useModerationStore.getState().blockedUserIds,
+          );
           set({
             visibleEvents: events,
             lastFetchCenter: center,

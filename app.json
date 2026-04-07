@@ -24,6 +24,7 @@
     },
     "ios": {
       "supportsTablet": false,
+      "usesAppleSignIn": true,
       "bundleIdentifier": "com.wherehere.app",
       "config": {
         "googleMapsApiKey": "AIzaSyCNloDZuWrMK_TYx-0HD_ip_LBegmGypOg"
@@ -32,6 +33,7 @@
         "NSLocationWhenInUseUsageDescription": "WhereHere needs your location to discover nearby events and verify check-ins.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "WhereHere uses background location to notify you of nearby events.",
         "NSCameraUsageDescription": "WhereHere needs camera access to complete mission photos.",
+        "NSUserTrackingUsageDescription": "WhereHere uses this to measure product interactions and improve the app. You can tap Ask App Not to Track and still use all features.",
         "NSPhotoLibraryUsageDescription": "WhereHere needs photo library access to set your profile picture.",
         "LSApplicationQueriesSchemes": [
           "maps",
@@ -134,7 +136,14 @@
           "photosPermission": "WhereHere needs photo library access to set your profile picture.",
           "cameraPermission": "WhereHere needs camera access to complete mission photos."
         }
-      ]
+      ],
+      [
+        "expo-tracking-transparency",
+        {
+          "userTrackingPermission": "WhereHere uses this to measure product interactions and improve the app. You can decline and still use all features."
+        }
+      ],
+      "expo-apple-authentication"
     ],
     "experiments": {
       "typedRoutes": true

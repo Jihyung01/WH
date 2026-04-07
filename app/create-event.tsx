@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,8 +18,15 @@ import * as Location from 'expo-location';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeInUp, SlideInRight } from 'react-native-reanimated';
 
-import { generateUGCEvent, saveUGCEvent } from '../src/lib/api';
+import {
+  generateUGCEvent,
+  saveUGCEvent,
+  getCommunityTermsStatus,
+  acceptCommunityTerms,
+  COMMUNITY_TERMS_VERSION,
+} from '../src/lib/api';
 import type { UGCSuggestedEvent } from '../src/lib/api';
+import { validateUGCText } from '../src/utils/contentModeration';
 import {
   COLORS,
   SPACING,
@@ -86,6 +94,36 @@ export default function CreateEventScreen() {
   const [saving, setSaving] = useState(false);
   const [savedEventId, setSavedEventId] = useState<string | null>(null);
 
+  /** App Store UGC: must accept community terms before creating content */
+  const [ugcGate, setUgcGate] = useState<'loading' | 'need_terms' | 'ok'>('loading');
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const status = await getCommunityTermsStatus();
+        if (cancelled) return;
+        const ok =
+          status.accepted && status.version === COMMUNITY_TERMS_VERSION;
+        setUgcGate(ok ? 'ok' : 'need_terms');
+      } catch {
+        if (!cancelled) setUgcGate('need_terms');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function handleAcceptTerms() {
+    try {
+      await acceptCommunityTerms(COMMUNITY_TERMS_VERSION);
+      setUgcGate('ok');
+    } catch (e: any) {
+      Alert.alert('오류', e?.message ?? '약관 동의를 저장하지 못했습니다.');
+    }
+  }
+
   async function handleUseCurrentLocation() {
     setLoadingLocation(true);
     try {
@@ -131,6 +169,17 @@ export default function CreateEventScreen() {
   async function handleGenerate() {
     if (!lat || !lng) return;
 
+    const checks = [
+      validateUGCText(locationName.trim()),
+      validateUGCText(address.trim()),
+    ];
+    if (description.trim()) checks.push(validateUGCText(description.trim()));
+    const failed = checks.find((c): c is { ok: false; message: string } => !c.ok);
+    if (failed) {
+      Alert.alert('내용 확인', failed.message);
+      return;
+    }
+
     setGenerating(true);
     scrollRef.current?.scrollTo({ y: 0, animated: true });
 
@@ -159,6 +208,17 @@ export default function CreateEventScreen() {
 
   async function handleSave() {
     if (!suggested || !lat || !lng) return;
+
+    const checks = [
+      validateUGCText(editTitle.trim()),
+      validateUGCText(editNarrative.trim()),
+    ];
+    if (description.trim()) checks.push(validateUGCText(description.trim()));
+    const failed = checks.find((c): c is { ok: false; message: string } => !c.ok);
+    if (failed) {
+      Alert.alert('내용 확인', failed.message);
+      return;
+    }
 
     setSaving(true);
     try {
@@ -482,6 +542,43 @@ export default function CreateEventScreen() {
           <Text style={styles.nextBtnText}>다음</Text>
         )}
       </Pressable>
+    );
+  }
+
+  if (ugcGate === 'loading') {
+    return (
+      <View style={[styles.container, styles.termsLoadingWrap, { paddingTop: insets.top }]}>
+        <ActivityIndicator size="large" color={BRAND.primary} />
+        <Text style={styles.termsLoadingText}>약관 확인 중…</Text>
+      </View>
+    );
+  }
+
+  if (ugcGate === 'need_terms') {
+    return (
+      <Modal visible animationType="slide" presentationStyle="pageSheet">
+        <View style={[styles.termsModalRoot, { paddingTop: insets.top + 12 }]}>
+          <Text style={styles.termsTitle}>커뮤니티 가이드라인 · Community guidelines</Text>
+          <ScrollView style={styles.termsScroll} contentContainerStyle={styles.termsScrollContent}>
+            <Text style={styles.termsBody}>
+              (한국어) 사용자 생성 이벤트를 등록하기 전에 아래에 동의해 주세요.{'\n\n'}
+              • 욕설, 혐오, 폭력, 불법 행위를 조장하는 콘텐츠는 허용되지 않습니다.{'\n'}
+              • 스팸·사기·타인을 기만하는 내용은 삭제될 수 있습니다.{'\n'}
+              • 신고된 콘텐츠는 운영팀이 24시간 이내 검토·조치를 목표로 합니다.{'\n'}
+              • 다른 사용자를 차단하면 해당 사용자의 이벤트가 내 지도 목록에서 즉시 숨겨집니다.{'\n\n'}
+              (English) Before posting user-generated events you agree that: objectionable or abusive
+              content is not tolerated; you may report content and block users; we aim to review
+              reports within 24 hours and remove violating content.
+            </Text>
+          </ScrollView>
+          <Pressable style={styles.termsAgreeBtn} onPress={() => void handleAcceptTerms()}>
+            <Text style={styles.termsAgreeBtnText}>동의하고 계속 · I agree</Text>
+          </Pressable>
+          <Pressable style={styles.termsDeclineBtn} onPress={() => router.back()}>
+            <Text style={styles.termsDeclineText}>거부하고 나가기</Text>
+          </Pressable>
+        </View>
+      </Modal>
     );
   }
 
@@ -879,5 +976,55 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.md,
     fontWeight: FONT_WEIGHT.bold,
     color: '#FFF',
+  },
+
+  termsLoadingWrap: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.background,
+  },
+  termsLoadingText: {
+    marginTop: SPACING.md,
+    color: COLORS.textSecondary,
+    fontSize: FONT_SIZE.md,
+  },
+  termsModalRoot: {
+    flex: 1,
+    paddingHorizontal: SPACING.lg,
+    backgroundColor: COLORS.background,
+  },
+  termsTitle: {
+    fontSize: FONT_SIZE.lg,
+    fontWeight: FONT_WEIGHT.bold,
+    color: COLORS.textPrimary,
+    marginBottom: SPACING.md,
+  },
+  termsScroll: { flex: 1 },
+  termsScrollContent: { paddingBottom: SPACING.xl },
+  termsBody: {
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.textSecondary,
+    lineHeight: FONT_SIZE.sm * 1.55,
+  },
+  termsAgreeBtn: {
+    backgroundColor: BRAND.primary,
+    paddingVertical: SPACING.lg,
+    borderRadius: BORDER_RADIUS.lg,
+    alignItems: 'center',
+    marginBottom: SPACING.sm,
+  },
+  termsAgreeBtnText: {
+    color: '#FFF',
+    fontWeight: FONT_WEIGHT.bold,
+    fontSize: FONT_SIZE.md,
+  },
+  termsDeclineBtn: {
+    paddingVertical: SPACING.md,
+    alignItems: 'center',
+    marginBottom: SPACING.xl,
+  },
+  termsDeclineText: {
+    color: COLORS.textMuted,
+    fontSize: FONT_SIZE.sm,
   },
 });

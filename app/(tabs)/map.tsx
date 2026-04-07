@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useCallback, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Platform } from 'react-native';
+import { useIsFocused } from '@react-navigation/native';
 import ClusteredMapView from 'react-native-map-clustering';
 import MapView, { PROVIDER_GOOGLE, type Region } from 'react-native-maps';
 import { useRouter } from 'expo-router';
@@ -35,6 +36,7 @@ let regionChangeTimer: ReturnType<typeof setTimeout> | null = null;
 
 export default function MapScreen() {
   const router = useRouter();
+  const isFocused = useIsFocused();
   const mapRef = useRef<MapView>(null);
   const { colors, mode } = useTheme();
 
@@ -60,6 +62,7 @@ export default function MapScreen() {
 
   // ── Initialise location tracking ──
   useEffect(() => {
+    if (!isFocused) return;
     (async () => {
       const pos = await getCurrentPosition();
       if (pos) {
@@ -69,7 +72,7 @@ export default function MapScreen() {
       }
       startTracking();
     })();
-  }, []);
+  }, [isFocused]);
 
   // ── Load friend locations ──
   useEffect(() => {
@@ -97,6 +100,7 @@ export default function MapScreen() {
 
   // ── Register geofences when events update ──
   useEffect(() => {
+    if (!isFocused) return;
     if (visibleEvents.length > 0 && bgLocationEnabled) {
       const geofenceData = visibleEvents.map((e) => ({
         id: e.id,
@@ -107,11 +111,11 @@ export default function MapScreen() {
       }));
       registerGeofences(geofenceData).catch(() => {});
     }
-  }, [visibleEvents, bgLocationEnabled]);
+  }, [visibleEvents, bgLocationEnabled, isFocused]);
 
   // ── Recenter when following user and position changes ──
   useEffect(() => {
-    if (isFollowingUser && currentPosition && mapReady) {
+    if (isFocused && isFollowingUser && currentPosition && mapReady) {
       mapRef.current?.animateToRegion(
         {
           ...currentPosition,
@@ -121,25 +125,27 @@ export default function MapScreen() {
         500,
       );
     }
-  }, [currentPosition, isFollowingUser, mapReady]);
+  }, [currentPosition, isFollowingUser, mapReady, isFocused]);
 
   // ── Selected event object ──
   const selectedEvent = useMemo(
-    () => visibleEvents.find((e) => e.id === selectedEventId) ?? null,
-    [visibleEvents, selectedEventId],
+    () => (isFocused ? visibleEvents.find((e) => e.id === selectedEventId) ?? null : null),
+    [visibleEvents, selectedEventId, isFocused],
   );
 
   // ── Limited & memoised markers (max 50) ──
   const sortedEvents = useMemo(() => {
+    if (!isFocused) return [];
     if (!currentPosition) return visibleEvents.slice(0, 50);
     return [...visibleEvents]
       .sort((a, b) => a.distance_meters - b.distance_meters)
       .slice(0, 50);
-  }, [visibleEvents, currentPosition]);
+  }, [visibleEvents, currentPosition, isFocused]);
 
   // ── Region change handler (debounced 300ms) ──
   const onRegionChangeComplete = useCallback(
     (region: Region) => {
+      if (!isFocused) return;
       setRegion(region);
       setFollowingUser(false);
 
@@ -154,12 +160,13 @@ export default function MapScreen() {
         }
       }, 300);
     },
-    [lastFetchCenter],
+    [lastFetchCenter, isFocused],
   );
 
   // ── Marker press ──
   const onMarkerPress = useCallback(
     (event: NearbyEvent) => {
+      if (!isFocused) return;
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       selectEvent(event.id);
       setFollowingUser(false);
@@ -173,7 +180,7 @@ export default function MapScreen() {
         400,
       );
     },
-    [],
+    [isFocused],
   );
 
   // ── Dismiss bottom sheet ──
@@ -182,10 +189,11 @@ export default function MapScreen() {
   // ── Challenge button ──
   const onChallenge = useCallback(
     (event: NearbyEvent) => {
+      if (!isFocused) return;
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.push(`/event/${event.id}`);
     },
-    [],
+    [isFocused],
   );
 
   // ── Recenter button ──
@@ -195,6 +203,7 @@ export default function MapScreen() {
   }));
 
   const handleRecenter = useCallback(async () => {
+    if (!isFocused) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     recenterScale.value = withSpring(0.9, {}, () => {
       recenterScale.value = withSpring(1);
@@ -207,7 +216,7 @@ export default function MapScreen() {
         500,
       );
     }
-  }, [currentPosition]);
+  }, [currentPosition, isFocused]);
 
   const initialRegion = currentPosition
     ? { ...currentPosition, latitudeDelta: 0.008, longitudeDelta: 0.008 }
@@ -241,7 +250,7 @@ export default function MapScreen() {
         animationEnabled={false}
       >
         {/* User location blue dot */}
-        {currentPosition && (
+        {isFocused && currentPosition && (
           <UserLocationMarker
             position={currentPosition}
             heading={userHeading}
@@ -249,7 +258,7 @@ export default function MapScreen() {
         )}
 
         {/* Event markers */}
-        {sortedEvents.map((event) => (
+        {isFocused && sortedEvents.map((event) => (
           <EventMarker
             key={event.id}
             event={event}
@@ -259,7 +268,7 @@ export default function MapScreen() {
         ))}
 
         {/* Friend location markers */}
-        {friendLocations.map((friend) => (
+        {isFocused && friendLocations.map((friend) => (
           <FriendMarker key={friend.user_id} friend={friend} />
         ))}
       </ClusteredMapView>
@@ -330,12 +339,14 @@ export default function MapScreen() {
       </AnimatedPressable>
 
       {/* ── Bottom Sheet ── */}
-      <EventBottomSheet
-        event={selectedEvent}
-        userLocation={currentPosition}
-        onDismiss={onDismiss}
-        onChallenge={onChallenge}
-      />
+      {isFocused && (
+        <EventBottomSheet
+          event={selectedEvent}
+          userLocation={currentPosition}
+          onDismiss={onDismiss}
+          onChallenge={onChallenge}
+        />
+      )}
 
       {/* ── Onboarding Tutorial ── */}
       <TutorialOverlay

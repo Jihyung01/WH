@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Dimensions, Modal, ScrollView } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useSharedValue,
@@ -24,6 +23,12 @@ import type { CompleteEventResult, CosmeticDropResult } from '../../src/types';
 import { COLORS, SPACING, FONT_SIZE, FONT_WEIGHT, BORDER_RADIUS, SHADOWS } from '../../src/config/theme';
 import ShareJournalCard from '../../src/components/share/ShareJournalCard';
 import { useShareJournal } from '../../src/hooks/useShareJournal';
+import {
+  fireImpactHeavy,
+  fireImpactLight,
+  fireImpactMedium,
+  fireNotificationSuccess,
+} from '../../src/utils/hapticsSafe';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -99,12 +104,12 @@ export default function RewardRevealScreen() {
 
     // Phase 2: Card reveal
     setPhase('reveal');
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    fireImpactHeavy();
     cardScale.value = withSpring(1, { damping: 8, stiffness: 100 });
     await sleep(400);
     cardRotateY.value = withTiming(0, { duration: 600, easing: Easing.out(Easing.cubic) });
     await sleep(800);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    fireNotificationSuccess();
 
     // Phase 3: XP counter
     setPhase('xp');
@@ -117,7 +122,7 @@ export default function RewardRevealScreen() {
     if (coinsAmount > 0) {
       setPhase('coins');
       coinScale.value = withSpring(1, { damping: 8, stiffness: 120 });
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      fireImpactMedium();
       await animateCounter(coinsAmount, setCoinsDisplayed, 15);
       await sleep(600);
     }
@@ -132,17 +137,17 @@ export default function RewardRevealScreen() {
 
         const rarity = cosmetics[i].rarity;
         if (rarity === 'legendary') {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          fireNotificationSuccess();
           await sleep(200);
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+          fireImpactHeavy();
           await sleep(200);
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+          fireImpactHeavy();
         } else if (rarity === 'epic') {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+          fireImpactHeavy();
         } else if (rarity === 'rare') {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          fireImpactMedium();
         } else {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          fireImpactLight();
         }
 
         cosmeticScale.value = withSpring(1, { damping: 6, stiffness: 90 });
@@ -155,21 +160,21 @@ export default function RewardRevealScreen() {
     if (titles.length > 0) {
       setPhase('title');
       titleBannerY.value = withSpring(0, { damping: 10, stiffness: 100 });
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      fireNotificationSuccess();
       await sleep(2500);
     }
 
     // Phase 7: Personality
     if (result.character?.personality_updated && result.character.new_traits) {
       setPhase('personality');
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      fireImpactMedium();
       await sleep(2500);
     }
 
     // Phase 8: Level up
     if (result.character?.level_up) {
       setPhase('levelup');
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      fireNotificationSuccess();
       levelUpScale.value = withSpring(1, { damping: 6, stiffness: 80 });
       await sleep(2500);
       await fetchCharacter();
@@ -442,7 +447,7 @@ export default function RewardRevealScreen() {
             <Pressable
               style={styles.equipCtaBtn}
               onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                fireImpactMedium();
                 router.push('/character/customize');
               }}
             >
@@ -455,7 +460,7 @@ export default function RewardRevealScreen() {
             <Pressable
               style={styles.shareCtaBtn}
               onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                fireImpactMedium();
                 setShowShareModal(true);
               }}
             >
@@ -466,7 +471,7 @@ export default function RewardRevealScreen() {
           <Pressable
             style={styles.ctaBtn}
             onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              fireImpactMedium();
               router.replace('/(tabs)/map');
             }}
           >

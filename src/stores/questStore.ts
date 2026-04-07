@@ -9,6 +9,8 @@ import {
   getSeasonalEvents,
 } from '../lib/api';
 import { zustandStorage } from './storage';
+import { useModerationStore } from './moderationStore';
+import { filterByBlockedCreators } from '../utils/moderationFilters';
 
 export interface DailySummary {
   completedToday: number;
@@ -70,7 +72,8 @@ export const useQuestStore = create<QuestState>()(
       fetchNearby: async (center) => {
         set({ isLoadingNearby: true });
         try {
-          const events = await getNearbyEvents(center.latitude, center.longitude, 5);
+          let events = await getNearbyEvents(center.latitude, center.longitude, 5);
+          events = filterByBlockedCreators(events, useModerationStore.getState().blockedUserIds);
           set({ nearbyEvents: events });
         } catch (err) {
           console.warn('Failed to fetch nearby events:', err);
@@ -94,7 +97,8 @@ export const useQuestStore = create<QuestState>()(
       fetchRecommended: async (center) => {
         set({ isLoadingRecommended: true });
         try {
-          const events = await getRecommendedEvents(center.latitude, center.longitude);
+          let events = await getRecommendedEvents(center.latitude, center.longitude);
+          events = filterByBlockedCreators(events, useModerationStore.getState().blockedUserIds);
           set({ recommendedEvents: events });
         } catch (err) {
           console.warn('Failed to fetch recommended events:', err);

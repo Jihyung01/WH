@@ -1,6 +1,18 @@
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  Alert,
+  TextInput,
+  Platform,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  ScrollView,
+} from 'react-native';
 import { useRouter } from 'expo-router';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useAnimatedStyle,
@@ -19,8 +31,18 @@ import { PressableScale } from '../../src/components/ui';
 export default function LoginScreen() {
   const router = useRouter();
   const { colors } = useTheme();
-  const { signInWithKakao, checkOnboardingStatus } = useAuthStore();
+  const { signInWithKakao, signInWithApple, signInWithEmailPassword, checkOnboardingStatus } =
+    useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
+  const [emailExpanded, setEmailExpanded] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [appleAvailable, setAppleAvailable] = useState(false);
+
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return;
+    void AppleAuthentication.isAvailableAsync().then(setAppleAvailable);
+  }, []);
 
   const logoOpacity = useSharedValue(0);
   const logoTranslateY = useSharedValue(-50);
@@ -70,28 +92,65 @@ export default function LoginScreen() {
     transform: [{ scale: mapScale.value }],
   }));
 
+  async function routeAfterLogin() {
+    const { isAuthenticated } = useAuthStore.getState();
+    if (!isAuthenticated) return;
+    const hasOnboarded = await checkOnboardingStatus();
+    if (hasOnboarded) router.replace('/(tabs)/map');
+    else router.replace('/(auth)/onboarding');
+  }
+
   const handleKakaoLogin = async () => {
     try {
       setIsLoading(true);
       await signInWithKakao();
-
-      const { isAuthenticated } = useAuthStore.getState();
-      if (!isAuthenticated) return;
-
-      const hasOnboarded = await checkOnboardingStatus();
-
-      if (hasOnboarded) {
-        router.replace('/(tabs)/map');
-      } else {
-        router.replace('/(auth)/onboarding');
-      }
+      await routeAfterLogin();
     } catch (error: any) {
       if (error?.message?.includes('cancelled')) return;
       console.error('Login error:', error);
       Alert.alert(
         '로그인 실패',
         '카카오 로그인 중 문제가 발생했습니다. 다시 시도해주세요.',
-        [{ text: '확인' }]
+        [{ text: '확인' }],
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAppleLogin = async () => {
+    try {
+      setIsLoading(true);
+      await signInWithApple();
+      await routeAfterLogin();
+    } catch (error: any) {
+      if (error?.code === 'ERR_REQUEST_CANCELED' || error?.message?.includes('cancel')) return;
+      console.error('Apple login error:', error);
+      Alert.alert(
+        '로그인 실패',
+        'Apple 로그인에 실패했습니다. Supabase에 Apple 제공자를 설정했는지 확인하세요.',
+        [{ text: '확인' }],
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleEmailLogin = async () => {
+    if (!email.trim() || !password) {
+      Alert.alert('입력 필요', '이메일과 비밀번호를 입력해주세요.');
+      return;
+    }
+    try {
+      setIsLoading(true);
+      await signInWithEmailPassword(email, password);
+      await routeAfterLogin();
+    } catch (error: any) {
+      console.error('Email login error:', error);
+      Alert.alert(
+        '로그인 실패',
+        error?.message ?? '이메일 로그인에 실패했습니다. 심사용 계정은 이메일 인증이 완료된 상태여야 합니다.',
+        [{ text: '확인' }],
       );
     } finally {
       setIsLoading(false);
@@ -103,7 +162,15 @@ export default function LoginScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <KeyboardAvoidingView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
       <Animated.View style={[styles.backgroundMap, mapAnimatedStyle]}>
         <LinearGradient
           colors={[BRAND.primary, BRAND.primaryLight, '#48DBFB']}
@@ -141,6 +208,66 @@ export default function LoginScreen() {
           </PressableScale>
         </Animated.View>
 
+        {Platform.OS === 'ios' && appleAvailable ? (
+          <Animated.View style={[buttonAnimatedStyle, { marginTop: 12 }]}>
+            <AppleAuthentication.AppleAuthenticationButton
+              buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+              buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+              cornerRadius={12}
+              style={styles.appleBtnNative}
+              onPress={() => {
+                if (isLoading) return;
+                void handleAppleLogin();
+              }}
+            />
+          </Animated.View>
+        ) : null}
+
+        <Pressable
+          style={styles.emailToggle}
+          onPress={() => setEmailExpanded((v) => !v)}
+          disabled={isLoading}
+        >
+          <Text style={[styles.emailToggleText, { color: colors.textSecondary }]}>
+            {emailExpanded ? '이메일 로그인 닫기' : '이메일로 로그인 (앱 심사·테스트)'}
+          </Text>
+        </Pressable>
+
+        {emailExpanded ? (
+          <View style={styles.emailForm}>
+            <TextInput
+              style={[styles.input, { color: colors.textPrimary, borderColor: colors.border }]}
+              placeholder="이메일"
+              placeholderTextColor={colors.textMuted}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              value={email}
+              onChangeText={setEmail}
+              editable={!isLoading}
+            />
+            <TextInput
+              style={[styles.input, { color: colors.textPrimary, borderColor: colors.border }]}
+              placeholder="비밀번호"
+              placeholderTextColor={colors.textMuted}
+              secureTextEntry
+              value={password}
+              onChangeText={setPassword}
+              editable={!isLoading}
+            />
+            <Pressable
+              style={[styles.emailSubmit, isLoading && styles.emailSubmitDisabled]}
+              onPress={() => void handleEmailLogin()}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <ActivityIndicator color="#FFF" />
+              ) : (
+                <Text style={styles.emailSubmitText}>로그인</Text>
+              )}
+            </Pressable>
+          </View>
+        ) : null}
+
         <Animated.View style={guestLinkAnimatedStyle}>
           <PressableScale
             style={styles.guestLink}
@@ -153,13 +280,55 @@ export default function LoginScreen() {
           </PressableScale>
         </Animated.View>
       </View>
-    </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
+  appleBtnNative: {
+    width: '100%',
+    height: 48,
+  },
+  emailToggle: {
+    alignItems: 'center',
+    paddingVertical: SPACING.md,
+    marginTop: SPACING.sm,
+  },
+  emailToggleText: {
+    fontSize: FONT_SIZE.sm,
+    textDecorationLine: 'underline',
+  },
+  emailForm: {
+    gap: SPACING.sm,
+    marginBottom: SPACING.md,
+  },
+  input: {
+    borderWidth: 1,
+    borderRadius: BORDER_RADIUS.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 12,
+    fontSize: FONT_SIZE.md,
+  },
+  emailSubmit: {
+    backgroundColor: BRAND.primary,
+    paddingVertical: 14,
+    borderRadius: BORDER_RADIUS.md,
+    alignItems: 'center',
+  },
+  emailSubmitDisabled: {
+    opacity: 0.7,
+  },
+  emailSubmitText: {
+    color: '#FFF',
+    fontSize: FONT_SIZE.md,
+    fontWeight: FONT_WEIGHT.bold,
   },
   backgroundMap: {
     position: 'absolute',
