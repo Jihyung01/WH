@@ -276,22 +276,31 @@ Deno.serve(async (req) => {
     } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
     if (authError || !user) return json({ error: "인증 실패" }, 401);
 
-    // Check user level (must be >= 5)
-    const { data: character, error: charErr } = await supabase
+    // Ensure a character row exists (review / edge accounts may skip onboarding UI)
+    const { data: existingChar, error: charErr } = await supabase
       .from("characters")
-      .select("level")
+      .select("id")
       .eq("user_id", user.id)
       .maybeSingle();
 
-    if (charErr || !character) {
-      return json({ error: "캐릭터 정보를 찾을 수 없습니다." }, 400);
+    if (charErr) {
+      console.error("characters lookup:", charErr.message);
+      return json({ error: "캐릭터 정보를 불러오지 못했습니다." }, 500);
     }
 
-    if (character.level < 5) {
-      return json(
-        { error: "이벤트 생성은 레벨 5 이상부터 가능합니다." },
-        403,
-      );
+    if (!existingChar) {
+      const { error: insErr } = await supabase.from("characters").insert({
+        user_id: user.id,
+        name: "도담",
+        character_type: "explorer",
+      });
+      if (insErr) {
+        console.error("UGC default character insert:", insErr.message);
+        return json(
+          { error: "캐릭터를 준비하지 못했습니다. 잠시 후 다시 시도해 주세요." },
+          500,
+        );
+      }
     }
 
     const body = await req.json();

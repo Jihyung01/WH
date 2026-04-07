@@ -1,11 +1,16 @@
+import { Platform } from 'react-native';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from '../config/supabase';
 import { notificationService } from './notificationService';
 import { getDistance } from '../utils/geo';
 import type { GeoPoint } from '../types';
 
 export const BG_LOCATION_TASK = 'wherehere-bg-location';
+
+/** Set by `friendLocation` when live sharing is on — background task uploads coords for Zenly-style friend map. */
+export const FRIEND_LIVE_SHARING_STORAGE_KEY = 'wherehere_friend_live_sharing';
 const NOTIFIED_EVENTS_KEY = 'bg_notified_events';
 const PROXIMITY_RADIUS_M = 200;
 const QUIET_HOURS_START = 23;
@@ -72,20 +77,34 @@ TaskManager.defineTask(BG_LOCATION_TASK, async ({ data, error }) => {
   const { locations } = data as { locations: Location.LocationObject[] };
   if (!locations || locations.length === 0) return;
 
-  // Respect quiet hours
-  if (isQuietHours()) return;
-
-  // Check power save preference
-  try {
-    const psJson = await AsyncStorage.getItem('power_save_mode');
-    if (psJson && JSON.parse(psJson) === true) return;
-  } catch {}
-
   const latest = locations[locations.length - 1];
   const userPos: GeoPoint = {
     latitude: latest.coords.latitude,
     longitude: latest.coords.longitude,
   };
+
+  // 1) Live friend location (Zenly-style) — runs whenever sharing is on; not blocked by quiet hours
+  try {
+    const live = await AsyncStorage.getItem(FRIEND_LIVE_SHARING_STORAGE_KEY);
+    if (live === 'true') {
+      await supabase.rpc('update_my_location', {
+        p_lat: userPos.latitude,
+        p_lng: userPos.longitude,
+      });
+    }
+  } catch {
+    // ignore
+  }
+
+  // 2) Proximity alerts (Android “nearby events” only — iOS uses geofencing for that)
+  if (Platform.OS !== 'android') return;
+
+  if (isQuietHours()) return;
+
+  try {
+    const psJson = await AsyncStorage.getItem('power_save_mode');
+    if (psJson && JSON.parse(psJson) === true) return;
+  } catch {}
 
   const events = await getCachedEvents();
   const notified = await getNotifiedSet();
@@ -97,7 +116,7 @@ TaskManager.defineTask(BG_LOCATION_TASK, async ({ data, error }) => {
     if (dist <= PROXIMITY_RADIUS_M) {
       await notificationService.sendNearbyEventAlert(event.title, dist, event.id);
       await markNotified(event.id);
-      break; // one notification per update cycle
+      break;
     }
   }
 });
@@ -117,12 +136,12 @@ export const backgroundLocationService = {
 
     await Location.startLocationUpdatesAsync(BG_LOCATION_TASK, {
       accuracy: Location.Accuracy.Balanced,
-      distanceInterval: 50,
-      deferredUpdatesInterval: 60000,
+      distanceInterval: 40,
+      deferredUpdatesInterval: 45000,
       showsBackgroundLocationIndicator: true,
       foregroundService: {
         notificationTitle: 'WhereHere',
-        notificationBody: '주변 탐험을 감지하고 있어요',
+        notificationBody: '친구에게 위치 공유 중 · 주변 탐험 알림',
         notificationColor: '#2DD4A8',
       },
     });
@@ -158,3 +177,28 @@ export const backgroundLocationService = {
     return status === 'granted';
   },
 };
+
+/**
+ * One continuous background location task serves (1) live friend uploads on iOS+Android
+ * and (2) proximity pings on Android. Call after toggling friend sharing or notification prefs.
+ */
+export async function syncContinuousLocationTask(options: {
+  friendLiveSharing: boolean;
+  androidNearbyBackground: boolean;
+  powerSave: boolean;
+}): Promise<void> {
+  const wantFriend = options.friendLiveSharing;
+  const wantNearbyAndroid =
+    Platform.OS === 'android' && options.androidNearbyBackground && !options.powerSave;
+  const shouldRun = (wantFriend || wantNearbyAndroid) && !options.powerSave;
+
+  if (!shouldRun) {
+    await backgroundLocationService.stop();
+    return;
+  }
+
+  const { status } = await Location.getBackgroundPermissionsAsync();
+  if (status !== 'granted') return;
+
+  await backgroundLocationService.start();
+}

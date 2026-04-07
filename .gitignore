@@ -50,5 +50,8 @@ supabase/.temp/
 .claude/
 .cursor/
 
+# JetBrains / Android Studio
+.idea/
+
 # accidental local file (should not be a project file)
 /npx

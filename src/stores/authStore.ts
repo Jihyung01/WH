@@ -6,6 +6,7 @@ import { supabase } from '../config/supabase';
 import { getMyCharacter } from '../lib/api';
 import type { Session, User } from '@supabase/supabase-js';
 import { useModerationStore } from './moderationStore';
+import { clearUserLocalCaches } from '../utils/clearUserLocalCaches';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -226,6 +227,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
       useModerationStore.getState().clearBlocks();
       await supabase.auth.signOut();
+      await clearUserLocalCaches();
       set({
         user: null,
         session: null,

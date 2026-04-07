@@ -3,6 +3,7 @@ import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StyleSheet, Alert } from 'react-native';
 import * as Linking from 'expo-linking';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
@@ -56,12 +57,20 @@ function AppContent() {
           const isExpoGo =
             Constants.executionEnvironment === ExecutionEnvironment.StoreClient ||
             Constants.appOwnership === 'expo';
+          // Continuous BG location: live friend map (iOS+Android) + Android proximity pings (see backgroundLocation task)
           if (!isExpoGo) {
-            const { backgroundLocationService } = require('../src/services/backgroundLocation');
+            const {
+              FRIEND_LIVE_SHARING_STORAGE_KEY,
+              syncContinuousLocationTask,
+            } = require('../src/services/backgroundLocation');
             const { backgroundLocationEnabled, powerSaveMode } = useNotificationStore.getState();
-            if (backgroundLocationEnabled && !powerSaveMode) {
-              await backgroundLocationService.start().catch(() => {});
-            }
+            const friendLive =
+              (await AsyncStorage.getItem(FRIEND_LIVE_SHARING_STORAGE_KEY)) === 'true';
+            await syncContinuousLocationTask({
+              friendLiveSharing: friendLive,
+              androidNearbyBackground: backgroundLocationEnabled,
+              powerSave: powerSaveMode,
+            }).catch(() => {});
           }
         } catch {
           // background location optional

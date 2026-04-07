@@ -166,8 +166,8 @@ export default function CreateEventScreen() {
     return category !== '';
   }
 
-  async function handleGenerate() {
-    if (!lat || !lng) return;
+  async function handleGenerate(): Promise<boolean> {
+    if (!lat || !lng) return false;
 
     const checks = [
       validateUGCText(locationName.trim()),
@@ -177,11 +177,12 @@ export default function CreateEventScreen() {
     const failed = checks.find((c): c is { ok: false; message: string } => !c.ok);
     if (failed) {
       Alert.alert('내용 확인', failed.message);
-      return;
+      return false;
     }
 
-    setGenerating(true);
+    setStep(3);
     scrollRef.current?.scrollTo({ y: 0, animated: true });
+    setGenerating(true);
 
     try {
       const result = await generateUGCEvent({
@@ -199,8 +200,11 @@ export default function CreateEventScreen() {
       setEditNarrative(ev.narrative);
       setEditDifficulty(ev.difficulty);
       setEditRewardXp(ev.reward_xp);
+      return true;
     } catch (err: any) {
       Alert.alert('생성 실패', err?.message ?? '이벤트를 생성하지 못했습니다.');
+      setStep(2);
+      return false;
     } finally {
       setGenerating(false);
     }
@@ -248,9 +252,10 @@ export default function CreateEventScreen() {
     }
   }
 
-  function goNext() {
+  async function goNext() {
     if (step === 2) {
-      handleGenerate();
+      await handleGenerate();
+      return;
     }
     setStep((s) => Math.min(s + 1, TOTAL_STEPS));
     scrollRef.current?.scrollTo({ y: 0, animated: true });

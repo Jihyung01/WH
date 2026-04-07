@@ -84,3 +84,8 @@ const zustandAsyncStorage: StateStorage = {
 };
 
 export const zustandStorage: StateStorage = zustandAsyncStorage;
+
+/** Call after removing `@wh_sync_*` keys from AsyncStorage so reads do not use stale memory. */
+export function clearWhSyncMemoryCache(): void {
+  mem.clear();
+}

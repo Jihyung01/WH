@@ -3,9 +3,15 @@ import { View, Text, StyleSheet, ScrollView, Pressable, Switch, Linking, Alert, 
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import * as Location from 'expo-location';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import {
+  FRIEND_LIVE_SHARING_STORAGE_KEY,
+  syncContinuousLocationTask,
+} from '../../src/services/backgroundLocation';
 import { useAuthStore } from '../../src/stores/authStore';
-import { deleteAccount } from '../../src/lib/api';
+import { AppError, deleteAccount } from '../../src/lib/api';
 import { useNotificationStore, type NotificationPrefs } from '../../src/stores/notificationStore';
 import { useTheme, useThemeStore } from '../../src/providers/ThemeProvider';
 import { PressableScale } from '../../src/components/ui';
@@ -53,7 +59,13 @@ export default function SettingsScreen() {
 
   useEffect(() => {
     loadPrefs();
-    getBgLocation().then((svc) => svc.hasBackgroundPermission().then(setBgPermGranted)).catch(() => {});
+    if (Platform.OS === 'ios') {
+      Location.getBackgroundPermissionsAsync()
+        .then((r) => setBgPermGranted(r.status === 'granted'))
+        .catch(() => {});
+    } else {
+      getBgLocation().then((svc) => svc.hasBackgroundPermission().then(setBgPermGranted)).catch(() => {});
+    }
   }, []);
 
   const handleNotifToggle = useCallback(async (key: keyof NotificationPrefs, value: boolean) => {
@@ -74,11 +86,66 @@ export default function SettingsScreen() {
 
   const handleBgLocationToggle = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const friendLive =
+      (await AsyncStorage.getItem(FRIEND_LIVE_SHARING_STORAGE_KEY)) === 'true';
+
+    if (Platform.OS === 'ios') {
+      const { stopGeofences } = await import('../../src/services/geofencing');
+      if (backgroundLocationEnabled) {
+        await stopGeofences().catch(() => {});
+        setBackgroundLocation(false);
+        await syncContinuousLocationTask({
+          friendLiveSharing: friendLive,
+          androidNearbyBackground: false,
+          powerSave: powerSaveMode,
+        });
+        return;
+      }
+      const { status: existing } = await Location.getBackgroundPermissionsAsync();
+      const hasPerm = existing === 'granted';
+      if (!hasPerm) {
+        Alert.alert(
+          '위치 알림 (지역 모니터링)',
+          '지도에 표시된 이벤트 근처에 들어오면 알려드릴까요?\n\niOS에서는 연속 GPS 추적 대신 지역(지오펜스) 모니터링을 사용합니다. “항상 허용”이 필요합니다.',
+          [
+            { text: '나중에', style: 'cancel' },
+            {
+              text: '허용하기',
+              onPress: async () => {
+                const { status } = await Location.requestBackgroundPermissionsAsync();
+                setBgPermGranted(status === 'granted');
+                if (status === 'granted') {
+                  setBackgroundLocation(true);
+                  await syncContinuousLocationTask({
+                    friendLiveSharing: friendLive,
+                    androidNearbyBackground: false,
+                    powerSave: powerSaveMode,
+                  });
+                }
+              },
+            },
+          ],
+        );
+        return;
+      }
+      setBackgroundLocation(true);
+      await syncContinuousLocationTask({
+        friendLiveSharing: friendLive,
+        androidNearbyBackground: false,
+        powerSave: powerSaveMode,
+      });
+      return;
+    }
+
     const svc = await getBgLocation();
 
     if (backgroundLocationEnabled) {
-      await svc.stop();
       setBackgroundLocation(false);
+      await syncContinuousLocationTask({
+        friendLiveSharing: friendLive,
+        androidNearbyBackground: false,
+        powerSave: powerSaveMode,
+      });
       return;
     }
 
@@ -95,8 +162,12 @@ export default function SettingsScreen() {
               const granted = await svc.requestBackgroundPermission();
               setBgPermGranted(granted);
               if (granted) {
-                await svc.start();
                 setBackgroundLocation(true);
+                await syncContinuousLocationTask({
+                  friendLiveSharing: friendLive,
+                  androidNearbyBackground: true,
+                  powerSave: powerSaveMode,
+                });
               }
             },
           },
@@ -105,9 +176,13 @@ export default function SettingsScreen() {
       return;
     }
 
-    await svc.start();
     setBackgroundLocation(true);
-  }, [backgroundLocationEnabled]);
+    await syncContinuousLocationTask({
+      friendLiveSharing: friendLive,
+      androidNearbyBackground: true,
+      powerSave: powerSaveMode,
+    });
+  }, [backgroundLocationEnabled, powerSaveMode]);
 
   const handlePowerSaveToggle = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -115,10 +190,22 @@ export default function SettingsScreen() {
     setPowerSaveMode(next);
 
     if (next && backgroundLocationEnabled) {
-      const svc = await getBgLocation();
-      svc.stop();
+      if (Platform.OS === 'ios') {
+        const { stopGeofences } = await import('../../src/services/geofencing');
+        await stopGeofences().catch(() => {});
+      }
       setBackgroundLocation(false);
     }
+
+    const friendLive =
+      (await AsyncStorage.getItem(FRIEND_LIVE_SHARING_STORAGE_KEY)) === 'true';
+    const { backgroundLocationEnabled: bgNearby, powerSaveMode: ps } =
+      useNotificationStore.getState();
+    await syncContinuousLocationTask({
+      friendLiveSharing: friendLive,
+      androidNearbyBackground: Platform.OS === 'android' && bgNearby && !ps,
+      powerSave: ps,
+    });
   }, [powerSaveMode, backgroundLocationEnabled]);
 
   const handleSignOut = async () => {
@@ -150,8 +237,12 @@ export default function SettingsScreen() {
                     await deleteAccount();
                     await signOut();
                     router.replace('/(auth)/welcome');
-                  } catch {
-                    Alert.alert('오류', '계정 삭제 중 문제가 발생했습니다. 다시 시도해주세요.');
+                  } catch (e) {
+                    const msg =
+                      e instanceof AppError
+                        ? e.message
+                        : '계정 삭제 중 문제가 발생했습니다. 다시 시도해주세요.';
+                    Alert.alert('오류', msg);
                   }
                 },
               },
@@ -222,8 +313,14 @@ export default function SettingsScreen() {
           <View style={[styles.row, { borderBottomColor: colors.surfaceHighlight }]}>
             <Ionicons name="navigate-outline" size={20} color={colors.textSecondary} />
             <View style={styles.rowTextCol}>
-              <Text style={[styles.rowLabel, { color: colors.textPrimary }]}>백그라운드 위치 감지</Text>
-              <Text style={[styles.rowDesc, { color: colors.textMuted }]}>앱 미사용 중에도 주변 이벤트 알림</Text>
+              <Text style={[styles.rowLabel, { color: colors.textPrimary }]}>
+                {Platform.OS === 'ios' ? '이벤트 구역 알림 (지오펜스)' : '백그라운드 위치 감지'}
+              </Text>
+              <Text style={[styles.rowDesc, { color: colors.textMuted }]}>
+                {Platform.OS === 'ios'
+                  ? '지도 이벤트 근처에 들어올 때 알림 (연속 GPS 추적 아님)'
+                  : '앱 미사용 중에도 주변 이벤트 알림'}
+              </Text>
             </View>
             <Switch
               value={backgroundLocationEnabled}

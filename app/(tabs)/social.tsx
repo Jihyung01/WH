@@ -219,16 +219,20 @@ function FriendsTab({
     >
       {/* Location sharing toggle */}
       <Animated.View entering={FadeInUp.duration(300)} style={s.locationShareRow}>
-        <View>
+        <View style={s.locationShareTextCol}>
           <Text style={s.locationShareLabel}>📍 실시간 위치 공유</Text>
-          <Text style={s.locationShareDesc}>친구에게 내 위치를 공유합니다</Text>
+          <Text style={s.locationShareDesc}>
+            친구 지도에 내 위치를 표시해요. 백그라운드에서도 갱신하려면 위치 “항상 허용”이 필요해요.
+          </Text>
         </View>
-        <Switch
-          value={locationSharingEnabled}
-          onValueChange={handleLocationToggle}
-          trackColor={{ false: COLORS.surfaceLight, true: BRAND.primary }}
-          thumbColor="#FFF"
-        />
+        <View style={s.locationShareSwitchWrap}>
+          <Switch
+            value={locationSharingEnabled}
+            onValueChange={handleLocationToggle}
+            trackColor={{ false: COLORS.surfaceLight, true: BRAND.primary }}
+            thumbColor="#FFF"
+          />
+        </View>
       </Animated.View>
 
       {/* Search bar */}
@@ -1135,12 +1139,25 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    width: '100%',
+    alignSelf: 'stretch',
     backgroundColor: COLORS.surface,
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.lg,
     marginBottom: SPACING.md,
     borderWidth: 1,
     borderColor: COLORS.border,
+  },
+  locationShareTextCol: {
+    flex: 1,
+    flexShrink: 1,
+    minWidth: 0,
+    paddingRight: SPACING.md,
+  },
+  locationShareSwitchWrap: {
+    flexShrink: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   locationShareLabel: {
     fontSize: FONT_SIZE.md,

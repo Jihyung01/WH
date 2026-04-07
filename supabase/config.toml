@@ -60,3 +60,10 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/generate-ugc-event/deno.json"
 entrypoint = "./functions/generate-ugc-event/index.ts"
+
+# RN/Expo 액세스 토큰이 게이트웨이 JWT 검증과 충돌해 401이 나는 경우가 있음 (character-chat / UGC와 동일).
+# 인증은 함수 내부 supabase.auth.getUser(jwt)로 처리.
+[functions.delete-account]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/delete-account/index.ts"

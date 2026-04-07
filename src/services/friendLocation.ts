@@ -1,7 +1,13 @@
 import * as Location from 'expo-location';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../config/supabase';
+import {
+  FRIEND_LIVE_SHARING_STORAGE_KEY,
+  syncContinuousLocationTask,
+} from './backgroundLocation';
+import { useNotificationStore } from '../stores/notificationStore';
 
-const UPDATE_INTERVAL_MS = 30_000; // 30 seconds
+const UPDATE_INTERVAL_MS = 30_000; // foreground backup while app is active
 
 let intervalId: ReturnType<typeof setInterval> | null = null;
 let isRunning = false;
@@ -31,6 +37,15 @@ async function uploadLocation() {
   }
 }
 
+async function notifySyncContinuousTask(): Promise<void> {
+  const { backgroundLocationEnabled, powerSaveMode } = useNotificationStore.getState();
+  await syncContinuousLocationTask({
+    friendLiveSharing: true,
+    androidNearbyBackground: backgroundLocationEnabled,
+    powerSave: powerSaveMode,
+  });
+}
+
 export async function startLocationSharing(): Promise<boolean> {
   if (isRunning) return true;
 
@@ -39,7 +54,15 @@ export async function startLocationSharing(): Promise<boolean> {
 
   await supabase.rpc('toggle_location_sharing', { p_enabled: true });
 
+  await AsyncStorage.setItem(FRIEND_LIVE_SHARING_STORAGE_KEY, 'true');
+
   await uploadLocation();
+
+  // iOS/Android: “Always” 위치로 백그라운드에서도 친구 지도에 실시간에 가깝게 반영
+  const bg = await Location.requestBackgroundPermissionsAsync();
+  if (bg.status === 'granted') {
+    await notifySyncContinuousTask();
+  }
 
   intervalId = setInterval(uploadLocation, UPDATE_INTERVAL_MS);
   isRunning = true;
@@ -52,6 +75,15 @@ export async function stopLocationSharing(): Promise<void> {
     intervalId = null;
   }
   isRunning = false;
+  await AsyncStorage.removeItem(FRIEND_LIVE_SHARING_STORAGE_KEY);
+
+  const { backgroundLocationEnabled, powerSaveMode } = useNotificationStore.getState();
+  await syncContinuousLocationTask({
+    friendLiveSharing: false,
+    androidNearbyBackground: backgroundLocationEnabled,
+    powerSave: powerSaveMode,
+  });
+
   const { error } = await supabase.rpc('toggle_location_sharing', { p_enabled: false });
   if (error) console.warn('toggle_location_sharing:', error);
 }

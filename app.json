@@ -31,7 +31,7 @@
       },
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "WhereHere needs your location to discover nearby events and verify check-ins.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "WhereHere uses background location to notify you of nearby events.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "WhereHere uses background location to (1) share your live position with friends on the map when you enable it, and (2) alert you when you enter regions around map events. You can turn friend sharing off in Social.",
         "NSCameraUsageDescription": "WhereHere needs camera access to complete mission photos.",
         "NSUserTrackingUsageDescription": "WhereHere uses this to measure product interactions and improve the app. You can tap Ask App Not to Track and still use all features.",
         "NSPhotoLibraryUsageDescription": "WhereHere needs photo library access to set your profile picture.",
@@ -111,7 +111,7 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "WhereHere uses your location to show nearby events and verify check-ins.",
+          "locationAlwaysAndWhenInUsePermission": "WhereHere uses background location for optional live friend map sharing and for region alerts near events. You can turn friend sharing off in Social.",
           "isIosBackgroundLocationEnabled": true,
           "isAndroidBackgroundLocationEnabled": true,
           "isAndroidForegroundServiceEnabled": true
