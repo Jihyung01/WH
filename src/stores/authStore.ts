@@ -150,6 +150,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             return;
           }
         } catch (nativeErr) {
+          if (Platform.OS === 'android') {
+            try {
+              const KakaoCore = require('@react-native-kakao/core').default;
+              const keyHash = await KakaoCore.getKeyHashAndroid?.();
+              console.log('[AUTH] Android Kakao keyHash:', keyHash);
+            } catch {}
+          }
           console.warn('[AUTH] Kakao native OIDC failed, falling back to web OAuth:', nativeErr);
         }
       }
@@ -236,6 +243,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             '[AUTH] Kakao OAuth closed without session. type=',
             result.type,
             'If PKCE, check Supabase redirect allowlist and Kakao redirect URI.',
+          );
+          throw new Error(
+            '카카오 로그인 콜백을 받지 못했습니다. Android 딥링크/Redirect 설정 또는 카카오 키해시를 확인해주세요.',
           );
         }
       } finally {
