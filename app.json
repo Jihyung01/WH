@@ -18,7 +18,7 @@
     "scheme": "wherehere",
     "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#0F172A"
     },
@@ -52,7 +52,7 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#1AAD8A",
-        "foregroundImage": "./assets/android-icon-foreground.png",
+        "foregroundImage": "./assets/icon.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
@@ -83,6 +83,21 @@
         "android.permission.RECORD_AUDIO"
       ],
       "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "wherehere",
+              "host": "auth",
+              "pathPrefix": "/callback"
+            }
+          ],
+          "category": [
+            "DEFAULT",
+            "BROWSABLE"
+          ]
+        },
         {
           "action": "VIEW",
           "autoVerify": true,

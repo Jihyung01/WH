@@ -7,6 +7,7 @@ import { getMyCharacter } from '../lib/api';
 import type { Session, User } from '@supabase/supabase-js';
 import { useModerationStore } from './moderationStore';
 import { clearUserLocalCaches } from '../utils/clearUserLocalCaches';
+import { loginWithKakaoForSupabaseOidc } from '../services/kakaoCore';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -80,7 +81,44 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       set({ isLoading: true });
 
+      /**
+       * Android: 카카오 네이티브 SDK + OIDC id_token → Supabase 세션.
+       * Custom Tabs 딥링크 이슈를 피하고 카카오톡 앱 연동 UX에 가깝습니다.
+       * (SDK는 iOS에서도 가능하나, 이 프로젝트는 iOS에서 TurboModule 이슈를 피해 웹 OAuth 유지.)
+       */
+      if (Platform.OS === 'android') {
+        try {
+          const { idToken, accessToken } = await loginWithKakaoForSupabaseOidc();
+          const { data: idData, error: idError } = await supabase.auth.signInWithIdToken({
+            provider: 'kakao',
+            token: idToken,
+            ...(accessToken ? { access_token: accessToken } : {}),
+          });
+          if (idError) throw idError;
+          if (idData.session) {
+            set({
+              session: idData.session,
+              user: idData.session.user,
+              isAuthenticated: true,
+            });
+            void useModerationStore.getState().refreshBlockedUsers();
+            return;
+          }
+        } catch (nativeErr) {
+          console.warn('[AUTH] Kakao native OIDC failed, falling back to web OAuth:', nativeErr);
+        }
+      }
+
+      /** Must match Supabase Auth → URL Configuration redirect allowlist. */
       const redirectTo = 'wherehere://auth/callback';
+      /**
+       * Android `openAuthSessionAsync` polyfill only treats redirects as success when
+       * `event.url.startsWith(redirectUrl)`. Some stacks emit `wherehere:///auth/callback`
+       * or query-only variants; a `wherehere://` prefix avoids a silent dismiss loop.
+       * iOS ASWebAuthenticationSession should keep the exact redirect URL.
+       */
+      const authSessionReturnUrl =
+        Platform.OS === 'android' ? 'wherehere://' : redirectTo;
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'kakao',
@@ -94,11 +132,24 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (!data.url) throw new Error('OAuth URL을 받지 못했습니다.');
 
       console.log('[AUTH] redirectTo:', redirectTo);
+      console.log('[AUTH] authSessionReturnUrl:', authSessionReturnUrl);
       console.log('[AUTH] Opening URL:', data.url);
 
-      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+      const result = await WebBrowser.openAuthSessionAsync(
+        data.url,
+        authSessionReturnUrl,
+      );
 
-      if (result.type !== 'success') {
+      if (result.type !== 'success' || !result.url) {
+        set({ isLoading: false });
+        return;
+      }
+
+      const oauthReturn =
+        result.url.includes('auth/callback') ||
+        /[?&#].*(?:code|access_token)=/.test(result.url);
+      if (!oauthReturn) {
+        console.warn('[AUTH] Ignoring non-OAuth deep link during Kakao flow:', result.url);
         set({ isLoading: false });
         return;
       }

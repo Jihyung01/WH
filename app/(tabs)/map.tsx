@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useCallback, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useIsFocused } from '@react-navigation/native';
 import ClusteredMapView from 'react-native-map-clustering';
 import MapView, { PROVIDER_GOOGLE, type Region } from 'react-native-maps';
@@ -39,6 +40,12 @@ export default function MapScreen() {
   const isFocused = useIsFocused();
   const mapRef = useRef<MapView>(null);
   const { colors, mode } = useTheme();
+  const insets = useSafeAreaInsets();
+
+  const tabBarReserve = (Platform.OS === 'ios' ? 52 : 54) + Math.max(insets.bottom, Platform.OS === 'android' ? 12 : 8);
+  const overlayTop = insets.top + 8;
+  const mapBottomPad = tabBarReserve + SPACING.md;
+  const recenterBottom = tabBarReserve + SPACING.lg;
 
   const { currentPosition, locationPermission, startTracking, getCurrentPosition } =
     useLocation();
@@ -237,7 +244,7 @@ export default function MapScreen() {
         showsMyLocationButton={false}
         showsCompass={false}
         showsScale={false}
-        mapPadding={{ top: 0, right: 0, bottom: 88, left: 0 }}
+        mapPadding={{ top: 0, right: 0, bottom: mapBottomPad, left: 0 }}
         rotateEnabled={false}
         pitchEnabled={false}
         clusterColor={BRAND.primary}
@@ -281,7 +288,7 @@ export default function MapScreen() {
 
       {/* ── Top Left: User avatar ── */}
       <Pressable
-        style={styles.avatarBtn}
+        style={[styles.avatarBtn, { top: overlayTop }]}
         onPress={() => router.push('/(tabs)/profile')}
         accessibilityLabel="프로필 화면으로 이동"
         accessibilityRole="button"
@@ -295,9 +302,13 @@ export default function MapScreen() {
       </Pressable>
 
       {/* ── Top Right: Actions ── */}
-      <View style={styles.topRight}>
+      <View style={[styles.topRight, { top: overlayTop }]}>
         <Pressable
-          style={[styles.iconBtn, { backgroundColor: colors.surface + 'E0' }]}
+          style={[
+            styles.iconBtn,
+            Platform.OS === 'android' && styles.iconBtnAndroid,
+            { backgroundColor: colors.surface + 'E0' },
+          ]}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             router.push('/(tabs)/social');
@@ -308,7 +319,11 @@ export default function MapScreen() {
           <Ionicons name="people-outline" size={22} color={colors.textPrimary} />
         </Pressable>
         <Pressable
-          style={[styles.iconBtn, { backgroundColor: colors.surface + 'E0' }]}
+          style={[
+            styles.iconBtn,
+            Platform.OS === 'android' && styles.iconBtnAndroid,
+            { backgroundColor: colors.surface + 'E0' },
+          ]}
           onPress={() => router.push('/settings/notifications')}
           accessibilityLabel="알림 설정"
           accessibilityRole="button"
@@ -316,7 +331,12 @@ export default function MapScreen() {
           <Ionicons name="notifications-outline" size={22} color={colors.textPrimary} />
         </Pressable>
         <Pressable
-          style={[styles.iconBtn, { backgroundColor: colors.surface + 'E0' }]}
+          style={[
+            styles.iconBtn,
+            styles.iconBtnLast,
+            Platform.OS === 'android' && styles.iconBtnAndroid,
+            { backgroundColor: colors.surface + 'E0' },
+          ]}
           accessibilityLabel="필터"
           accessibilityRole="button"
         >
@@ -326,7 +346,12 @@ export default function MapScreen() {
 
       {/* ── Recenter button ── */}
       <AnimatedPressable
-        style={[styles.recenterBtn, { backgroundColor: colors.surface + 'E8', borderColor: colors.border }, recenterAnimStyle]}
+        style={[
+          styles.recenterBtn,
+          { bottom: recenterBottom, backgroundColor: colors.surface + 'E8', borderColor: colors.border },
+          Platform.OS === 'android' && styles.recenterBtnAndroid,
+          recenterAnimStyle,
+        ]}
         onPress={handleRecenter}
         accessibilityLabel="현재 위치로 이동"
         accessibilityRole="button"
@@ -368,7 +393,6 @@ const styles = StyleSheet.create({
 
   avatarBtn: {
     position: 'absolute',
-    top: 56,
     left: SPACING.lg,
   },
   avatarCircle: {
@@ -401,9 +425,7 @@ const styles = StyleSheet.create({
 
   topRight: {
     position: 'absolute',
-    top: 56,
     right: SPACING.lg,
-    gap: SPACING.sm,
   },
   iconBtn: {
     width: 44,
@@ -411,12 +433,18 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: SPACING.sm,
     ...SHADOWS.sm,
+  },
+  iconBtnLast: {
+    marginBottom: 0,
+  },
+  iconBtnAndroid: {
+    elevation: 6,
   },
 
   recenterBtn: {
     position: 'absolute',
-    bottom: 88 + SPACING.lg,
     right: SPACING.lg,
     width: 48,
     height: 48,
@@ -425,5 +453,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     ...SHADOWS.md,
     borderWidth: 1,
+  },
+  recenterBtnAndroid: {
+    elevation: 8,
   },
 });

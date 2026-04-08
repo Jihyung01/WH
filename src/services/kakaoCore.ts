@@ -50,3 +50,34 @@ export async function ensureKakaoUserSessionForSocial(): Promise<void> {
     scopes: ['profile_nickname', 'profile_image'],
   });
 }
+
+/**
+ * Kakao 네이티브 로그인 + OIDC `id_token` — Supabase `signInWithIdToken({ provider: 'kakao' })` 용.
+ *
+ * 카카오 개발자 콘솔에서 **OpenID Connect 활성화** 및 동의 항목에 맞는 **scope**(최소 `openid`)가 필요합니다.
+ * @see https://supabase.com/docs/guides/auth/social-login/auth-kakao#using-kakao-login-js-sdk
+ */
+export async function loginWithKakaoForSupabaseOidc(): Promise<{
+  idToken: string;
+  accessToken: string;
+}> {
+  await ensureKakaoInitialized();
+  const KakaoUser = require('@react-native-kakao/user').default;
+
+  await new Promise<void>((resolve) => {
+    InteractionManager.runAfterInteractions(() => resolve());
+  });
+
+  const token = await KakaoUser.login({
+    useKakaoAccountLogin: true,
+    scopes: ['openid', 'profile_nickname', 'profile_image'],
+  });
+
+  if (!token.idToken) {
+    throw new Error(
+      'Kakao OIDC id_token이 없습니다. 카카오 콘솔에서 OpenID Connect를 켜고 openid 스코프 동의를 설정하세요.',
+    );
+  }
+
+  return { idToken: token.idToken, accessToken: token.accessToken };
+}
