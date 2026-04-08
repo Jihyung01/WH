@@ -22,7 +22,11 @@ import { MAP_REFETCH_DISTANCE_M } from '../../src/utils/constants';
 import { SPACING, FONT_WEIGHT, SHADOWS, BRAND } from '../../src/config/theme';
 import { useTheme } from '../../src/providers/ThemeProvider';
 import { EventMarker, UserLocationMarker, EventBottomSheet, GpsBanner, FriendMarker } from '../../src/components/map';
-import { getFriendLocations, subscribeToFriendLocations } from '../../src/services/friendLocation';
+import {
+  ensureFriendLocationPublishingIfNeeded,
+  getFriendLocationsSafe,
+  subscribeToFriendLocations,
+} from '../../src/services/friendLocation';
 import type { FriendLocation } from '../../src/services/friendLocation';
 import { getFriends } from '../../src/lib/api';
 import { getMapStyle } from '../../src/components/map/mapStyle';
@@ -34,6 +38,8 @@ import type { NearbyEvent } from '../../src/types';
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 let regionChangeTimer: ReturnType<typeof setTimeout> | null = null;
+
+const FRIEND_LOCATIONS_POLL_MS = 20_000;
 
 export default function MapScreen() {
   const router = useRouter();
@@ -84,17 +90,32 @@ export default function MapScreen() {
   // ── Load friend locations ──
   useEffect(() => {
     let unsubscribe: (() => void) | null = null;
+    let pollId: ReturnType<typeof setInterval> | null = null;
 
     async function initFriendLocations() {
+      if (!isFocused) return;
       try {
-        const { friends } = await getFriends();
-        if (friends.length === 0) return;
+        await ensureFriendLocationPublishingIfNeeded();
 
-        const locations = await getFriendLocations();
-        setFriendLocations(locations);
+        const { friends } = await getFriends();
+        if (friends.length === 0) {
+          setFriendLocations([]);
+          return;
+        }
+
+        const locations = await getFriendLocationsSafe();
+        if (locations !== null) setFriendLocations(locations);
 
         const friendIds = friends.map((f) => f.user_id);
-        unsubscribe = subscribeToFriendLocations(friendIds, setFriendLocations);
+        unsubscribe = subscribeToFriendLocations(friendIds, (next) => {
+          setFriendLocations(next);
+        });
+
+        pollId = setInterval(async () => {
+          if (!isFocused) return;
+          const next = await getFriendLocationsSafe();
+          if (next !== null) setFriendLocations(next);
+        }, FRIEND_LOCATIONS_POLL_MS);
       } catch {}
     }
 
@@ -102,8 +123,9 @@ export default function MapScreen() {
 
     return () => {
       if (unsubscribe) unsubscribe();
+      if (pollId) clearInterval(pollId);
     };
-  }, []);
+  }, [isFocused]);
 
   // ── Register geofences when events update ──
   useEffect(() => {

@@ -25,13 +25,19 @@ export interface FriendLocation {
 
 async function uploadLocation() {
   try {
-    const location = await Location.getLastKnownPositionAsync();
+    let location = await Location.getLastKnownPositionAsync({ maxAge: 60_000 });
+    if (!location) {
+      location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+    }
     if (!location) return;
 
-    await supabase.rpc('update_my_location', {
+    const { error } = await supabase.rpc('update_my_location', {
       p_lat: location.coords.latitude,
       p_lng: location.coords.longitude,
     });
+    if (error) throw error;
   } catch (e) {
     console.warn('Failed to upload location:', e);
   }
@@ -52,7 +58,11 @@ export async function startLocationSharing(): Promise<boolean> {
   const { status } = await Location.requestForegroundPermissionsAsync();
   if (status !== 'granted') return false;
 
-  await supabase.rpc('toggle_location_sharing', { p_enabled: true });
+  const { error } = await supabase.rpc('toggle_location_sharing', { p_enabled: true });
+  if (error) {
+    console.warn('toggle_location_sharing:', error);
+    return false;
+  }
 
   await AsyncStorage.setItem(FRIEND_LIVE_SHARING_STORAGE_KEY, 'true');
 
@@ -88,8 +98,11 @@ export async function stopLocationSharing(): Promise<void> {
   if (error) console.warn('toggle_location_sharing:', error);
 }
 
-export async function getFriendLocations(): Promise<FriendLocation[]> {
-  const { data: { user } } = await supabase.auth.getUser();
+/** error 시 null — UI는 이전 마커 유지(깜빡임 방지) */
+export async function getFriendLocationsSafe(): Promise<FriendLocation[] | null> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return [];
 
   const { data, error } = await supabase.rpc('get_friend_locations', {
@@ -97,27 +110,59 @@ export async function getFriendLocations(): Promise<FriendLocation[]> {
   });
   if (error) {
     console.warn('Failed to get friend locations:', error);
-    return [];
+    return null;
   }
   return (data ?? []) as FriendLocation[];
+}
+
+export async function getFriendLocations(): Promise<FriendLocation[]> {
+  const res = await getFriendLocationsSafe();
+  return res ?? [];
+}
+
+export async function getLocationSharingStatus(): Promise<boolean> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return false;
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('location_sharing')
+    .eq('id', user.id)
+    .single();
+
+  if (error) {
+    const local = await AsyncStorage.getItem(FRIEND_LIVE_SHARING_STORAGE_KEY);
+    return local === 'true';
+  }
+
+  return !!data?.location_sharing;
 }
 
 export function subscribeToFriendLocations(
   friendIds: string[],
   onUpdate: (locations: FriendLocation[]) => void,
 ) {
-  const channel = supabase.channel('friend-locations')
+  if (friendIds.length === 0) {
+    return () => {};
+  }
+
+  const inList = friendIds.map((id) => `"${id}"`).join(',');
+
+  const channel = supabase
+    .channel(`friend-loc-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`)
     .on(
       'postgres_changes',
       {
         event: 'UPDATE',
         schema: 'public',
         table: 'profiles',
-        filter: `id=in.(${friendIds.join(',')})`,
+        filter: `id=in.(${inList})`,
       },
       async () => {
-        const locations = await getFriendLocations();
-        onUpdate(locations);
+        const locations = await getFriendLocationsSafe();
+        if (locations !== null) onUpdate(locations);
       },
     )
     .subscribe();
@@ -125,6 +170,40 @@ export function subscribeToFriendLocations(
   return () => {
     supabase.removeChannel(channel);
   };
+}
+
+/**
+ * 앱 재실행 후 DB에 location_sharing=true인데 포그라운드 interval이 멈춘 경우 복구.
+ * (백그라운드 태스크는 AsyncStorage 키로 이미 동작할 수 있음)
+ */
+export async function ensureFriendLocationPublishingIfNeeded(): Promise<void> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('location_sharing')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  if (error || !data?.location_sharing) return;
+
+  await AsyncStorage.setItem(FRIEND_LIVE_SHARING_STORAGE_KEY, 'true');
+
+  if (intervalId) {
+    await notifySyncContinuousTask();
+    return;
+  }
+
+  const { status } = await Location.getForegroundPermissionsAsync();
+  if (status !== 'granted') return;
+
+  await uploadLocation();
+  await notifySyncContinuousTask();
+  intervalId = setInterval(uploadLocation, UPDATE_INTERVAL_MS);
+  isRunning = true;
 }
 
 export function isLocationSharingActive(): boolean {

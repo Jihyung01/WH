@@ -62,6 +62,35 @@ function extractParamsFromUrl(url: string): Record<string, string> {
   return params;
 }
 
+function inferUsername(user: User): string {
+  const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
+  const candidates = [
+    meta['username'],
+    meta['name'],
+    meta['nickname'],
+    user.email?.split('@')[0],
+    `user_${user.id.slice(0, 8)}`,
+  ];
+
+  for (const value of candidates) {
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim().slice(0, 30);
+    }
+  }
+  return `user_${user.id.slice(0, 8)}`;
+}
+
+async function ensureProfileRow(user: User): Promise<void> {
+  // Fallback safety in case auth.users -> profiles trigger is missing in a deployed DB.
+  const username = inferUsername(user);
+  const { error } = await supabase
+    .from('profiles')
+    .upsert({ id: user.id, username }, { onConflict: 'id' });
+  if (error) {
+    console.warn('[auth] ensureProfileRow failed:', error);
+  }
+}
+
 /**
  * Supabase PKCE / implicit 콜백 URL → 세션. Android Custom Tabs는 AppState dismiss가
  * Linking 이벤트보다 먼저 끝나는 경우가 있어, openAuthSessionAsync 결과와 별도로 호출한다.
@@ -141,6 +170,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           });
           if (idError) throw idError;
           if (idData.session) {
+            await ensureProfileRow(idData.session.user);
             set({
               session: idData.session,
               user: idData.session.user,
@@ -189,6 +219,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       let oauthHandled = false;
       const commitOAuthSession = (session: Session) => {
+        void ensureProfileRow(session.user);
         oauthHandled = true;
         set({
           session,
@@ -289,6 +320,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (error) throw error;
 
       if (data.session) {
+        await ensureProfileRow(data.session.user);
         set({
           session: data.session,
           user: data.session.user,
@@ -313,6 +345,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
       if (error) throw error;
       if (data.session) {
+        await ensureProfileRow(data.session.user);
         set({
           session: data.session,
           user: data.session.user,
@@ -365,6 +398,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (!authStateListenerRegistered) {
         authStateListenerRegistered = true;
         supabase.auth.onAuthStateChange((_event, session) => {
+          if (session?.user) {
+            void ensureProfileRow(session.user);
+          }
           set({
             session,
             user: session?.user ?? null,
@@ -387,6 +423,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
 
       if (session) {
+        await ensureProfileRow(session.user);
         set({
           session,
           user: session.user,

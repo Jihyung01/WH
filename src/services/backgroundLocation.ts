@@ -190,7 +190,8 @@ export async function syncContinuousLocationTask(options: {
   const wantFriend = options.friendLiveSharing;
   const wantNearbyAndroid =
     Platform.OS === 'android' && options.androidNearbyBackground && !options.powerSave;
-  const shouldRun = (wantFriend || wantNearbyAndroid) && !options.powerSave;
+  // 친구 실시간 공유는 절전 모드여도 유지(배터리는 거리/지연 설정으로 조절). Android 근접 알림만 절전 시 끔.
+  const shouldRun = wantFriend || wantNearbyAndroid;
 
   if (!shouldRun) {
     await backgroundLocationService.stop();

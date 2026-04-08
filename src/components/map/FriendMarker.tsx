@@ -17,6 +17,11 @@ interface Props {
 }
 
 export default function FriendMarker({ friend, onPress }: Props) {
+  const MarkerComponent = Marker as unknown as React.ComponentType<Record<string, unknown>>;
+  const latitude = Number(friend.latitude);
+  const longitude = Number(friend.longitude);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+
   const emoji = CHARACTER_EMOJIS[friend.character_type ?? ''] ?? '👤';
   const minutesAgo = Math.floor(
     (Date.now() - new Date(friend.last_seen_at).getTime()) / 60000,
@@ -24,8 +29,11 @@ export default function FriendMarker({ friend, onPress }: Props) {
   const isRecent = minutesAgo < 5;
 
   return (
-    <Marker
-      coordinate={{ latitude: friend.latitude, longitude: friend.longitude }}
+    <MarkerComponent
+      coordinate={{ latitude, longitude }}
+      identifier={`friend-${friend.user_id}`}
+      cluster={false}
+      zIndex={2000}
       onPress={onPress}
       tracksViewChanges={false}
     >
@@ -40,7 +48,7 @@ export default function FriendMarker({ friend, onPress }: Props) {
         </View>
         {isRecent && <View style={styles.onlineDot} />}
       </View>
-    </Marker>
+    </MarkerComponent>
   );
 }
 

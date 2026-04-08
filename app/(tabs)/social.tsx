@@ -35,6 +35,7 @@ import {
   startLocationSharing,
   stopLocationSharing,
   isLocationSharingActive,
+  getLocationSharingStatus,
 } from '../../src/services/friendLocation';
 import {
   KAKAO_SHARE_FALLBACK_WEB_URL,
@@ -142,6 +143,17 @@ function FriendsTab({
   const [sending, setSending] = useState(false);
   const [respondingIds, setRespondingIds] = useState<Set<string>>(new Set());
   const [locationSharingEnabled, setLocationSharingEnabled] = useState(() => isLocationSharingActive());
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      const enabled = await getLocationSharingStatus();
+      if (mounted) setLocationSharingEnabled(enabled);
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const handleLocationToggle = async (value: boolean) => {
     if (value) {
