@@ -68,8 +68,9 @@ export async function loginWithKakaoForSupabaseOidc(): Promise<{
     InteractionManager.runAfterInteractions(() => resolve());
   });
 
+  const kakaoTalkAvailable = await KakaoUser.isKakaoTalkLoginAvailable();
   const token = await KakaoUser.login({
-    useKakaoAccountLogin: true,
+    useKakaoAccountLogin: !kakaoTalkAvailable,
     scopes: ['openid', 'profile_nickname', 'profile_image'],
   });
 

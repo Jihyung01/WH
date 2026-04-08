@@ -62,6 +62,47 @@ function extractParamsFromUrl(url: string): Record<string, string> {
   return params;
 }
 
+/**
+ * Supabase PKCE / implicit 콜백 URL → 세션. Android Custom Tabs는 AppState dismiss가
+ * Linking 이벤트보다 먼저 끝나는 경우가 있어, openAuthSessionAsync 결과와 별도로 호출한다.
+ */
+async function applySessionFromOAuthRedirectUrl(url: string): Promise<Session | null> {
+  if (!url.startsWith('wherehere:')) return null;
+
+  const looksLikeOAuth =
+    url.includes('auth/callback') || /[?&#].*(?:code|access_token)=/.test(url);
+  if (!looksLikeOAuth) return null;
+
+  const params = extractParamsFromUrl(url);
+  if (params.error) {
+    const raw = params.error_description ?? '';
+    let desc = raw;
+    try {
+      desc = decodeURIComponent(raw.replace(/\+/g, ' '));
+    } catch {
+      desc = raw;
+    }
+    throw new Error(desc || params.error);
+  }
+
+  if (params.access_token && params.refresh_token) {
+    const { data, error } = await supabase.auth.setSession({
+      access_token: params.access_token,
+      refresh_token: params.refresh_token,
+    });
+    if (error) throw error;
+    return data.session ?? null;
+  }
+
+  if (params.code) {
+    const { data, error } = await supabase.auth.exchangeCodeForSession(params.code);
+    if (error) throw error;
+    return data.session ?? null;
+  }
+
+  return null;
+}
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   session: null,
@@ -83,10 +124,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       /**
        * Android: 카카오 네이티브 SDK + OIDC id_token → Supabase 세션.
-       * Custom Tabs 딥링크 이슈를 피하고 카카오톡 앱 연동 UX에 가깝습니다.
-       * (SDK는 iOS에서도 가능하나, 이 프로젝트는 iOS에서 TurboModule 이슈를 피해 웹 OAuth 유지.)
+       * 카카오 콘솔에 OpenID Connect 미설정 시 실패하므로, EAS에서
+       * EXPO_PUBLIC_USE_KAKAO_NATIVE_AUTH=false 로 끄고 웹 OAuth만 쓸 수 있다.
        */
-      if (Platform.OS === 'android') {
+      const nativeKakaoAuthEnabled =
+        Platform.OS === 'android' &&
+        (process.env.EXPO_PUBLIC_USE_KAKAO_NATIVE_AUTH ?? 'true').toLowerCase() !== 'false';
+
+      if (nativeKakaoAuthEnabled) {
         try {
           const { idToken, accessToken } = await loginWithKakaoForSupabaseOidc();
           const { data: idData, error: idError } = await supabase.auth.signInWithIdToken({
@@ -135,60 +180,67 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       console.log('[AUTH] authSessionReturnUrl:', authSessionReturnUrl);
       console.log('[AUTH] Opening URL:', data.url);
 
-      const result = await WebBrowser.openAuthSessionAsync(
-        data.url,
-        authSessionReturnUrl,
-      );
+      let oauthHandled = false;
+      const commitOAuthSession = (session: Session) => {
+        oauthHandled = true;
+        set({
+          session,
+          user: session.user,
+          isAuthenticated: true,
+        });
+        void useModerationStore.getState().refreshBlockedUsers();
+      };
 
-      if (result.type !== 'success' || !result.url) {
-        set({ isLoading: false });
-        return;
-      }
-
-      const oauthReturn =
-        result.url.includes('auth/callback') ||
-        /[?&#].*(?:code|access_token)=/.test(result.url);
-      if (!oauthReturn) {
-        console.warn('[AUTH] Ignoring non-OAuth deep link during Kakao flow:', result.url);
-        set({ isLoading: false });
-        return;
-      }
-
-      const params = extractParamsFromUrl(result.url);
-
-      if (params.access_token && params.refresh_token) {
-        const { data: sessionData, error: sessionError } =
-          await supabase.auth.setSession({
-            access_token: params.access_token,
-            refresh_token: params.refresh_token,
-          });
-
-        if (sessionError) throw sessionError;
-
-        if (sessionData.session) {
-          set({
-            session: sessionData.session,
-            user: sessionData.session.user,
-            isAuthenticated: true,
-          });
-          void useModerationStore.getState().refreshBlockedUsers();
+      const tryConsumeOAuthUrl = async (url: string | undefined | null) => {
+        if (!url || oauthHandled) return;
+        try {
+          const session = await applySessionFromOAuthRedirectUrl(url);
+          if (session) commitOAuthSession(session);
+        } catch (e) {
+          console.warn('[AUTH] OAuth URL consume error:', e);
+          throw e;
         }
-      } else if (params.code) {
-        const { data: sessionData, error: sessionError } =
-          await supabase.auth.exchangeCodeForSession(params.code);
+      };
 
-        if (sessionError) throw sessionError;
+      const linkingSub = Linking.addEventListener('url', ({ url }) => {
+        void (async () => {
+          try {
+            await tryConsumeOAuthUrl(url);
+            if (oauthHandled) console.log('[AUTH] Kakao session established via Linking');
+          } catch {
+            /* logged in tryConsumeOAuthUrl */
+          }
+        })();
+      });
 
-        if (sessionData.session) {
-          set({
-            session: sessionData.session,
-            user: sessionData.session.user,
-            isAuthenticated: true,
-          });
-          void useModerationStore.getState().refreshBlockedUsers();
+      try {
+        const result = await WebBrowser.openAuthSessionAsync(
+          data.url,
+          authSessionReturnUrl,
+        );
+
+        console.log('[AUTH] openAuthSessionAsync result:', result.type);
+
+        if (result.type === 'success' && result.url) {
+          await tryConsumeOAuthUrl(result.url);
         }
-      } else {
-        throw new Error('인증 토큰을 받지 못했습니다.');
+
+        if (!oauthHandled && (result.type === 'dismiss' || result.type === 'cancel')) {
+          for (let i = 0; i < 30 && !oauthHandled; i++) {
+            await new Promise((r) => setTimeout(r, 100));
+          }
+        }
+
+        if (!oauthHandled) {
+          console.warn(
+            '[AUTH] Kakao OAuth closed without session. type=',
+            result.type,
+            'If PKCE, check Supabase redirect allowlist and Kakao redirect URI.',
+          );
+        }
+      } finally {
+        await new Promise((r) => setTimeout(r, 400));
+        linkingSub.remove();
       }
     } catch (error) {
       console.error('Kakao login error:', error);

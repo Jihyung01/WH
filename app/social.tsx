@@ -217,7 +217,12 @@ function FriendsTab({
             친구 지도에 내 위치를 표시해요. 백그라운드에서도 갱신하려면 위치 “항상 허용”이 필요해요.
           </Text>
         </View>
-        <View style={s.locationShareSwitchWrap}>
+        <View
+          style={[
+            s.locationShareSwitchWrap,
+            Platform.OS === 'ios' && s.locationShareSwitchWrapIOS,
+          ]}
+        >
           <Switch
             value={locationSharingEnabled}
             onValueChange={handleLocationToggle}
@@ -1041,7 +1046,6 @@ const s = StyleSheet.create({
   locationShareRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     width: '100%',
     alignSelf: 'stretch',
     backgroundColor: COLORS.surface,
@@ -1050,17 +1054,24 @@ const s = StyleSheet.create({
     marginBottom: SPACING.md,
     borderWidth: 1,
     borderColor: COLORS.border,
+    overflow: 'visible',
   },
   locationShareTextCol: {
     flex: 1,
     flexShrink: 1,
     minWidth: 0,
-    paddingRight: SPACING.md,
+    paddingRight: SPACING.sm,
   },
   locationShareSwitchWrap: {
     flexShrink: 0,
+    marginLeft: SPACING.md,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  locationShareSwitchWrapIOS: {
+    paddingLeft: SPACING.xs,
+    paddingRight: SPACING.xs,
+    paddingVertical: 2,
   },
   locationShareLabel: {
     fontSize: FONT_SIZE.md,
