@@ -1,9 +1,17 @@
 import { Platform, Share } from 'react-native';
 import { ensureKakaoInitialized, ensureKakaoUserSessionForSocial } from './kakaoCore';
 
-/** Must match a domain registered under Kakao Developers → 앱 → 제품 링크 관리 → 웹 도메인. */
+const APP_STORE_FALLBACK = 'https://apps.apple.com/app/id6761450806';
+const PLAY_STORE_FALLBACK =
+  'https://play.google.com/store/apps/details?id=com.wherehere.app';
+
+/** @deprecated — use getStoreFallbackUrl() instead. Kept only for backward-compat imports. */
 export const KAKAO_SHARE_FALLBACK_WEB_URL =
-  'https://jungle-bearskin-b04.notion.site/335048355db7806eab9af84e3afe8f16';
+  Platform.OS === 'ios' ? APP_STORE_FALLBACK : PLAY_STORE_FALLBACK;
+
+function getStoreFallbackUrl() {
+  return Platform.OS === 'ios' ? APP_STORE_FALLBACK : PLAY_STORE_FALLBACK;
+}
 
 type ShareLinkParams = {
   /** Landing page when app is not installed / on desktop */
@@ -17,12 +25,11 @@ type ShareLinkParams = {
 };
 
 function buildDefaultLink(params: ShareLinkParams = {}) {
-  // We prefer execution params to open the app when installed.
-  // For fallback, we point to the public Notion page (privacy/terms) which is always accessible.
+  const storeUrl = getStoreFallbackUrl();
   const fallbackUrl =
     params.mobileWebUrl ??
     params.webUrl ??
-    KAKAO_SHARE_FALLBACK_WEB_URL;
+    storeUrl;
 
   const link = {
     webUrl: params.webUrl ?? fallbackUrl,
@@ -44,9 +51,9 @@ function buildDefaultLink(params: ShareLinkParams = {}) {
  * Same copy + registered web URL via system Share (user can pick KakaoTalk) without loading the native share module.
  */
 async function shareTextWithSystemSheet(text: string, linkParams?: ShareLinkParams) {
-  const link = buildDefaultLink(linkParams);
-  const url = link.mobileWebUrl ?? link.webUrl;
-  const message = url ? `${text}\n\n${url}` : text;
+  const storeUrl = getStoreFallbackUrl();
+  const url = linkParams?.mobileWebUrl ?? linkParams?.webUrl ?? storeUrl;
+  const message = `${text}\n\n${url}`;
   await Share.share(
     Platform.OS === 'ios' ? { message, url } : { message, title: 'WhereHere' },
   );
@@ -91,16 +98,9 @@ export async function shareKakaoText({
   });
 }
 
-const APP_STORE_URL = 'https://apps.apple.com/app/id6761450806';
-const PLAY_STORE_URL =
-  'https://play.google.com/store/apps/details?id=com.wherehere.app';
-
 /**
  * Share a rich feed card via KakaoTalk (image thumbnail + title + description + app link).
- *
- * Android: Kakao Feed Template → rich card with image thumbnail, title, description, button.
- * iOS:     System Share sheet (Kakao TurboModule crashes on New Arch).
- * Fallback: System Share with text only (no Notion URL).
+ * Both iOS and Android attempt Kakao Feed Template first; falls back to system Share.
  */
 export async function shareKakaoFeedCard({
   imageUrl,
@@ -115,17 +115,12 @@ export async function shareKakaoFeedCard({
   linkParams?: ShareLinkParams;
   buttonTitle?: string;
 }) {
-  if (Platform.OS === 'ios') {
-    const message = [title, description].filter(Boolean).join('\n');
-    await Share.share({ message, url: imageUrl });
-    return;
-  }
+  const storeUrl = getStoreFallbackUrl();
 
   try {
     await ensureKakaoInitialized();
     const KakaoShare = require('@react-native-kakao/share').default;
 
-    const storeUrl = Platform.OS === 'android' ? PLAY_STORE_URL : APP_STORE_URL;
     const link = buildDefaultLink({
       ...linkParams,
       webUrl: linkParams?.webUrl ?? storeUrl,
@@ -155,9 +150,12 @@ export async function shareKakaoFeedCard({
       serverCallbackArgs: { platform: Platform.OS },
     });
   } catch {
-    const storeUrl = Platform.OS === 'android' ? PLAY_STORE_URL : APP_STORE_URL;
-    const message = [title, description, storeUrl].filter(Boolean).join('\n');
-    await Share.share({ message, title: 'WhereHere' });
+    const message = [title, description, `\n다운로드: ${storeUrl}`].filter(Boolean).join('\n');
+    await Share.share(
+      Platform.OS === 'ios'
+        ? { message, url: storeUrl }
+        : { message, title: 'WhereHere' },
+    );
   }
 }
 

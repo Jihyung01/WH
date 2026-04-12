@@ -9,7 +9,9 @@
     "web": "expo start --web",
     "eas": "eas",
     "postinstall": "patch-package",
-    "eas:android:prod": "eas build --platform android --profile production",
+    "eas:snapshot": "git add -A && git diff --cached --quiet || git commit -m \"chore: eas snapshot\"",
+    "eas:android:prod": "npm run eas:snapshot && eas build --platform android --profile production",
+    "eas:ios:prod": "npm run eas:snapshot && eas build --platform ios --profile production",
     "eas:update:prod": "eas update --channel production"
   },
   "dependencies": {

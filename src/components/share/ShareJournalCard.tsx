@@ -134,17 +134,17 @@ export default function ShareJournalCard({ data, onClose }: Props) {
         `획득 XP: +${data.xpEarned}`,
         data.badgesEarned?.length ? `새 배지: ${data.badgesEarned.length}개` : null,
         ``,
-        `앱에서 보기: wherehere://journal`,
+        `앱에서 보기: wherehere://feed`,
       ]
         .filter(Boolean)
         .join('\n');
 
       await shareKakaoText({
         text,
-        buttonTitle: 'WhereHere 열기',
+        buttonTitle: '피드에서 보기',
         linkParams: {
-          iosExecutionParams: { screen: 'journal' },
-          androidExecutionParams: { screen: 'journal' },
+          iosExecutionParams: { screen: 'feed' },
+          androidExecutionParams: { screen: 'feed' },
         },
       });
     } catch (error) {

@@ -39,7 +39,6 @@ import {
   getLocationSharingStatus,
 } from '../../src/services/friendLocation';
 import {
-  KAKAO_SHARE_FALLBACK_WEB_URL,
   sendKakaoTextToFriends,
   shareKakaoText,
 } from '../../src/services/kakaoShare';
@@ -767,11 +766,14 @@ function HasCrewView({
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
       const text = `WhereHere에서 \"${crew.name}\" 크루에 함께해요!\n\n초대 코드: ${crew.invite_code}\n\n앱에서 바로 가입하기:\nwherehere://join?code=${crew.invite_code}`;
+      const storeUrl = Platform.OS === 'ios'
+        ? 'https://apps.apple.com/app/id6761450806'
+        : 'https://play.google.com/store/apps/details?id=com.wherehere.app';
       const linkParams = {
         iosExecutionParams: { screen: 'join', code: crew.invite_code },
         androidExecutionParams: { screen: 'join', code: crew.invite_code },
-        webUrl: KAKAO_SHARE_FALLBACK_WEB_URL,
-        mobileWebUrl: KAKAO_SHARE_FALLBACK_WEB_URL,
+        webUrl: storeUrl,
+        mobileWebUrl: storeUrl,
       };
 
       /**
