@@ -39,6 +39,8 @@ interface SaveRequest {
     difficulty: number;
     reward_xp: number;
     missions: GeneratedMission[];
+    /** Public URL in `mission-photos` bucket (`ugc-covers/...`), optional */
+    cover_image_url?: string | null;
   };
 }
 
@@ -201,6 +203,12 @@ async function handleSave(
   userId: string,
   eventData: SaveRequest["event_data"],
 ): Promise<Response> {
+  const rawCover =
+    typeof eventData.cover_image_url === "string"
+      ? eventData.cover_image_url.trim()
+      : "";
+  const coverImageUrl = rawCover.length >= 8 ? rawCover : null;
+
   const { data: inserted, error: insertErr } = await supabase
     .from("events")
     .insert({
@@ -218,6 +226,7 @@ async function handleSave(
       status: "approved",
       is_active: true,
       is_seasonal: false,
+      cover_image_url: coverImageUrl,
     })
     .select("id")
     .single();
@@ -247,6 +256,24 @@ async function handleSave(
     console.error("Failed to insert UGC missions:", missionErr.message);
     await supabase.from("events").delete().eq("id", eventId);
     return json({ error: "미션 저장에 실패했습니다." }, 500);
+  }
+
+  if (coverImageUrl) {
+    const { error: feedErr } = await supabase.from("community_submissions").insert({
+      user_id: userId,
+      submission_type: "ugc_event_cover",
+      mission_completion_id: null,
+      mission_id: null,
+      event_id: eventId,
+      image_url: coverImageUrl,
+      visibility: "public",
+    });
+    if (feedErr) {
+      console.error("Failed to insert UGC cover feed row:", feedErr.message);
+      await supabase.from("missions").delete().eq("event_id", eventId);
+      await supabase.from("events").delete().eq("id", eventId);
+      return json({ error: "커버 이미지 피드 등록에 실패했습니다." }, 500);
+    }
   }
 
   console.log(`[generate-ugc-event] Saved UGC event ${eventId} by user ${userId}`);

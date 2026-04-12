@@ -35,7 +35,9 @@ export default function FriendMarker({ friend, onPress }: Props) {
       cluster={false}
       zIndex={2000}
       onPress={onPress}
-      tracksViewChanges={false}
+      // Keep this enabled for reliability on iOS custom marker views.
+      // `false` can cause intermittent vanish/flicker while panning/zooming.
+      tracksViewChanges
     >
       <View style={styles.container}>
         <View style={[styles.avatar, isRecent && styles.avatarRecent]}>

@@ -91,6 +91,76 @@ export async function shareKakaoText({
   });
 }
 
+const APP_STORE_URL = 'https://apps.apple.com/app/id6761450806';
+const PLAY_STORE_URL =
+  'https://play.google.com/store/apps/details?id=com.wherehere.app';
+
+/**
+ * Share a rich feed card via KakaoTalk (image thumbnail + title + description + app link).
+ *
+ * Android: Kakao Feed Template → rich card with image thumbnail, title, description, button.
+ * iOS:     System Share sheet (Kakao TurboModule crashes on New Arch).
+ * Fallback: System Share with text only (no Notion URL).
+ */
+export async function shareKakaoFeedCard({
+  imageUrl,
+  title,
+  description,
+  linkParams,
+  buttonTitle = '앱에서 보기',
+}: {
+  imageUrl: string;
+  title: string;
+  description: string;
+  linkParams?: ShareLinkParams;
+  buttonTitle?: string;
+}) {
+  if (Platform.OS === 'ios') {
+    const message = [title, description].filter(Boolean).join('\n');
+    await Share.share({ message, url: imageUrl });
+    return;
+  }
+
+  try {
+    await ensureKakaoInitialized();
+    const KakaoShare = require('@react-native-kakao/share').default;
+
+    const storeUrl = Platform.OS === 'android' ? PLAY_STORE_URL : APP_STORE_URL;
+    const link = buildDefaultLink({
+      ...linkParams,
+      webUrl: linkParams?.webUrl ?? storeUrl,
+      mobileWebUrl: linkParams?.mobileWebUrl ?? storeUrl,
+    });
+
+    const template = {
+      content: {
+        title,
+        description,
+        imageUrl,
+        imageWidth: 800,
+        imageHeight: 1000,
+        link,
+      },
+      buttons: [
+        {
+          title: buttonTitle,
+          link,
+        },
+      ],
+    };
+
+    await KakaoShare.shareFeedTemplate({
+      template,
+      useWebBrowserIfKakaoTalkNotAvailable: false,
+      serverCallbackArgs: { platform: Platform.OS },
+    });
+  } catch {
+    const storeUrl = Platform.OS === 'android' ? PLAY_STORE_URL : APP_STORE_URL;
+    const message = [title, description, storeUrl].filter(Boolean).join('\n');
+    await Share.share({ message, title: 'WhereHere' });
+  }
+}
+
 export async function sendKakaoTextToFriends({
   text,
   receiverUuids,

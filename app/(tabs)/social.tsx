@@ -15,6 +15,7 @@ import {
   Switch,
   Share,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -112,6 +113,17 @@ const toastStyles = StyleSheet.create({
 function AvatarCircle({ username, avatarUrl, size = 44 }: { username: string; avatarUrl?: string | null; size?: number }) {
   const letter = (username ?? '?')[0].toUpperCase();
   const hue = username ? username.charCodeAt(0) * 7 % 360 : 0;
+  if (avatarUrl && avatarUrl.trim().length > 4) {
+    return (
+      <Image
+        source={{ uri: avatarUrl.trim() }}
+        style={{ width: size, height: size, borderRadius: size / 2 }}
+        contentFit="cover"
+        cachePolicy="memory-disk"
+        transition={150}
+      />
+    );
+  }
   return (
     <View style={[avatarStyles.circle, { width: size, height: size, borderRadius: size / 2, backgroundColor: `hsl(${hue}, 45%, 35%)` }]}>
       <Text style={[avatarStyles.letter, { fontSize: size * 0.42 }]}>{letter}</Text>
@@ -284,7 +296,7 @@ function FriendsTab({
           <Text style={s.sectionTitle}>받은 요청 ({pending.length})</Text>
           {pending.map((req) => (
             <View key={req.friendship_id} style={s.friendRow}>
-              <AvatarCircle username={req.username} />
+              <AvatarCircle username={req.username} avatarUrl={req.avatar_url} />
               <Text style={s.friendName} numberOfLines={1}>{req.username}</Text>
               <View style={s.pendingActions}>
                 <Pressable
@@ -323,7 +335,7 @@ function FriendsTab({
           friends.map((friend, idx) => (
             <Animated.View key={friend.friendship_id} entering={FadeInUp.duration(250).delay(idx * 40)}>
               <View style={s.friendRow}>
-                <AvatarCircle username={friend.username} />
+                <AvatarCircle username={friend.username} avatarUrl={friend.avatar_url} />
                 <View style={s.friendInfo}>
                   <Text style={s.friendName} numberOfLines={1}>{friend.username}</Text>
                   <View style={s.friendMeta}>
@@ -928,7 +940,7 @@ function MemberRow({ member }: { member: CrewMember }) {
 
   return (
     <View style={s.memberRow}>
-      <AvatarCircle username={member.username} />
+      <AvatarCircle username={member.username} avatarUrl={member.avatar_url} />
       <View style={s.memberInfo}>
         <View style={s.memberNameRow}>
           {role.icon && <Text style={s.crownIcon}>{role.icon}</Text>}

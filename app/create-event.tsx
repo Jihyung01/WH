@@ -11,16 +11,19 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
+  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
+import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeInUp, SlideInRight } from 'react-native-reanimated';
 
 import {
   generateUGCEvent,
   saveUGCEvent,
+  uploadUGCCoverPhoto,
   getCommunityTermsStatus,
   acceptCommunityTerms,
   COMMUNITY_TERMS_VERSION,
@@ -89,6 +92,7 @@ export default function CreateEventScreen() {
   const [editNarrative, setEditNarrative] = useState('');
   const [editDifficulty, setEditDifficulty] = useState(2);
   const [editRewardXp, setEditRewardXp] = useState(150);
+  const [coverImageUri, setCoverImageUri] = useState<string | null>(null);
 
   // Step 4: Saving
   const [saving, setSaving] = useState(false);
@@ -229,6 +233,11 @@ export default function CreateEventScreen() {
       const addressParts = address.split(' ');
       const district = addressParts.length >= 2 ? addressParts.slice(0, 2).join(' ') : address;
 
+      let cover_image_url: string | undefined;
+      if (coverImageUri) {
+        cover_image_url = await uploadUGCCoverPhoto(coverImageUri);
+      }
+
       const result = await saveUGCEvent({
         title: editTitle,
         narrative: editNarrative,
@@ -241,6 +250,7 @@ export default function CreateEventScreen() {
         difficulty: editDifficulty,
         reward_xp: editRewardXp,
         missions: suggested.missions,
+        ...(cover_image_url ? { cover_image_url } : {}),
       });
 
       setSavedEventId(result.event_id);
@@ -268,6 +278,30 @@ export default function CreateEventScreen() {
     }
     setStep((s) => s - 1);
     scrollRef.current?.scrollTo({ y: 0, animated: true });
+  }
+
+  async function handlePickCoverImage() {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (permission.status !== 'granted') {
+        Alert.alert(
+          '사진 권한 필요',
+          '설정에서 WhereHere의 사진 접근 권한을 허용한 뒤 다시 시도해 주세요.',
+        );
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.85,
+      });
+      if (result.canceled) return;
+      const uri = result.assets[0]?.uri;
+      if (uri) setCoverImageUri(uri);
+    } catch {
+      Alert.alert('오류', '이미지를 불러오지 못했습니다.');
+    }
   }
 
   function renderDifficultyStars() {
@@ -474,6 +508,28 @@ export default function CreateEventScreen() {
           <Ionicons name="sparkles" size={20} color={BRAND.gold} />
           <Text style={styles.xpValue}>{editRewardXp} XP</Text>
         </View>
+
+        <Text style={styles.inputLabel}>커버 이미지 (선택)</Text>
+        <Text style={styles.coverHint}>
+          등록 후 탐험 피드에 함께 노출될 수 있어요.
+        </Text>
+        {coverImageUri ? (
+          <View style={styles.coverPreviewWrap}>
+            <Image source={{ uri: coverImageUri }} style={styles.coverPreview} />
+            <Pressable
+              style={styles.coverRemoveBtn}
+              onPress={() => setCoverImageUri(null)}
+              hitSlop={8}
+            >
+              <Ionicons name="close-circle" size={28} color={COLORS.textMuted} />
+            </Pressable>
+          </View>
+        ) : (
+          <Pressable style={styles.coverPickBtn} onPress={() => void handlePickCoverImage()}>
+            <Ionicons name="image-outline" size={22} color={BRAND.primary} />
+            <Text style={styles.coverPickText}>갤러리에서 선택</Text>
+          </Pressable>
+        )}
       </Animated.View>
     );
   }
@@ -905,6 +961,47 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.xl,
     fontWeight: FONT_WEIGHT.bold,
     color: BRAND.gold,
+  },
+
+  coverHint: {
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.textMuted,
+    marginBottom: SPACING.sm,
+    marginTop: -SPACING.xs,
+  },
+  coverPickBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.sm,
+    paddingVertical: SPACING.lg,
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1.5,
+    borderColor: BRAND.primary,
+    borderStyle: 'dashed',
+    backgroundColor: `${BRAND.primary}08`,
+  },
+  coverPickText: {
+    fontSize: FONT_SIZE.md,
+    fontWeight: FONT_WEIGHT.semibold,
+    color: BRAND.primary,
+  },
+  coverPreviewWrap: {
+    position: 'relative',
+    borderRadius: BORDER_RADIUS.lg,
+    overflow: 'hidden',
+  },
+  coverPreview: {
+    width: '100%',
+    aspectRatio: 16 / 9,
+    backgroundColor: COLORS.surfaceLight,
+  },
+  coverRemoveBtn: {
+    position: 'absolute',
+    top: SPACING.sm,
+    right: SPACING.sm,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    borderRadius: 14,
   },
 
   // Success

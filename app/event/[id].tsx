@@ -30,6 +30,7 @@ import {
   grantQuizCoins,
   uploadMissionPhoto,
   submitContentReport,
+  createCommunitySubmissionMissionPhoto,
 } from '../../src/lib/api';
 import { useAuthStore } from '../../src/stores/authStore';
 import { useModerationStore } from '../../src/stores/moderationStore';
@@ -143,7 +144,15 @@ export default function EventDetailScreen() {
           proofUrl = await uploadMissionPhoto(mission.id, options.proofLocalUri);
         }
         const answer = mission.mission_type === 'text' ? options?.answer : undefined;
-        await completeMission(mission.id, id!, answer, proofUrl);
+        const completion = await completeMission(mission.id, id!, answer, proofUrl);
+
+        if (mission.mission_type === 'photo' && proofUrl) {
+          try {
+            await createCommunitySubmissionMissionPhoto(completion.id, proofUrl, 'public');
+          } catch (feedErr) {
+            console.warn('Community feed submission skipped:', feedErr);
+          }
+        }
 
         setMissions((prev) =>
           prev.map((m) => (m.id === mission.id ? { ...m, is_completed: true } : m)),

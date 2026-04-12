@@ -73,6 +73,8 @@ export interface Event {
   creator_type: string;
   /** UGC events: author profile id (for report / block). */
   creator_id?: string | null;
+  /** Hero image for UGC events (public storage URL). */
+  cover_image_url?: string | null;
   status?: string | null;
   partner_name: string | null;
   is_active: boolean;

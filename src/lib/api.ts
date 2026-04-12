@@ -628,27 +628,209 @@ export async function savePushToken(token: string): Promise<void> {
 // 13. Photo upload (Supabase Storage)
 // ─────────────────────────────────────────────────────────────────────────────
 
+function detectMime(uri: string): { mime: string; ext: string } {
+  const lower = uri.toLowerCase();
+  if (lower.includes('.heic') || lower.includes('.heif')) return { mime: 'image/heic', ext: 'heic' };
+  if (lower.includes('.png')) return { mime: 'image/png', ext: 'png' };
+  if (lower.includes('.webp')) return { mime: 'image/webp', ext: 'webp' };
+  return { mime: 'image/jpeg', ext: 'jpg' };
+}
+
+async function uriToUploadBody(imageUri: string): Promise<{ body: FormData; ext: string }> {
+  const { mime, ext } = detectMime(imageUri);
+  const formData = new FormData();
+  formData.append('file', {
+    uri: imageUri,
+    name: `photo.${ext}`,
+    type: mime,
+  } as unknown as Blob);
+  return { body: formData, ext };
+}
+
 export async function uploadMissionPhoto(
   missionId: string,
   imageUri: string,
 ): Promise<string> {
   const user = await getCurrentUser();
-  const fileName = `${user.id}/${missionId}/${Date.now()}.jpg`;
+  const { body, ext } = await uriToUploadBody(imageUri);
+  const fileName = `${user.id}/${missionId}/${Date.now()}.${ext}`;
 
-  const response = await fetch(imageUri);
-  const blob = await response.blob();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const token = session?.access_token ?? '';
 
-  const { error } = await supabase.storage
-    .from('mission-photos')
-    .upload(fileName, blob, { contentType: 'image/jpeg' });
+  const uploadUrl = `${SUPABASE_URL}/storage/v1/object/mission-photos/${fileName}`;
+  const res = await fetch(uploadUrl, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      apikey: SUPABASE_ANON_KEY,
+    },
+    body,
+  });
 
-  if (error) throw new AppError('사진 업로드에 실패했습니다.', 'UPLOAD_ERROR', 500);
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '');
+    console.error('Storage upload failed:', res.status, errText);
+    throw new AppError('사진 업로드에 실패했습니다.', 'UPLOAD_ERROR', 500);
+  }
 
   const {
     data: { publicUrl },
   } = supabase.storage.from('mission-photos').getPublicUrl(fileName);
 
   return publicUrl;
+}
+
+export async function uploadUGCCoverPhoto(imageUri: string): Promise<string> {
+  const user = await getCurrentUser();
+  const { body, ext } = await uriToUploadBody(imageUri);
+  const fileName = `ugc-covers/${user.id}/${Date.now()}.${ext}`;
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const token = session?.access_token ?? '';
+
+  const uploadUrl = `${SUPABASE_URL}/storage/v1/object/mission-photos/${fileName}`;
+  const res = await fetch(uploadUrl, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      apikey: SUPABASE_ANON_KEY,
+    },
+    body,
+  });
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '');
+    console.error('Cover upload failed:', res.status, errText);
+    throw new AppError('커버 이미지 업로드에 실패했습니다.', 'UPLOAD_ERROR', 500);
+  }
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from('mission-photos').getPublicUrl(fileName);
+
+  return publicUrl;
+}
+
+export async function createCommunitySubmissionMissionPhoto(
+  missionCompletionId: string,
+  imageUrl: string,
+  visibility: 'public' | 'friends' | 'private' = 'public',
+): Promise<string> {
+  const { data, error } = await supabase.rpc('create_community_submission_mission_photo', {
+    p_mission_completion_id: missionCompletionId,
+    p_image_url: imageUrl,
+    p_visibility: visibility,
+  });
+  throwIfError(error, '커뮤니티 피드 등록에 실패했습니다.');
+  return data as string;
+}
+
+export interface CommunityFeedItem {
+  id: string;
+  user_id: string;
+  username: string | null;
+  avatar_url?: string | null;
+  submission_type: 'mission_photo' | 'ugc_event_cover';
+  image_url: string;
+  event_id: string | null;
+  event_title: string | null;
+  event_address?: string | null;
+  event_district?: string | null;
+  mission_title?: string | null;
+  mission_type?: string | null;
+  mission_blurb?: string | null;
+  completion_answer?: string | null;
+  like_count: number;
+  comment_count: number;
+  liked_by_me: boolean;
+  created_at: string;
+}
+
+export interface FeedComment {
+  id: string;
+  user_id: string;
+  username: string | null;
+  avatar_url: string | null;
+  body: string;
+  created_at: string;
+}
+
+export async function getCommunityFeed(limit = 40): Promise<CommunityFeedItem[]> {
+  const user = await getCurrentUserOrNull();
+  if (!user) return [];
+
+  const { data, error } = await supabase.rpc('get_community_feed', {
+    p_limit: limit,
+  });
+  throwIfError(error, '커뮤니티 피드를 불러오지 못했습니다.');
+
+  const raw = data as unknown;
+  if (raw == null) return [];
+  if (Array.isArray(raw)) return raw as CommunityFeedItem[];
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      return Array.isArray(parsed) ? (parsed as CommunityFeedItem[]) : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 13-B. Feed social: like / comment / share
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function toggleFeedLike(
+  submissionId: string,
+): Promise<{ liked: boolean; like_count: number }> {
+  const { data, error } = await supabase.rpc('toggle_feed_like', {
+    p_submission_id: submissionId,
+  });
+  throwIfError(error, '좋아요 처리에 실패했습니다.');
+  return data as { liked: boolean; like_count: number };
+}
+
+export async function addFeedComment(
+  submissionId: string,
+  body: string,
+): Promise<FeedComment> {
+  const { data, error } = await supabase.rpc('add_feed_comment', {
+    p_submission_id: submissionId,
+    p_body: body,
+  });
+  throwIfError(error, '댓글 작성에 실패했습니다.');
+  return data as unknown as FeedComment;
+}
+
+export async function getFeedComments(
+  submissionId: string,
+  limit = 50,
+): Promise<FeedComment[]> {
+  const { data, error } = await supabase.rpc('get_feed_comments', {
+    p_submission_id: submissionId,
+    p_limit: limit,
+  });
+  throwIfError(error, '댓글을 불러오지 못했습니다.');
+
+  const raw = data as unknown;
+  if (raw == null) return [];
+  if (Array.isArray(raw)) return raw as FeedComment[];
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      return Array.isArray(parsed) ? (parsed as FeedComment[]) : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -827,6 +1009,7 @@ export async function saveUGCEvent(params: {
   difficulty: number;
   reward_xp: number;
   missions: UGCSuggestedEvent['missions'];
+  cover_image_url?: string | null;
 }): Promise<{ event_id: string }> {
   return invokeEdgeFunction<{ event_id: string }>('generate-ugc-event', {
     action: 'save',

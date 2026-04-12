@@ -21,7 +21,7 @@ import { HONGDAE_REGION, getDistance } from '../../src/utils/geo';
 import { MAP_REFETCH_DISTANCE_M } from '../../src/utils/constants';
 import { SPACING, FONT_WEIGHT, SHADOWS, BRAND } from '../../src/config/theme';
 import { useTheme } from '../../src/providers/ThemeProvider';
-import { EventMarker, UserLocationMarker, EventBottomSheet, GpsBanner, FriendMarker } from '../../src/components/map';
+import { EventMarker, UserLocationMarker, EventBottomSheet, FriendMarker } from '../../src/components/map';
 import {
   ensureFriendLocationPublishingIfNeeded,
   getFriendLocationsSafe,
@@ -30,16 +30,61 @@ import {
 import type { FriendLocation } from '../../src/services/friendLocation';
 import { getFriends } from '../../src/lib/api';
 import { getMapStyle } from '../../src/components/map/mapStyle';
-import { MapLoadingOverlay } from '../../src/components/ui';
 import { registerGeofences } from '../../src/services/geofencing';
 import { TutorialOverlay, useTutorial } from '../../src/components/onboarding';
 import type { NearbyEvent } from '../../src/types';
+import { useAuthStore } from '../../src/stores/authStore';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 let regionChangeTimer: ReturnType<typeof setTimeout> | null = null;
 
 const FRIEND_LOCATIONS_POLL_MS = 20_000;
+const FRIEND_LOCATION_STALE_KEEP_MS = 12 * 60 * 60 * 1000; // keep missing friends for up to 12h to avoid flicker
+const MAP_BOOT_TIMEOUT_MS = 6000;
+
+function mergeFriendLocations(
+  prev: FriendLocation[],
+  next: FriendLocation[],
+): FriendLocation[] {
+  const now = Date.now();
+  const byId = new Map<string, FriendLocation>();
+
+  // Start with latest payload.
+  for (const friend of next) {
+    byId.set(friend.user_id, friend);
+  }
+
+  // Keep previously known friends for a grace period if they are temporarily missing.
+  for (const friend of prev) {
+    if (byId.has(friend.user_id)) continue;
+    const seenAt = new Date(friend.last_seen_at).getTime();
+    if (Number.isFinite(seenAt) && now - seenAt <= FRIEND_LOCATION_STALE_KEEP_MS) {
+      byId.set(friend.user_id, friend);
+    }
+  }
+
+  return Array.from(byId.values());
+}
+
+function areFriendLocationsEqual(a: FriendLocation[], b: FriendLocation[]): boolean {
+  if (a.length !== b.length) return false;
+  const byId = new Map(a.map((f) => [f.user_id, f]));
+  for (const next of b) {
+    const prev = byId.get(next.user_id);
+    if (!prev) return false;
+    if (
+      prev.latitude !== next.latitude ||
+      prev.longitude !== next.longitude ||
+      prev.last_seen_at !== next.last_seen_at ||
+      prev.username !== next.username ||
+      prev.character_type !== next.character_type
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
 
 export default function MapScreen() {
   const router = useRouter();
@@ -47,19 +92,19 @@ export default function MapScreen() {
   const mapRef = useRef<MapView>(null);
   const { colors, mode } = useTheme();
   const insets = useSafeAreaInsets();
+  const userId = useAuthStore((s) => s.user?.id ?? null);
 
   const tabBarReserve = (Platform.OS === 'ios' ? 52 : 54) + Math.max(insets.bottom, Platform.OS === 'android' ? 12 : 8);
   const overlayTop = insets.top + 8;
   const mapBottomPad = tabBarReserve + SPACING.md;
   const recenterBottom = tabBarReserve + SPACING.lg;
 
-  const { currentPosition, locationPermission, startTracking, getCurrentPosition } =
+  const { currentPosition, startTracking, getCurrentPosition } =
     useLocation();
   const {
     visibleEvents,
     selectedEventId,
     isFollowingUser,
-    isFetchingEvents,
     lastFetchCenter,
     selectEvent,
     setFollowingUser,
@@ -70,6 +115,7 @@ export default function MapScreen() {
   const { showTutorial, completeTutorial } = useTutorial();
   const [mapReady, setMapReady] = useState(false);
   const [friendLocations, setFriendLocations] = useState<FriendLocation[]>([]);
+  const [initialRegion, setInitialRegion] = useState<Region | null>(null);
   const userHeading = useLocationStore((s) => s.heading);
   const bgLocationEnabled = useNotificationStore((s) => s.backgroundLocationEnabled);
 
@@ -77,12 +123,21 @@ export default function MapScreen() {
   useEffect(() => {
     if (!isFocused) return;
     (async () => {
-      const pos = await getCurrentPosition();
-      if (pos) {
-        fetchNearbyEvents(pos);
-      } else {
-        fetchNearbyEvents(HONGDAE_REGION);
+      let pos = currentPosition;
+      if (!pos) {
+        pos = await Promise.race([
+          getCurrentPosition(),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), MAP_BOOT_TIMEOUT_MS)),
+        ]);
       }
+      const seed = pos ?? HONGDAE_REGION;
+      setInitialRegion({
+        latitude: seed.latitude,
+        longitude: seed.longitude,
+        latitudeDelta: 0.008,
+        longitudeDelta: 0.008,
+      });
+      fetchNearbyEvents(seed);
       startTracking();
     })();
   }, [isFocused]);
@@ -94,6 +149,7 @@ export default function MapScreen() {
 
     async function initFriendLocations() {
       if (!isFocused) return;
+      if (!userId) return;
       try {
         await ensureFriendLocationPublishingIfNeeded();
 
@@ -103,20 +159,35 @@ export default function MapScreen() {
           return;
         }
 
-        const locations = await getFriendLocationsSafe();
-        if (locations !== null) setFriendLocations(locations);
+        const locations = await getFriendLocationsSafe(userId);
+        if (locations !== null) {
+          setFriendLocations((prev) => {
+            const merged = mergeFriendLocations(prev, locations);
+            return areFriendLocationsEqual(prev, merged) ? prev : merged;
+          });
+        }
 
         const friendIds = friends.map((f) => f.user_id);
         unsubscribe = subscribeToFriendLocations(friendIds, (next) => {
-          setFriendLocations(next);
+          setFriendLocations((prev) => {
+            const merged = mergeFriendLocations(prev, next);
+            return areFriendLocationsEqual(prev, merged) ? prev : merged;
+          });
         });
 
         pollId = setInterval(async () => {
           if (!isFocused) return;
-          const next = await getFriendLocationsSafe();
-          if (next !== null) setFriendLocations(next);
+          const next = await getFriendLocationsSafe(userId);
+          if (next !== null) {
+            setFriendLocations((prev) => {
+              const merged = mergeFriendLocations(prev, next);
+              return areFriendLocationsEqual(prev, merged) ? prev : merged;
+            });
+          }
         }, FRIEND_LOCATIONS_POLL_MS);
-      } catch {}
+      } catch (e) {
+        console.warn('[map] initFriendLocations failed:', e);
+      }
     }
 
     initFriendLocations();
@@ -125,7 +196,7 @@ export default function MapScreen() {
       if (unsubscribe) unsubscribe();
       if (pollId) clearInterval(pollId);
     };
-  }, [isFocused]);
+  }, [isFocused, userId]);
 
   // ── Register geofences when events update ──
   useEffect(() => {
@@ -247,66 +318,58 @@ export default function MapScreen() {
     }
   }, [currentPosition, isFocused]);
 
-  const initialRegion = currentPosition
-    ? { ...currentPosition, latitudeDelta: 0.008, longitudeDelta: 0.008 }
-    : HONGDAE_REGION;
-
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* ── Map with Clustering ── */}
-      <ClusteredMapView
-        ref={mapRef}
-        style={styles.map}
-        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-        customMapStyle={getMapStyle(mode)}
-        initialRegion={initialRegion}
-        onRegionChangeComplete={onRegionChangeComplete}
-        onMapReady={() => setMapReady(true)}
-        showsUserLocation={false}
-        showsMyLocationButton={false}
-        showsCompass={false}
-        showsScale={false}
-        mapPadding={{ top: 0, right: 0, bottom: mapBottomPad, left: 0 }}
-        rotateEnabled={false}
-        pitchEnabled={false}
-        clusterColor={BRAND.primary}
-        clusterTextColor="#FFF"
-        clusterFontFamily={undefined}
-        radius={60}
-        maxZoom={16}
-        minPoints={3}
-        extent={256}
-        animationEnabled={false}
-      >
-        {/* User location blue dot */}
-        {isFocused && currentPosition && (
-          <UserLocationMarker
-            position={currentPosition}
-            heading={userHeading}
-          />
-        )}
+      {!initialRegion ? null : (
+        <ClusteredMapView
+          ref={mapRef}
+          style={styles.map}
+          provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+          customMapStyle={getMapStyle(mode)}
+          initialRegion={initialRegion}
+          onRegionChangeComplete={onRegionChangeComplete}
+          onMapReady={() => setMapReady(true)}
+          showsUserLocation={false}
+          showsMyLocationButton={false}
+          showsCompass={false}
+          showsScale={false}
+          mapPadding={{ top: 0, right: 0, bottom: mapBottomPad, left: 0 }}
+          rotateEnabled={false}
+          pitchEnabled={false}
+          clusterColor={BRAND.primary}
+          clusterTextColor="#FFF"
+          clusterFontFamily={undefined}
+          radius={60}
+          maxZoom={16}
+          minPoints={3}
+          extent={256}
+          animationEnabled={false}
+        >
+          {/* User location blue dot */}
+          {isFocused && currentPosition && (
+            <UserLocationMarker
+              position={currentPosition}
+              heading={userHeading}
+            />
+          )}
 
-        {/* Event markers */}
-        {isFocused && sortedEvents.map((event) => (
-          <EventMarker
-            key={event.id}
-            event={event}
-            userLocation={currentPosition}
-            onPress={onMarkerPress}
-          />
-        ))}
+          {/* Event markers */}
+          {isFocused && sortedEvents.map((event) => (
+            <EventMarker
+              key={event.id}
+              event={event}
+              userLocation={currentPosition}
+              onPress={onMarkerPress}
+            />
+          ))}
 
-        {/* Friend location markers */}
-        {isFocused && friendLocations.map((friend) => (
-          <FriendMarker key={friend.user_id} friend={friend} />
-        ))}
-      </ClusteredMapView>
-
-      {/* ── GPS Banner ── */}
-      <GpsBanner visible={locationPermission === 'denied'} />
-
-      {/* ── Loading overlay ── */}
-      {isFetchingEvents && visibleEvents.length === 0 && <MapLoadingOverlay />}
+          {/* Friend location markers */}
+          {isFocused && friendLocations.map((friend) => (
+            <FriendMarker key={friend.user_id} friend={friend} />
+          ))}
+        </ClusteredMapView>
+      )}
 
       {/* ── Top Left: User avatar ── */}
       <Pressable

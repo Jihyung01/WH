@@ -37,18 +37,16 @@ export function PhotoMission({ description, onComplete, isActive, isCompleted }:
       setBusy(true);
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
 
+      const pickerOpts: ImagePicker.ImagePickerOptions = {
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        quality: 0.85,
+        exif: false,
+      };
       const result =
         source === 'camera'
-          ? await ImagePicker.launchCameraAsync({
-              mediaTypes: ['images'],
-              allowsEditing: false,
-              quality: 0.85,
-            })
-          : await ImagePicker.launchImageLibraryAsync({
-              mediaTypes: ['images'],
-              allowsEditing: false,
-              quality: 0.85,
-            });
+          ? await ImagePicker.launchCameraAsync(pickerOpts)
+          : await ImagePicker.launchImageLibraryAsync(pickerOpts);
 
       if (result.canceled) {
         return;

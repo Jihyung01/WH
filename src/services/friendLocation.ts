@@ -99,14 +99,15 @@ export async function stopLocationSharing(): Promise<void> {
 }
 
 /** error 시 null — UI는 이전 마커 유지(깜빡임 방지) */
-export async function getFriendLocationsSafe(): Promise<FriendLocation[] | null> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return [];
+export async function getFriendLocationsSafe(userId?: string): Promise<FriendLocation[] | null> {
+  const resolvedUserId =
+    userId ??
+    (await supabase.auth.getUser()).data.user?.id ??
+    null;
+  if (!resolvedUserId) return [];
 
   const { data, error } = await supabase.rpc('get_friend_locations', {
-    p_user_id: user.id,
+    p_user_id: resolvedUserId,
   });
   if (error) {
     console.warn('Failed to get friend locations:', error);

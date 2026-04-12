@@ -44,6 +44,17 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="explore"
+        options={{
+          title: '피드',
+          freezeOnBlur: true,
+          tabBarAccessibilityLabel: '커뮤니티 피드로 이동',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'images' : 'images-outline'} size={24} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="social"
         options={{
           title: '소셜',
@@ -75,7 +86,6 @@ export default function TabsLayout() {
       />
       <Tabs.Screen name="quests" options={{ href: null }} />
       <Tabs.Screen name="inventory" options={{ href: null }} />
-      <Tabs.Screen name="explore" options={{ href: null }} />
       <Tabs.Screen name="missions" options={{ href: null }} />
     </Tabs>
   );
