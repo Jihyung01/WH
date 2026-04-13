@@ -101,16 +101,15 @@ export default function MapScreen() {
 
   const { currentPosition, startTracking, getCurrentPosition } =
     useLocation();
-  const {
-    visibleEvents,
-    selectedEventId,
-    isFollowingUser,
-    lastFetchCenter,
-    selectEvent,
-    setFollowingUser,
-    fetchNearbyEvents,
-    setRegion,
-  } = useMapStore();
+  /** Per-field selectors so `setRegion` / other map state does not re-render the whole screen on every pan. */
+  const visibleEvents = useMapStore((s) => s.visibleEvents);
+  const selectedEventId = useMapStore((s) => s.selectedEventId);
+  const isFollowingUser = useMapStore((s) => s.isFollowingUser);
+  const lastFetchCenter = useMapStore((s) => s.lastFetchCenter);
+  const selectEvent = useMapStore((s) => s.selectEvent);
+  const setFollowingUser = useMapStore((s) => s.setFollowingUser);
+  const fetchNearbyEvents = useMapStore((s) => s.fetchNearbyEvents);
+  const setRegion = useMapStore((s) => s.setRegion);
 
   const { showTutorial, completeTutorial } = useTutorial();
   const [mapReady, setMapReady] = useState(false);
@@ -242,6 +241,15 @@ export default function MapScreen() {
       .slice(0, 50);
   }, [visibleEvents, currentPosition, isFocused]);
 
+  /** Stable element list so GPS / unrelated renders do not rebuild ClusteredMapView children for friends. */
+  const friendMarkerNodes = useMemo(
+    () =>
+      friendLocations.map((friend) => (
+        <FriendMarker key={friend.user_id} friend={friend} />
+      )),
+    [friendLocations],
+  );
+
   // ── Region change handler (debounced 300ms) ──
   const onRegionChangeComplete = useCallback(
     (region: Region) => {
@@ -365,9 +373,7 @@ export default function MapScreen() {
           ))}
 
           {/* Friend location markers */}
-          {isFocused && friendLocations.map((friend) => (
-            <FriendMarker key={friend.user_id} friend={friend} />
-          ))}
+          {isFocused && friendMarkerNodes}
         </ClusteredMapView>
       )}
 

@@ -51,20 +51,26 @@ export function UserLocationMarker({ position, heading, showRadius = true }: Use
         />
       )}
 
-      <Marker coordinate={position} anchor={{ x: 0.5, y: 0.5 }} flat>
+      <Marker
+        identifier="user-location"
+        coordinate={position}
+        anchor={{ x: 0.5, y: 0.5 }}
+        flat
+        tracksViewChanges={false}
+      >
         <View style={styles.container}>
           <Animated.View style={[styles.pulse, pulseStyle]} />
 
-          {heading !== null && (
-            <View
-              style={[
-                styles.headingCone,
-                { transform: [{ rotate: `${heading}deg` }] },
-              ]}
-            >
-              <View style={styles.cone} />
-            </View>
-          )}
+          <View
+            pointerEvents={heading === null ? 'none' : 'auto'}
+            style={[
+              styles.headingCone,
+              { opacity: heading === null ? 0 : 1 },
+              heading !== null && { transform: [{ rotate: `${heading}deg` }] },
+            ]}
+          >
+            <View style={styles.cone} />
+          </View>
 
           <View style={styles.outerRing}>
             <View style={styles.dot} />

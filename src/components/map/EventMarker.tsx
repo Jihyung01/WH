@@ -50,8 +50,11 @@ function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps
   const isInRange = distance <= CHECK_IN_RADIUS_METERS;
 
   const pulseOpacity = useSharedValue(1);
+  /** Fabric + maps legacy interop can crash if Marker children mount/unmount (insertObject index mismatch). */
+  const pulseVisible = useSharedValue(0);
 
   useEffect(() => {
+    pulseVisible.value = isInRange && !isExpired ? 1 : 0;
     if (isInRange && !isExpired) {
       pulseOpacity.value = withRepeat(
         withTiming(0.4, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
@@ -64,7 +67,7 @@ function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps
   }, [isInRange, isExpired]);
 
   const pulseStyle = useAnimatedStyle(() => ({
-    opacity: pulseOpacity.value,
+    opacity: pulseVisible.value ? pulseOpacity.value : 0,
   }));
 
   const markerColor = isExpired ? '#555B6E' : config.color;
@@ -72,20 +75,20 @@ function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps
 
   return (
     <Marker
+      identifier={`event-${event.id}`}
       coordinate={coordinate}
       onPress={() => onPress(event)}
       tracksViewChanges={false}
     >
       <View style={[styles.container, { opacity: markerOpacity }]}>
-        {isInRange && !isExpired && (
-          <Animated.View
-            style={[
-              styles.pulseRing,
-              { borderColor: markerColor },
-              pulseStyle,
-            ]}
-          />
-        )}
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.pulseRing,
+            { borderColor: markerColor },
+            pulseStyle,
+          ]}
+        />
 
         <View style={[styles.bubble, { backgroundColor: markerColor }]}>
           <Text style={styles.icon}>

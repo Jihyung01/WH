@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo, useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Marker } from 'react-native-maps';
 import { COLORS, BRAND } from '../../config/theme';
@@ -16,30 +16,33 @@ interface Props {
   onPress?: () => void;
 }
 
-export default function FriendMarker({ friend, onPress }: Props) {
+function FriendMarkerInner({ friend, onPress }: Props) {
   const MarkerComponent = Marker as unknown as React.ComponentType<Record<string, unknown>>;
   const latitude = Number(friend.latitude);
   const longitude = Number(friend.longitude);
-  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
-
   const emoji = CHARACTER_EMOJIS[friend.character_type ?? ''] ?? '👤';
-  const minutesAgo = Math.floor(
-    (Date.now() - new Date(friend.last_seen_at).getTime()) / 60000,
+  const isRecent = useMemo(() => {
+    const ms = Date.now() - new Date(friend.last_seen_at).getTime();
+    return Number.isFinite(ms) && ms >= 0 && ms < 5 * 60 * 1000;
+  }, [friend.last_seen_at]);
+
+  const coordinate = useMemo(
+    () => ({ latitude, longitude }),
+    [latitude, longitude],
   );
-  const isRecent = minutesAgo < 5;
+
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
 
   return (
     <MarkerComponent
-      coordinate={{ latitude, longitude }}
+      coordinate={coordinate}
       identifier={`friend-${friend.user_id}`}
       cluster={false}
       zIndex={2000}
       onPress={onPress}
-      // Keep this enabled for reliability on iOS custom marker views.
-      // `false` can cause intermittent vanish/flicker while panning/zooming.
-      tracksViewChanges
+      tracksViewChanges={false}
     >
-      <View style={styles.container}>
+      <View style={styles.container} collapsable={false}>
         <View style={[styles.avatar, isRecent && styles.avatarRecent]}>
           <Text style={styles.emoji}>{emoji}</Text>
         </View>
@@ -48,11 +51,25 @@ export default function FriendMarker({ friend, onPress }: Props) {
             {friend.username}
           </Text>
         </View>
-        {isRecent && <View style={styles.onlineDot} />}
+        <View style={[styles.onlineDot, !isRecent && styles.onlineDotHidden]} />
       </View>
     </MarkerComponent>
   );
 }
+
+export default memo(FriendMarkerInner, (prev, next) => {
+  if (prev.onPress !== next.onPress) return false;
+  const a = prev.friend;
+  const b = next.friend;
+  return (
+    a.user_id === b.user_id &&
+    a.latitude === b.latitude &&
+    a.longitude === b.longitude &&
+    a.last_seen_at === b.last_seen_at &&
+    a.username === b.username &&
+    a.character_type === b.character_type
+  );
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -103,5 +120,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#22C55E',
     borderWidth: 2,
     borderColor: COLORS.surface,
+  },
+  onlineDotHidden: {
+    opacity: 0,
   },
 });
