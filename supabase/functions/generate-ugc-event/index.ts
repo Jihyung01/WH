@@ -258,27 +258,34 @@ async function handleSave(
     return json({ error: "미션 저장에 실패했습니다." }, 500);
   }
 
+  let feedSubmissionId: string | null = null;
+
   if (coverImageUrl) {
-    const { error: feedErr } = await supabase.from("community_submissions").insert({
-      user_id: userId,
-      submission_type: "ugc_event_cover",
-      mission_completion_id: null,
-      mission_id: null,
-      event_id: eventId,
-      image_url: coverImageUrl,
-      visibility: "public",
-    });
+    const { data: feedRow, error: feedErr } = await supabase
+      .from("community_submissions")
+      .insert({
+        user_id: userId,
+        submission_type: "ugc_event_cover",
+        mission_completion_id: null,
+        mission_id: null,
+        event_id: eventId,
+        image_url: coverImageUrl,
+        visibility: "public",
+      })
+      .select("id")
+      .single();
     if (feedErr) {
       console.error("Failed to insert UGC cover feed row:", feedErr.message);
       await supabase.from("missions").delete().eq("event_id", eventId);
       await supabase.from("events").delete().eq("id", eventId);
       return json({ error: "커버 이미지 피드 등록에 실패했습니다." }, 500);
     }
+    feedSubmissionId = feedRow?.id ?? null;
   }
 
   console.log(`[generate-ugc-event] Saved UGC event ${eventId} by user ${userId}`);
 
-  return json({ event_id: eventId });
+  return json({ event_id: eventId, feed_submission_id: feedSubmissionId });
 }
 
 // ── Handler ──────────────────────────────────────────────────────────────────

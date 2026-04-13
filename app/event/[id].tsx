@@ -32,6 +32,7 @@ import {
   submitContentReport,
   createCommunitySubmissionMissionPhoto,
 } from '../../src/lib/api';
+import { AppleMusicAttachSheet } from '../../src/components/music/AppleMusicAttachSheet';
 import { useAuthStore } from '../../src/stores/authStore';
 import { useModerationStore } from '../../src/stores/moderationStore';
 import { useNarrative } from '../../src/hooks/useNarrative';
@@ -68,6 +69,7 @@ export default function EventDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [missions, setMissions] = useState<MissionWithStatus[]>([]);
   const [missionStarted, setMissionStarted] = useState(false);
+  const [appleMusicAttachSubmissionId, setAppleMusicAttachSubmissionId] = useState<string | null>(null);
 
   const { displayedText, status: narrativeStatus, retry: retryNarrative } = useNarrative(
     event?.id,
@@ -148,7 +150,12 @@ export default function EventDetailScreen() {
 
         if (mission.mission_type === 'photo' && proofUrl) {
           try {
-            await createCommunitySubmissionMissionPhoto(completion.id, proofUrl, 'public');
+            const submissionId = await createCommunitySubmissionMissionPhoto(
+              completion.id,
+              proofUrl,
+              'public',
+            );
+            setAppleMusicAttachSubmissionId(submissionId);
           } catch (feedErr) {
             console.warn('Community feed submission skipped:', feedErr);
           }
@@ -272,6 +279,7 @@ export default function EventDetailScreen() {
   const meta = CATEGORY_META[event.category] ?? CATEGORY_META.exploration;
 
   return (
+    <>
     <View style={styles.container}>
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* ── Hero ── */}
@@ -537,6 +545,12 @@ export default function EventDetailScreen() {
         )}
       </View>
     </View>
+    <AppleMusicAttachSheet
+      visible={appleMusicAttachSubmissionId !== null}
+      submissionId={appleMusicAttachSubmissionId}
+      onClose={() => setAppleMusicAttachSubmissionId(null)}
+    />
+    </>
   );
 }
 

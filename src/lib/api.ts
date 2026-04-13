@@ -730,6 +730,36 @@ export async function createCommunitySubmissionMissionPhoto(
   return data as string;
 }
 
+/** Apple Music 카탈로그 첨부 (Edge `apple-music-search` + DB `music_json`) */
+export interface AppleMusicFeedAttachment {
+  apple_song_id: string;
+  title: string;
+  artist: string;
+  artwork_url: string | null;
+  preview_url: string | null;
+  apple_music_url: string | null;
+}
+
+export async function searchAppleMusicTracks(query: string): Promise<AppleMusicFeedAttachment[]> {
+  const q = query.trim();
+  if (q.length < 2) return [];
+  const res = await invokeEdgeFunction<{ tracks: AppleMusicFeedAttachment[] }>('apple-music-search', {
+    q,
+  });
+  return Array.isArray(res.tracks) ? res.tracks : [];
+}
+
+export async function updateCommunitySubmissionMusic(
+  submissionId: string,
+  music: AppleMusicFeedAttachment | null,
+): Promise<void> {
+  const { error } = await supabase.rpc('update_community_submission_music', {
+    p_submission_id: submissionId,
+    p_music: music,
+  });
+  throwIfError(error, '음악 정보를 저장하지 못했습니다.');
+}
+
 export interface CommunityFeedItem {
   id: string;
   user_id: string;
@@ -748,6 +778,8 @@ export interface CommunityFeedItem {
   like_count: number;
   comment_count: number;
   liked_by_me: boolean;
+  /** Apple Music 메타; 없으면 null */
+  music_json?: AppleMusicFeedAttachment | null;
   created_at: string;
 }
 
@@ -997,6 +1029,12 @@ export async function generateUGCEvent(params: {
   return invokeEdgeFunction<GenerateUGCResult>('generate-ugc-event', params);
 }
 
+export interface SaveUGCEventResult {
+  event_id: string;
+  /** 커버 이미지가 있을 때만 피드 행이 생기며, Apple Music 첨부 시트에 사용 */
+  feed_submission_id: string | null;
+}
+
 export async function saveUGCEvent(params: {
   title: string;
   narrative: string;
@@ -1010,8 +1048,8 @@ export async function saveUGCEvent(params: {
   reward_xp: number;
   missions: UGCSuggestedEvent['missions'];
   cover_image_url?: string | null;
-}): Promise<{ event_id: string }> {
-  return invokeEdgeFunction<{ event_id: string }>('generate-ugc-event', {
+}): Promise<SaveUGCEventResult> {
+  return invokeEdgeFunction<SaveUGCEventResult>('generate-ugc-event', {
     action: 'save',
     event_data: params,
   });
@@ -1041,12 +1079,17 @@ export interface SeasonReward {
   label: string;
 }
 
+/** Matches `add_season_xp` / season pass RPCs (200 XP per level, cap 30). */
+export const SEASON_XP_PER_LEVEL = 200;
+export const SEASON_MAX_LEVEL = 30;
+
 export interface SeasonPassData {
   id: string;
   is_premium: boolean;
   current_level: number;
   season_xp: number;
-  claimed_rewards: string[];
+  /** jsonb from DB: array of claimed level keys and/or object keys */
+  claimed_rewards: unknown;
 }
 
 export interface ActiveSeasonResult {

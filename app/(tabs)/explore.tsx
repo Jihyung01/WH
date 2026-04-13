@@ -8,7 +8,6 @@ import {
   Pressable,
   ActivityIndicator,
   Dimensions,
-  Linking,
   Platform,
   Modal,
   TextInput,
@@ -26,7 +25,9 @@ import {
   getFeedComments,
   type CommunityFeedItem,
   type FeedComment,
+  type AppleMusicFeedAttachment,
 } from '../../src/lib/api';
+import { FeedAppleMusicCard } from '../../src/components/music/FeedAppleMusicCard';
 import { shareKakaoFeedCard } from '../../src/services/kakaoShare';
 import { useTheme } from '../../src/providers/ThemeProvider';
 import { FONT_SIZE, FONT_WEIGHT, SPACING, BORDER_RADIUS, BRAND } from '../../src/config/theme';
@@ -59,13 +60,20 @@ function locationLine(item: CommunityFeedItem): string | null {
   return bits.slice(0, 2).join(' · ');
 }
 
-function musicSearchUrl(item: CommunityFeedItem): string | null {
-  const q = [item.event_title, item.event_district, item.event_address]
-    .filter((s) => s && String(s).trim())
-    .join(' ')
-    .trim();
-  if (q.length < 2) return null;
-  return `https://music.youtube.com/search?q=${encodeURIComponent(q)}`;
+function parseAppleMusicAttachment(raw: unknown): AppleMusicFeedAttachment | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const o = raw as Record<string, unknown>;
+  if (typeof o.apple_song_id !== 'string' || typeof o.title !== 'string' || typeof o.artist !== 'string') {
+    return null;
+  }
+  return {
+    apple_song_id: o.apple_song_id,
+    title: o.title,
+    artist: o.artist,
+    artwork_url: typeof o.artwork_url === 'string' ? o.artwork_url : null,
+    preview_url: typeof o.preview_url === 'string' ? o.preview_url : null,
+    apple_music_url: typeof o.apple_music_url === 'string' ? o.apple_music_url : null,
+  };
 }
 
 type ThemeColors = ReturnType<typeof useTheme>['colors'];
@@ -74,7 +82,6 @@ function FeedPost({
   item,
   colors,
   onOpenEvent,
-  onOpenMusic,
   onToggleLike,
   onOpenComments,
   onShare,
@@ -82,7 +89,6 @@ function FeedPost({
   item: CommunityFeedItem;
   colors: ThemeColors;
   onOpenEvent: (id: string) => void;
-  onOpenMusic: (url: string) => void;
   onToggleLike: (item: CommunityFeedItem) => void;
   onOpenComments: (item: CommunityFeedItem) => void;
   onShare: (item: CommunityFeedItem) => void;
@@ -90,7 +96,7 @@ function FeedPost({
   const [imgErr, setImgErr] = useState(false);
   const caption = useMemo(() => buildCaption(item), [item]);
   const loc = useMemo(() => locationLine(item), [item]);
-  const musicUrl = useMemo(() => musicSearchUrl(item), [item]);
+  const musicAttach = useMemo(() => parseAppleMusicAttachment(item.music_json), [item.music_json]);
   const canOpen = !!item.event_id;
 
   const typeBadge =
@@ -224,18 +230,7 @@ function FeedPost({
           </View>
         ) : null}
 
-        {musicUrl ? (
-          <Pressable
-            style={[styles.musicBtn, { borderColor: `${BRAND.primary}40` }]}
-            onPress={() => onOpenMusic(musicUrl)}
-          >
-            <Ionicons name="musical-notes" size={18} color={BRAND.primary} />
-            <Text style={[styles.musicBtnText, { color: BRAND.primary }]}>
-              YouTube Music에서 이 장소·이벤트 검색
-            </Text>
-            <Ionicons name="open-outline" size={16} color={BRAND.primary} />
-          </Pressable>
-        ) : null}
+        {musicAttach ? <FeedAppleMusicCard music={musicAttach} /> : null}
 
         {canOpen ? (
           <Pressable onPress={() => item.event_id && onOpenEvent(item.event_id)}>
@@ -468,15 +463,6 @@ export default function ExploreScreen() {
     [router],
   );
 
-  const openMusic = useCallback(async (url: string) => {
-    try {
-      const supported = await Linking.canOpenURL(url);
-      if (supported) await Linking.openURL(url);
-    } catch {
-      /* ignore */
-    }
-  }, []);
-
   const handleToggleLike = useCallback(async (item: CommunityFeedItem) => {
     const prevLiked = item.liked_by_me;
     const prevCount = item.like_count;
@@ -558,13 +544,12 @@ export default function ExploreScreen() {
         item={item}
         colors={colors}
         onOpenEvent={openEvent}
-        onOpenMusic={openMusic}
         onToggleLike={handleToggleLike}
         onOpenComments={handleOpenComments}
         onShare={handleShare}
       />
     ),
-    [colors, openEvent, openMusic, handleToggleLike, handleOpenComments, handleShare],
+    [colors, openEvent, handleToggleLike, handleOpenComments, handleShare],
   );
 
   return (
@@ -755,21 +740,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: FONT_SIZE.sm,
     lineHeight: FONT_SIZE.sm * 1.5,
-  },
-  musicBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg,
-    borderWidth: 1,
-    marginTop: 4,
-  },
-  musicBtnText: {
-    flex: 1,
-    fontSize: FONT_SIZE.sm,
-    fontWeight: FONT_WEIGHT.semibold,
   },
   eventLink: {
     fontSize: FONT_SIZE.sm,

@@ -28,6 +28,7 @@ import {
   acceptCommunityTerms,
   COMMUNITY_TERMS_VERSION,
 } from '../src/lib/api';
+import { AppleMusicAttachSheet } from '../src/components/music/AppleMusicAttachSheet';
 import type { UGCSuggestedEvent } from '../src/lib/api';
 import { validateUGCText } from '../src/utils/contentModeration';
 import {
@@ -97,6 +98,7 @@ export default function CreateEventScreen() {
   // Step 4: Saving
   const [saving, setSaving] = useState(false);
   const [savedEventId, setSavedEventId] = useState<string | null>(null);
+  const [ugcMusicAttachSubmissionId, setUgcMusicAttachSubmissionId] = useState<string | null>(null);
 
   /** App Store UGC: must accept community terms before creating content */
   const [ugcGate, setUgcGate] = useState<'loading' | 'need_terms' | 'ok'>('loading');
@@ -254,6 +256,7 @@ export default function CreateEventScreen() {
       });
 
       setSavedEventId(result.event_id);
+      setUgcMusicAttachSubmissionId(result.feed_submission_id ?? null);
       setStep(4);
     } catch (err: any) {
       Alert.alert('저장 실패', err?.message ?? '이벤트를 저장하지 못했습니다.');
@@ -644,45 +647,52 @@ export default function CreateEventScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { paddingTop: insets.top }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={0}
-    >
-      {/* Header */}
-      <View style={styles.header}>
-        <Pressable style={styles.headerBackBtn} onPress={goBack} hitSlop={12}>
-          <Ionicons
-            name={step === 1 ? 'close' : 'chevron-back'}
-            size={24}
-            color={COLORS.textPrimary}
-          />
-        </Pressable>
-        <Text style={styles.headerTitle}>이벤트 만들기</Text>
-        <StepIndicator current={step} />
-      </View>
-
-      {/* Content */}
-      <ScrollView
-        ref={scrollRef}
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+    <>
+      <KeyboardAvoidingView
+        style={[styles.container, { paddingTop: insets.top }]}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
       >
-        {step === 1 && renderStep1()}
-        {step === 2 && renderStep2()}
-        {step === 3 && renderStep3()}
-        {step === 4 && renderStep4()}
-      </ScrollView>
-
-      {/* Footer */}
-      {renderFooterButton() && (
-        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, SPACING.md) }]}>
-          {renderFooterButton()}
+        {/* Header */}
+        <View style={styles.header}>
+          <Pressable style={styles.headerBackBtn} onPress={goBack} hitSlop={12}>
+            <Ionicons
+              name={step === 1 ? 'close' : 'chevron-back'}
+              size={24}
+              color={COLORS.textPrimary}
+            />
+          </Pressable>
+          <Text style={styles.headerTitle}>이벤트 만들기</Text>
+          <StepIndicator current={step} />
         </View>
-      )}
-    </KeyboardAvoidingView>
+
+        {/* Content */}
+        <ScrollView
+          ref={scrollRef}
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {step === 1 && renderStep1()}
+          {step === 2 && renderStep2()}
+          {step === 3 && renderStep3()}
+          {step === 4 && renderStep4()}
+        </ScrollView>
+
+        {/* Footer */}
+        {renderFooterButton() && (
+          <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, SPACING.md) }]}>
+            {renderFooterButton()}
+          </View>
+        )}
+      </KeyboardAvoidingView>
+      <AppleMusicAttachSheet
+        visible={ugcMusicAttachSubmissionId !== null}
+        submissionId={ugcMusicAttachSubmissionId}
+        onClose={() => setUgcMusicAttachSubmissionId(null)}
+      />
+    </>
   );
 }
 

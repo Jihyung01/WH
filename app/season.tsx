@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo, type ComponentProps } from 'react';
 import {
   View,
   Text,
@@ -28,8 +28,13 @@ import Animated, {
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 
-import { getActiveSeason, claimSeasonReward } from '../src/lib/api';
-import type { ActiveSeasonResult, SeasonReward } from '../src/lib/api';
+import {
+  getActiveSeason,
+  claimSeasonReward,
+  SEASON_MAX_LEVEL,
+  SEASON_XP_PER_LEVEL,
+} from '../src/lib/api';
+import type { ActiveSeasonResult, SeasonInfo, SeasonPassData, SeasonReward } from '../src/lib/api';
 import {
   COLORS,
   SPACING,
@@ -41,10 +46,17 @@ import {
 } from '../src/config/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const MAX_LEVEL = 30;
 const NODE_SIZE = 56;
 const NODE_GAP = 16;
 const TRACK_ITEM_WIDTH = NODE_SIZE + NODE_GAP;
+
+type IonIconName = ComponentProps<typeof Ionicons>['name'];
+
+const PREMIUM_BENEFITS: { icon: IonIconName; text: string }[] = [
+  { icon: 'color-palette', text: '프리미엄 스킨 8개' },
+  { icon: 'flash', text: '추가 XP 보너스' },
+  { icon: 'sparkles', text: '한정 이펙트' },
+];
 
 const REWARD_ICONS: Record<string, string> = {
   xp: '⚡',
@@ -54,6 +66,40 @@ const REWARD_ICONS: Record<string, string> = {
   item: '🎁',
   currency: '💎',
 };
+
+/** UI row: API `SeasonReward` + track + computed claimed flag */
+type TrackReward = SeasonReward & {
+  track: 'free' | 'premium';
+  claimed: boolean;
+};
+
+function isLevelClaimed(claimedRaw: unknown, level: number): boolean {
+  const key = String(level);
+  if (claimedRaw == null) return false;
+  if (Array.isArray(claimedRaw)) {
+    return claimedRaw.some((x) => String(x) === key);
+  }
+  if (typeof claimedRaw === 'object') {
+    return Object.prototype.hasOwnProperty.call(claimedRaw, key);
+  }
+  return false;
+}
+
+function buildTrackRewards(
+  rows: SeasonReward[] | undefined,
+  track: 'free' | 'premium',
+  claimedRaw: unknown,
+): Map<number, TrackReward> {
+  const map = new Map<number, TrackReward>();
+  for (const r of rows ?? []) {
+    map.set(r.level, {
+      ...r,
+      track,
+      claimed: isLevelClaimed(claimedRaw, r.level),
+    });
+  }
+  return map;
+}
 
 function getDaysRemaining(endsAt: string): number {
   const diff = new Date(endsAt).getTime() - Date.now();
@@ -65,7 +111,7 @@ function SkeletonBlock({
   height,
   style,
 }: {
-  width: number | string;
+  width: number | `${number}%` | 'auto';
   height: number;
   style?: object;
 }) {
@@ -73,7 +119,7 @@ function SkeletonBlock({
     <View
       style={[
         {
-          width: width as any,
+          width,
           height,
           borderRadius: BORDER_RADIUS.sm,
           backgroundColor: COLORS.surfaceLight,
@@ -175,7 +221,7 @@ function RewardNode({
   onClaim,
   claimingLevel,
 }: {
-  reward: SeasonReward;
+  reward: TrackReward;
   userLevel: number;
   isPremium: boolean;
   onClaim: (level: number, track: 'free' | 'premium') => void;
@@ -186,7 +232,7 @@ function RewardNode({
   const locked = reward.track === 'premium' && !isPremium;
   const claimable = reachable && !reward.claimed && !locked;
   const isClaiming = claimingLevel === reward.level;
-  const icon = REWARD_ICONS[reward.reward_type] ?? '🎁';
+  const icon = REWARD_ICONS[reward.type] ?? '🎁';
 
   const handlePress = () => {
     if (!claimable || isClaiming) return;
@@ -226,7 +272,7 @@ function RewardNode({
             ]}
             numberOfLines={1}
           >
-            {reward.reward_name}
+            {reward.label}
           </Text>
         </View>
       </PulsingNode>
@@ -373,7 +419,7 @@ function ProgressBar({
   }, [progress]);
 
   const animStyle = useAnimatedStyle(() => ({
-    width: `${width.value * 100}%` as any,
+    width: `${Math.min(100, Math.max(0, width.value * 100))}%`,
   }));
 
   return (
@@ -402,7 +448,7 @@ export default function SeasonPassScreen() {
   const insets = useSafeAreaInsets();
   const trackScrollRef = useRef<ScrollView>(null);
 
-  const [season, setSeason] = useState<ActiveSeasonResult | null>(null);
+  const [seasonResult, setSeasonResult] = useState<ActiveSeasonResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [claimingLevel, setClaimingLevel] = useState<number | null>(null);
@@ -412,7 +458,7 @@ export default function SeasonPassScreen() {
       setLoading(true);
       setError(false);
       const data = await getActiveSeason();
-      setSeason(data);
+      setSeasonResult(data);
     } catch {
       setError(true);
     } finally {
@@ -424,56 +470,42 @@ export default function SeasonPassScreen() {
     loadSeason();
   }, [loadSeason]);
 
+  const hasSeasonContent = Boolean(
+    seasonResult?.has_active_season && seasonResult.season && seasonResult.pass,
+  );
+
   useEffect(() => {
-    if (season && trackScrollRef.current) {
-      const offset = Math.max(0, (season.user_level - 2) * TRACK_ITEM_WIDTH);
-      setTimeout(() => {
-        trackScrollRef.current?.scrollTo({ x: offset, animated: true });
-      }, 500);
-    }
-  }, [season]);
+    if (!hasSeasonContent || !seasonResult?.pass || !trackScrollRef.current) return;
+    const lvl = seasonResult.pass.current_level;
+    const offset = Math.max(0, (lvl - 2) * TRACK_ITEM_WIDTH);
+    const t = setTimeout(() => {
+      trackScrollRef.current?.scrollTo({ x: offset, animated: true });
+    }, 500);
+    return () => clearTimeout(t);
+  }, [hasSeasonContent, seasonResult?.pass?.current_level]);
 
   const handleClaim = useCallback(
-    async (level: number, track: 'free' | 'premium') => {
-      if (!season) return;
+    async (level: number, _track: 'free' | 'premium') => {
+      if (!seasonResult?.pass) return;
       try {
         setClaimingLevel(level);
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        await claimSeasonReward(level, track);
+        await claimSeasonReward(level);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-        setSeason((prev) => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            rewards: prev.rewards.map((r) =>
-              r.level === level && r.track === track ? { ...r, claimed: true } : r,
-            ),
-          };
-        });
+        await loadSeason();
       } catch {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       } finally {
         setClaimingLevel(null);
       }
     },
-    [season],
+    [seasonResult, loadSeason],
   );
 
-  const daysRemaining = season ? getDaysRemaining(season.ends_at) : 0;
-  const levelProgress = season
-    ? season.xp_current_level / season.xp_per_level
-    : 0;
-  const overallProgress = season ? season.user_level / season.max_level : 0;
-
-  const freeRewardsByLevel = new Map<number, SeasonReward>();
-  const premiumRewardsByLevel = new Map<number, SeasonReward>();
-  if (season) {
-    for (const r of season.rewards) {
-      if (r.track === 'free') freeRewardsByLevel.set(r.level, r);
-      else premiumRewardsByLevel.set(r.level, r);
-    }
-  }
+  const daysRemaining = useMemo(() => {
+    if (!seasonResult?.has_active_season || !seasonResult.season) return 0;
+    return seasonResult.days_remaining ?? getDaysRemaining(seasonResult.season.end_date);
+  }, [seasonResult]);
 
   const renderEmptyState = () => (
     <Animated.View entering={FadeIn.duration(400)} style={styles.emptyContainer}>
@@ -492,7 +524,24 @@ export default function SeasonPassScreen() {
   );
 
   const renderContent = () => {
-    if (!season) return null;
+    if (!seasonResult?.season || !seasonResult.pass) return null;
+
+    const si: SeasonInfo = seasonResult.season;
+    const pass: SeasonPassData = seasonResult.pass;
+
+    const xpIntoLevel = Math.max(0, pass.season_xp - pass.current_level * SEASON_XP_PER_LEVEL);
+    const levelProgress = Math.min(1, xpIntoLevel / SEASON_XP_PER_LEVEL);
+    const overallProgress = Math.min(1, pass.current_level / SEASON_MAX_LEVEL);
+
+    const freeRewardsByLevel = buildTrackRewards(si.reward_track, 'free', pass.claimed_rewards);
+    const premiumRewardsByLevel = buildTrackRewards(
+      si.premium_reward_track,
+      'premium',
+      pass.claimed_rewards,
+    );
+
+    const theme = si.theme_color || BRAND.primary;
+    const bannerColors: [string, string, string] = [theme, `${theme}88`, COLORS.surface];
 
     return (
       <ScrollView
@@ -506,15 +555,15 @@ export default function SeasonPassScreen() {
         {/* Season Banner */}
         <Animated.View entering={FadeInUp.duration(400).delay(100)}>
           <LinearGradient
-            colors={[season.theme_color || BRAND.primary, `${season.theme_color || BRAND.primary}88`, COLORS.surface]}
+            colors={bannerColors}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.banner}
           >
             <View style={styles.bannerContent}>
               <Text style={styles.bannerLabel}>SEASON PASS</Text>
-              <Text style={styles.bannerTitle}>{season.name}</Text>
-              <Text style={styles.bannerDesc}>{season.description}</Text>
+              <Text style={styles.bannerTitle}>{si.name}</Text>
+              <Text style={styles.bannerDesc}>{si.description ?? ''}</Text>
             </View>
             <ProgressBar progress={overallProgress} delay={300} height={6} color="#FFF" />
             <Text style={styles.bannerProgress}>
@@ -527,16 +576,16 @@ export default function SeasonPassScreen() {
         <Animated.View entering={FadeInUp.duration(400).delay(200)} style={styles.levelCard}>
           <View style={styles.levelHeader}>
             <View style={styles.levelBadge}>
-              <Text style={styles.levelBadgeText}>Lv.{season.user_level}</Text>
+              <Text style={styles.levelBadgeText}>Lv.{pass.current_level}</Text>
             </View>
             <Text style={styles.levelLabel}>
-              {season.user_level} / {season.max_level}
+              {pass.current_level} / {SEASON_MAX_LEVEL}
             </Text>
           </View>
           <ProgressBar progress={levelProgress} delay={500} />
           <View style={styles.xpRow}>
             <Text style={styles.xpText}>
-              {season.xp_current_level} / {season.xp_per_level} XP
+              {xpIntoLevel} / {SEASON_XP_PER_LEVEL} XP
             </Text>
             <Text style={styles.xpNextText}>다음 레벨까지</Text>
           </View>
@@ -546,7 +595,6 @@ export default function SeasonPassScreen() {
         <Animated.View entering={FadeInUp.duration(400).delay(300)}>
           <Text style={styles.sectionTitle}>보상 트랙</Text>
 
-          {/* Level Timeline */}
           <View style={styles.trackContainer}>
             <Text style={styles.trackLabel}>무료 트랙</Text>
             <ScrollView
@@ -556,9 +604,8 @@ export default function SeasonPassScreen() {
               contentContainerStyle={styles.trackScroll}
             >
               <View>
-                {/* Free rewards row */}
                 <View style={styles.trackRow}>
-                  {Array.from({ length: MAX_LEVEL }, (_, i) => {
+                  {Array.from({ length: SEASON_MAX_LEVEL }, (_, i) => {
                     const level = i + 1;
                     const reward = freeRewardsByLevel.get(level);
                     if (reward) {
@@ -566,8 +613,8 @@ export default function SeasonPassScreen() {
                         <RewardNode
                           key={`free-${level}`}
                           reward={reward}
-                          userLevel={season.user_level}
-                          isPremium={season.is_premium}
+                          userLevel={pass.current_level}
+                          isPremium={pass.is_premium}
                           onClaim={handleClaim}
                           claimingLevel={claimingLevel}
                         />
@@ -577,22 +624,20 @@ export default function SeasonPassScreen() {
                   })}
                 </View>
 
-                {/* Level number row */}
                 <View style={styles.trackRow}>
-                  {Array.from({ length: MAX_LEVEL }, (_, i) => {
+                  {Array.from({ length: SEASON_MAX_LEVEL }, (_, i) => {
                     const level = i + 1;
                     return (
                       <LevelNode
                         key={`level-${level}`}
                         level={level}
-                        isCurrent={level === season.user_level}
-                        isPast={level < season.user_level}
+                        isCurrent={level === pass.current_level}
+                        isPast={level < pass.current_level}
                       />
                     );
                   })}
                 </View>
 
-                {/* Connector line */}
                 <View style={styles.connectorLineContainer}>
                   <View
                     style={[
@@ -600,7 +645,7 @@ export default function SeasonPassScreen() {
                       {
                         width: Math.max(
                           0,
-                          (season.user_level - 1) * TRACK_ITEM_WIDTH + NODE_SIZE / 2,
+                          (pass.current_level - 1) * TRACK_ITEM_WIDTH + NODE_SIZE / 2,
                         ),
                       },
                     ]}
@@ -608,14 +653,13 @@ export default function SeasonPassScreen() {
                   <View
                     style={[
                       styles.connectorLineBg,
-                      { width: MAX_LEVEL * TRACK_ITEM_WIDTH },
+                      { width: SEASON_MAX_LEVEL * TRACK_ITEM_WIDTH },
                     ]}
                   />
                 </View>
 
-                {/* Premium rewards row */}
                 <View style={styles.trackRow}>
-                  {Array.from({ length: MAX_LEVEL }, (_, i) => {
+                  {Array.from({ length: SEASON_MAX_LEVEL }, (_, i) => {
                     const level = i + 1;
                     const reward = premiumRewardsByLevel.get(level);
                     if (reward) {
@@ -623,8 +667,8 @@ export default function SeasonPassScreen() {
                         <RewardNode
                           key={`premium-${level}`}
                           reward={reward}
-                          userLevel={season.user_level}
-                          isPremium={season.is_premium}
+                          userLevel={pass.current_level}
+                          isPremium={pass.is_premium}
                           onClaim={handleClaim}
                           claimingLevel={claimingLevel}
                         />
@@ -636,13 +680,12 @@ export default function SeasonPassScreen() {
               </View>
             </ScrollView>
             <Text style={styles.trackLabel}>
-              프리미엄 트랙 {!season.is_premium && '🔒'}
+              프리미엄 트랙 {!pass.is_premium && '🔒'}
             </Text>
           </View>
         </Animated.View>
 
-        {/* Premium Upgrade CTA */}
-        {!season.is_premium && (
+        {!pass.is_premium && (
           <Animated.View entering={FadeInUp.duration(400).delay(400)} style={styles.premiumCard}>
             <LinearGradient
               colors={['#8B5CF620', '#2DD4A820']}
@@ -656,17 +699,9 @@ export default function SeasonPassScreen() {
               </View>
               <Text style={styles.premiumTitle}>프리미엄 패스 업그레이드</Text>
               <View style={styles.premiumBenefits}>
-                {[
-                  { icon: 'color-palette', text: '프리미엄 스킨 8개' },
-                  { icon: 'flash', text: '추가 XP 보너스' },
-                  { icon: 'sparkles', text: '한정 이펙트' },
-                ].map((b) => (
+                {PREMIUM_BENEFITS.map((b) => (
                   <View key={b.text} style={styles.benefitRow}>
-                    <Ionicons
-                      name={b.icon as any}
-                      size={16}
-                      color={BRAND.primary}
-                    />
+                    <Ionicons name={b.icon} size={16} color={BRAND.primary} />
                     <Text style={styles.benefitText}>{b.text}</Text>
                   </View>
                 ))}
@@ -684,26 +719,25 @@ export default function SeasonPassScreen() {
           </Animated.View>
         )}
 
-        {/* Season Stats Footer */}
         <Animated.View entering={FadeInUp.duration(400).delay(500)} style={styles.statsCard}>
           <Text style={styles.statsTitle}>시즌 통계</Text>
           <View style={styles.statsGrid}>
             <View style={styles.statBox}>
               <Ionicons name="flash" size={22} color="#FBBF24" />
-              <Text style={styles.statBoxValue}>
-                {season.total_xp_earned.toLocaleString()}
-              </Text>
-              <Text style={styles.statBoxLabel}>획득 XP</Text>
+              <Text style={styles.statBoxValue}>{pass.season_xp.toLocaleString()}</Text>
+              <Text style={styles.statBoxLabel}>시즌 XP</Text>
             </View>
             <View style={styles.statBox}>
-              <Ionicons name="flag" size={22} color={BRAND.primary} />
-              <Text style={styles.statBoxValue}>{season.events_completed}</Text>
-              <Text style={styles.statBoxLabel}>완료 이벤트</Text>
+              <Ionicons name="trophy" size={22} color={BRAND.primary} />
+              <Text style={styles.statBoxValue}>
+                {pass.current_level} / {SEASON_MAX_LEVEL}
+              </Text>
+              <Text style={styles.statBoxLabel}>시즌 레벨</Text>
             </View>
             <View style={styles.statBox}>
               <Ionicons name="calendar" size={22} color="#818CF8" />
-              <Text style={styles.statBoxValue}>{season.days_active}</Text>
-              <Text style={styles.statBoxLabel}>활동 일수</Text>
+              <Text style={styles.statBoxValue}>{daysRemaining}</Text>
+              <Text style={styles.statBoxLabel}>남은 일수</Text>
             </View>
           </View>
         </Animated.View>
@@ -713,7 +747,6 @@ export default function SeasonPassScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* Header */}
       <View style={styles.header}>
         <Pressable
           style={styles.backBtn}
@@ -723,7 +756,7 @@ export default function SeasonPassScreen() {
           <Ionicons name="chevron-back" size={24} color={COLORS.textPrimary} />
         </Pressable>
         <Text style={styles.headerTitle}>시즌 패스</Text>
-        {season && !loading ? (
+        {hasSeasonContent && !loading ? (
           <View style={styles.daysBadge}>
             <Ionicons name="time-outline" size={14} color={BRAND.primary} />
             <Text style={styles.daysBadgeText}>{daysRemaining}일 남음</Text>
@@ -735,7 +768,7 @@ export default function SeasonPassScreen() {
 
       {loading ? (
         <LoadingSkeleton />
-      ) : error || !season ? (
+      ) : error || !hasSeasonContent ? (
         renderEmptyState()
       ) : (
         renderContent()

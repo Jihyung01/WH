@@ -28,7 +28,8 @@ import {
   subscribeToFriendLocations,
 } from '../../src/services/friendLocation';
 import type { FriendLocation } from '../../src/services/friendLocation';
-import { getFriends } from '../../src/lib/api';
+import { getFriends, getStreakInfo } from '../../src/lib/api';
+import DailyRewardModal from '../../src/components/rewards/DailyRewardModal';
 import { getMapStyle } from '../../src/components/map/mapStyle';
 import { registerGeofences } from '../../src/services/geofencing';
 import { TutorialOverlay, useTutorial } from '../../src/components/onboarding';
@@ -113,6 +114,7 @@ export default function MapScreen() {
 
   const { showTutorial, completeTutorial } = useTutorial();
   const [mapReady, setMapReady] = useState(false);
+  const [dailyRewardModalVisible, setDailyRewardModalVisible] = useState(false);
   const [friendLocations, setFriendLocations] = useState<FriendLocation[]>([]);
   const [initialRegion, setInitialRegion] = useState<Region | null>(null);
   const userHeading = useLocationStore((s) => s.heading);
@@ -140,6 +142,26 @@ export default function MapScreen() {
       startTracking();
     })();
   }, [isFocused]);
+
+  // ── Daily reward modal (OTA-friendly; coins/XP handled by claim_daily_reward RPC) ──
+  useEffect(() => {
+    if (!isFocused || !userId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const info = await getStreakInfo();
+        if (cancelled) return;
+        if (!info.claimed_today) {
+          setDailyRewardModalVisible(true);
+        }
+      } catch {
+        /* offline / RPC — skip modal */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isFocused, userId]);
 
   // ── Load friend locations ──
   useEffect(() => {
@@ -469,6 +491,11 @@ export default function MapScreen() {
         visible={showTutorial}
         onComplete={completeTutorial}
         onSkip={completeTutorial}
+      />
+
+      <DailyRewardModal
+        visible={dailyRewardModalVisible}
+        onClose={() => setDailyRewardModalVisible(false)}
       />
     </View>
   );

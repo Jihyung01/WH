@@ -67,3 +67,10 @@ entrypoint = "./functions/generate-ugc-event/index.ts"
 enabled = true
 verify_jwt = false
 entrypoint = "./functions/delete-account/index.ts"
+
+# Apple Music 카탈로그 검색 (JWT는 함수 내부 getUser로 검증)
+[functions.apple-music-search]
+enabled = true
+verify_jwt = false
+import_map = "./functions/apple-music-search/deno.json"
+entrypoint = "./functions/apple-music-search/index.ts"
