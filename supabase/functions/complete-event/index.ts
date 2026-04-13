@@ -57,6 +57,13 @@ function evolutionStage(level: number): { stage: number; label: string } {
   return { stage: 1, label: "Baby" };
 }
 
+function evolutionStageKey(stageNum: number): "teen" | "adult" | "legendary" | null {
+  if (stageNum === 2) return "teen";
+  if (stageNum === 3) return "adult";
+  if (stageNum === 4) return "legendary";
+  return null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -194,12 +201,51 @@ Deno.serve(async (req) => {
         .update(updatePayload)
         .eq("id", character.id);
 
+      // ── Evolution AI image (internal Edge Function) ───────────────────────
+      let evolutionImageUrl: string | null = null;
+      const didEvolve = newStage > prevStage;
+      const stageKey = didEvolve ? evolutionStageKey(newStage) : null;
+      if (didEvolve && stageKey) {
+        try {
+          const { data: updatedChar } = await supabase
+            .from("characters")
+            .select("character_type, personality_traits, favorite_district")
+            .eq("id", character.id)
+            .single();
+
+          const fnUrl = `${Deno.env.get("SUPABASE_URL")!.replace(/\/$/, "")}/functions/v1/generate-evolution-image`;
+          const srk = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+          const resp = await fetch(fnUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${srk}`,
+            },
+            body: JSON.stringify({
+              user_id: user.id,
+              character_type: updatedChar?.character_type ?? character.character_type,
+              evolution_stage: stageKey,
+              personality_traits: updatedChar?.personality_traits ?? [],
+              favorite_district: updatedChar?.favorite_district ?? null,
+            }),
+          });
+          if (resp.ok) {
+            const out = await resp.json().catch(() => null) as { image_url?: string } | null;
+            evolutionImageUrl = typeof out?.image_url === "string" ? out.image_url : null;
+          }
+        } catch {
+          // non-critical
+        }
+      }
+
       characterResult = {
         previous_level: prevLevel,
         new_level: newLevel,
         level_up: newLevel > prevLevel,
-        evolution: newStage > prevStage,
+        evolution: didEvolve,
         evolution_stage: newStage,
+        evolution_image_url: evolutionImageUrl,
         total_xp: newXp,
         stats_increased: statsIncrease,
         personality_updated: false,

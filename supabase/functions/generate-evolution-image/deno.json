@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "lib": ["deno.ns", "deno.window", "esnext"]
+  },
+  "imports": {
+    "@supabase/functions-js": "jsr:@supabase/functions-js@^2"
+  }
+}
+

@@ -74,3 +74,10 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/apple-music-search/deno.json"
 entrypoint = "./functions/apple-music-search/index.ts"
+
+# 내부 호출 전용: service role key로만 접근
+[functions.generate-evolution-image]
+enabled = true
+verify_jwt = false
+import_map = "./functions/generate-evolution-image/deno.json"
+entrypoint = "./functions/generate-evolution-image/index.ts"
