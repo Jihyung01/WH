@@ -10,6 +10,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { EventCategory } from '../../types/enums';
 import type { NearbyEvent, GeoPoint } from '../../types';
+import { getConditionalEventTag } from '../../services/weather';
 import { getDistance } from '../../utils/geo';
 import { CHECK_IN_RADIUS_METERS } from '../../utils/constants';
 import { COLORS } from '../../config/theme';
@@ -40,6 +41,8 @@ function getMarkerConfig(category: string) {
 
 function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps) {
   const config = getMarkerConfig(event.category);
+  const conditionalLabel =
+    event.visibility_conditions != null ? getConditionalEventTag(event.visibility_conditions) : null;
   const isExpired = !event.is_active || (event.expires_at != null && new Date(event.expires_at) < new Date());
 
   const coordinate = { latitude: event.lat, longitude: event.lng };
@@ -70,7 +73,7 @@ function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps
     opacity: pulseVisible.value ? pulseOpacity.value : 0,
   }));
 
-  const markerColor = isExpired ? '#555B6E' : config.color;
+  const markerColor = isExpired ? '#555B6E' : conditionalLabel ? '#7C3AED' : config.color;
   const markerOpacity = isExpired ? 0.5 : isInRange ? 1 : 0.7;
 
   return (
@@ -97,6 +100,14 @@ function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps
         </View>
 
         <View style={[styles.arrow, { borderTopColor: markerColor }]} />
+
+        {conditionalLabel && !isExpired ? (
+          <View style={styles.tagWrap}>
+            <Text style={styles.tagText} numberOfLines={1}>
+              {conditionalLabel}
+            </Text>
+          </View>
+        ) : null}
       </View>
     </Marker>
   );
@@ -106,7 +117,8 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     width: 60,
-    height: 60,
+    minHeight: 72,
+    paddingBottom: 4,
   },
   pulseRing: {
     position: 'absolute',
@@ -142,6 +154,20 @@ const styles = StyleSheet.create({
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
     marginTop: -1,
+  },
+  tagWrap: {
+    marginTop: 2,
+    maxWidth: 120,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    backgroundColor: 'rgba(15, 23, 42, 0.88)',
+  },
+  tagText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#F5F3FF',
+    textAlign: 'center',
   },
 });
 

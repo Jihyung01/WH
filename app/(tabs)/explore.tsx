@@ -78,13 +78,14 @@ function parseAppleMusicAttachment(raw: unknown): AppleMusicFeedAttachment | nul
 
 type ThemeColors = ReturnType<typeof useTheme>['colors'];
 
-function FeedPost({
+export function FeedPost({
   item,
   colors,
   onOpenEvent,
   onToggleLike,
   onOpenComments,
   onShare,
+  onPressAuthor,
 }: {
   item: CommunityFeedItem;
   colors: ThemeColors;
@@ -92,6 +93,8 @@ function FeedPost({
   onToggleLike: (item: CommunityFeedItem) => void;
   onOpenComments: (item: CommunityFeedItem) => void;
   onShare: (item: CommunityFeedItem) => void;
+  /** 프로필 화면 등에서 작성자 탭 시 */
+  onPressAuthor?: (userId: string) => void;
 }) {
   const [imgErr, setImgErr] = useState(false);
   const caption = useMemo(() => buildCaption(item), [item]);
@@ -120,9 +123,17 @@ function FeedPost({
         )}
         <View style={styles.postHeaderText}>
           <View style={styles.nameRow}>
-            <Text style={[styles.displayName, { color: colors.textPrimary }]} numberOfLines={1}>
-              {item.username ?? '탐험가'}
-            </Text>
+            {onPressAuthor ? (
+              <Pressable onPress={() => onPressAuthor(item.user_id)} hitSlop={6}>
+                <Text style={[styles.displayName, { color: colors.textPrimary }]} numberOfLines={1}>
+                  {item.username ?? '탐험가'}
+                </Text>
+              </Pressable>
+            ) : (
+              <Text style={[styles.displayName, { color: colors.textPrimary }]} numberOfLines={1}>
+                {item.username ?? '탐험가'}
+              </Text>
+            )}
             <View style={[styles.miniBadge, { backgroundColor: `${BRAND.primary}14` }]}>
               <Text style={[styles.miniBadgeText, { color: BRAND.primary }]}>{typeBadge}</Text>
             </View>
@@ -246,7 +257,7 @@ function FeedPost({
 
 /* ── Comment Modal ── */
 
-function CommentModal({
+export function CommentModal({
   visible,
   submissionId,
   colors,
@@ -538,6 +549,13 @@ export default function ExploreScreen() {
     }
   }, []);
 
+  const onPressAuthor = useCallback(
+    (userId: string) => {
+      router.push(`/user/${userId}` as any);
+    },
+    [router],
+  );
+
   const renderItem = useCallback(
     ({ item }: { item: CommunityFeedItem }) => (
       <FeedPost
@@ -547,9 +565,10 @@ export default function ExploreScreen() {
         onToggleLike={handleToggleLike}
         onOpenComments={handleOpenComments}
         onShare={handleShare}
+        onPressAuthor={onPressAuthor}
       />
     ),
-    [colors, openEvent, handleToggleLike, handleOpenComments, handleShare],
+    [colors, openEvent, handleToggleLike, handleOpenComments, handleShare, onPressAuthor],
   );
 
   return (

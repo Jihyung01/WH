@@ -21,7 +21,13 @@ import { HONGDAE_REGION, getDistance } from '../../src/utils/geo';
 import { MAP_REFETCH_DISTANCE_M } from '../../src/utils/constants';
 import { SPACING, FONT_WEIGHT, SHADOWS, BRAND } from '../../src/config/theme';
 import { useTheme } from '../../src/providers/ThemeProvider';
-import { EventMarker, UserLocationMarker, EventBottomSheet, FriendMarker } from '../../src/components/map';
+import {
+  EventMarker,
+  UserLocationMarker,
+  EventBottomSheet,
+  FriendMarker,
+  CharacterBubble,
+} from '../../src/components/map';
 import {
   ensureFriendLocationPublishingIfNeeded,
   getFriendLocationsSafe,
@@ -35,6 +41,9 @@ import { registerGeofences } from '../../src/services/geofencing';
 import { TutorialOverlay, useTutorial } from '../../src/components/onboarding';
 import type { NearbyEvent } from '../../src/types';
 import { useAuthStore } from '../../src/stores/authStore';
+import { useCharacterStore } from '../../src/stores/characterStore';
+import { useWeatherStore } from '../../src/stores/weatherStore';
+import { CharacterAvatar } from '../../src/components/character/CharacterAvatar';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -94,6 +103,7 @@ export default function MapScreen() {
   const { colors, mode } = useTheme();
   const insets = useSafeAreaInsets();
   const userId = useAuthStore((s) => s.user?.id ?? null);
+  const mapCharacter = useCharacterStore((s) => s.character);
 
   const tabBarReserve = (Platform.OS === 'ios' ? 52 : 54) + Math.max(insets.bottom, Platform.OS === 'android' ? 12 : 8);
   const overlayTop = insets.top + 8;
@@ -110,7 +120,9 @@ export default function MapScreen() {
   const selectEvent = useMapStore((s) => s.selectEvent);
   const setFollowingUser = useMapStore((s) => s.setFollowingUser);
   const fetchNearbyEvents = useMapStore((s) => s.fetchNearbyEvents);
+  const applyWeatherToBufferedEvents = useMapStore((s) => s.applyWeatherToBufferedEvents);
   const setRegion = useMapStore((s) => s.setRegion);
+  const fetchWeather = useWeatherStore((s) => s.fetchWeather);
 
   const { showTutorial, completeTutorial } = useTutorial();
   const [mapReady, setMapReady] = useState(false);
@@ -139,9 +151,27 @@ export default function MapScreen() {
         longitudeDelta: 0.008,
       });
       fetchNearbyEvents(seed);
+      void fetchWeather(seed.latitude, seed.longitude);
       startTracking();
     })();
-  }, [isFocused]);
+  }, [isFocused, fetchWeather]);
+
+  useEffect(() => {
+    if (!isFocused || !currentPosition) return;
+    void fetchWeather(currentPosition.latitude, currentPosition.longitude);
+  }, [isFocused, currentPosition?.latitude, currentPosition?.longitude, fetchWeather]);
+
+  useEffect(() => {
+    return useWeatherStore.subscribe((state, prev) => {
+      if (
+        state.currentWeather !== prev.currentWeather ||
+        state.weatherDataAvailable !== prev.weatherDataAvailable ||
+        state.lastFetched !== prev.lastFetched
+      ) {
+        applyWeatherToBufferedEvents();
+      }
+    });
+  }, [applyWeatherToBufferedEvents]);
 
   // ── Daily reward modal (OTA-friendly; coins/XP handled by claim_daily_reward RPC) ──
   useEffect(() => {
@@ -381,6 +411,9 @@ export default function MapScreen() {
             <UserLocationMarker
               position={currentPosition}
               heading={userHeading}
+              characterType={mapCharacter?.character_type}
+              characterLevel={mapCharacter?.level}
+              favoriteDistrict={mapCharacter?.favorite_district ?? null}
             />
           )}
 
@@ -399,6 +432,14 @@ export default function MapScreen() {
         </ClusteredMapView>
       )}
 
+      {isFocused && mapCharacter ? (
+        <CharacterBubble
+          situation="app_open"
+          preferEnvironmentalLine
+          topOffset={overlayTop + 52}
+        />
+      ) : null}
+
       {/* ── Top Left: User avatar ── */}
       <Pressable
         style={[styles.avatarBtn, { top: overlayTop }]}
@@ -407,10 +448,22 @@ export default function MapScreen() {
         accessibilityRole="button"
       >
         <View style={[styles.avatarCircle, { backgroundColor: colors.surface, borderColor: BRAND.primary }]}>
-          <Text style={styles.avatarEmoji}>🧑‍🚀</Text>
+          <CharacterAvatar
+            characterType={mapCharacter?.character_type ?? 'explorer'}
+            level={mapCharacter?.level ?? 1}
+            size={34}
+            showLoadoutOverlay={false}
+            showEvolutionBadge={false}
+            favoriteDistrict={mapCharacter?.favorite_district ?? null}
+            borderColor={BRAND.primary}
+            backgroundColor={colors.surface}
+            interactive={false}
+          />
         </View>
         <View style={[styles.levelBadge, { backgroundColor: BRAND.primary, borderColor: colors.surface }]}>
-          <Text style={[styles.levelText, { color: '#FFFFFF' }]}>1</Text>
+          <Text style={[styles.levelText, { color: '#FFFFFF' }]}>
+            {mapCharacter?.level ?? 1}
+          </Text>
         </View>
       </Pressable>
 
@@ -521,9 +574,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 2,
     ...SHADOWS.md,
-  },
-  avatarEmoji: {
-    fontSize: 22,
   },
   levelBadge: {
     position: 'absolute',

@@ -11,7 +11,7 @@ import {
   KeyboardAvoidingView,
   ScrollView,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -25,6 +25,7 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { useAuthStore } from '../../src/stores/authStore';
+import { profileNeedsPersonalityQuiz } from '../../src/lib/api';
 import { useTheme } from '../../src/providers/ThemeProvider';
 import { BRAND, SPACING, FONT_SIZE, FONT_WEIGHT, BORDER_RADIUS, SHADOWS } from '../../src/config/theme';
 import { PressableScale } from '../../src/components/ui';
@@ -102,7 +103,12 @@ export default function LoginScreen() {
     if (!isAuthenticated) return;
     const hasOnboarded = await checkOnboardingStatus();
     if (hasOnboarded) router.replace('/(tabs)/map');
-    else router.replace('/(auth)/onboarding');
+    else {
+      const needsQuiz = await profileNeedsPersonalityQuiz();
+      router.replace(
+        (needsQuiz ? '/(auth)/personality-quiz' : '/(auth)/onboarding') as Href,
+      );
+    }
   }
 
   const handleKakaoLogin = async () => {

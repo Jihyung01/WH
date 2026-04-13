@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Pressable, TextInput, ScrollView, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams, type Href } from 'expo-router';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -12,11 +12,12 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import { createCharacter, updateProfile } from '../../src/lib/api';
+import { createCharacter, updateProfile, profileNeedsPersonalityQuiz } from '../../src/lib/api';
 import { supabase } from '../../src/config/supabase';
 import { useAuthStore } from '../../src/stores/authStore';
 import { useCharacterStore } from '../../src/stores/characterStore';
 import { COLORS, SPACING, FONT_SIZE, FONT_WEIGHT, BORDER_RADIUS } from '../../src/config/theme';
+import { CharacterAvatar } from '../../src/components/character/CharacterAvatar';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -73,17 +74,26 @@ const STARTER_CHARACTERS: StarterCharacterDef[] = [
 
 export default function OnboardingScreen() {
   const router = useRouter();
+  const { recommended } = useLocalSearchParams<{ recommended?: string }>();
   const { setOnboardingComplete } = useAuthStore();
 
-  /** Already has a character (e.g. auth gate timed out) → skip to map */
+  /** 캐릭터 있음 → 맵 / 성격 진단 미완 → 퀴즈 / 그 외 온보딩 유지 */
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       try {
         const hasCharacter = await useAuthStore.getState().checkOnboardingStatus();
-        if (cancelled || !hasCharacter) return;
-        useAuthStore.getState().setOnboardingComplete(true);
-        router.replace('/(tabs)/map');
+        if (cancelled) return;
+        if (hasCharacter) {
+          useAuthStore.getState().setOnboardingComplete(true);
+          router.replace('/(tabs)/map');
+          return;
+        }
+        const needsQuiz = await profileNeedsPersonalityQuiz();
+        if (cancelled) return;
+        if (needsQuiz) {
+          router.replace('/(auth)/personality-quiz' as Href);
+        }
       } catch {
         /* stay */
       }
@@ -99,6 +109,13 @@ export default function OnboardingScreen() {
   const [isCheckingUsername, setIsCheckingUsername] = useState(false);
   const [usernameError, setUsernameError] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+
+  /** 진단 추천 캐릭터 → 2단계에서 미리 선택 */
+  useEffect(() => {
+    if (step !== 2 || !recommended) return;
+    const match = STARTER_CHARACTERS.find((c) => c.type === recommended);
+    if (match) setSelectedCharacter(match);
+  }, [step, recommended]);
 
   const contentOpacity = useSharedValue(1);
   const contentTranslateX = useSharedValue(0);
@@ -219,7 +236,15 @@ export default function OnboardingScreen() {
       <Text style={styles.subtitle}>모험에서 사용할 닉네임을 입력하세요</Text>
 
       <Animated.View style={[styles.characterPreview, characterBounceStyle]}>
-        <Text style={styles.characterEmoji}>🧑‍🚀</Text>
+        <CharacterAvatar
+          characterType="explorer"
+          level={1}
+          size={88}
+          showLoadoutOverlay={false}
+          interactive={false}
+          borderColor={COLORS.primary}
+          backgroundColor={COLORS.surfaceLight}
+        />
       </Animated.View>
 
       <View style={styles.inputContainer}>
@@ -275,7 +300,11 @@ export default function OnboardingScreen() {
               style={styles.characterCardWrapper}
             >
               <LinearGradient
-                colors={isSelected ? character.colors : [COLORS.surfaceLight, COLORS.surfaceLight]}
+                colors={
+                  (isSelected
+                    ? character.colors
+                    : [COLORS.surfaceLight, COLORS.surfaceLight]) as [string, string]
+                }
                 style={[
                   styles.characterCard,
                   isSelected && styles.characterCardSelected,
@@ -285,7 +314,17 @@ export default function OnboardingScreen() {
                   <Text style={styles.elementIcon}>{character.element}</Text>
                 </View>
                 
-                <Text style={styles.characterCardEmoji}>{character.emoji}</Text>
+                <View style={styles.characterCardAvatar}>
+                  <CharacterAvatar
+                    characterType={character.type}
+                    level={1}
+                    size={72}
+                    showLoadoutOverlay={false}
+                    interactive={false}
+                    borderColor={isSelected ? COLORS.textPrimary : COLORS.border}
+                    backgroundColor={COLORS.surface}
+                  />
+                </View>
                 <Text style={styles.characterCardName}>{character.koreanName}</Text>
                 <Text style={styles.characterCardSubname}>({character.name})</Text>
                 <Text style={styles.characterCardDescription}>{character.description}</Text>
@@ -323,10 +362,20 @@ export default function OnboardingScreen() {
       <View style={styles.summaryCard}>
         {selectedCharacter && (
           <LinearGradient
-            colors={selectedCharacter.colors}
+            colors={selectedCharacter.colors as [string, string]}
             style={styles.summaryGradient}
           >
-            <Text style={styles.summaryEmoji}>{selectedCharacter.emoji}</Text>
+            <View style={styles.summaryAvatarWrap}>
+              <CharacterAvatar
+                characterType={selectedCharacter.type}
+                level={1}
+                size={96}
+                showLoadoutOverlay={false}
+                interactive={false}
+                borderColor={COLORS.textPrimary}
+                backgroundColor="rgba(255,255,255,0.25)"
+              />
+            </View>
             <Text style={styles.summaryName}>{username}</Text>
             <Text style={styles.summaryCharacter}>
               동반자: {selectedCharacter.koreanName}
@@ -427,9 +476,6 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: COLORS.primary,
   },
-  characterEmoji: {
-    fontSize: 64,
-  },
   inputContainer: {
     marginBottom: SPACING.xxxl,
   },
@@ -498,9 +544,9 @@ const styles = StyleSheet.create({
   elementIcon: {
     fontSize: 24,
   },
-  characterCardEmoji: {
-    fontSize: 56,
+  characterCardAvatar: {
     marginBottom: SPACING.md,
+    alignItems: 'center',
   },
   characterCardName: {
     fontSize: FONT_SIZE.xl,
@@ -550,9 +596,9 @@ const styles = StyleSheet.create({
     padding: SPACING.xxxl,
     alignItems: 'center',
   },
-  summaryEmoji: {
-    fontSize: 72,
+  summaryAvatarWrap: {
     marginBottom: SPACING.lg,
+    alignItems: 'center',
   },
   summaryName: {
     fontSize: FONT_SIZE.xxl,

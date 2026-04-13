@@ -6,10 +6,11 @@ import * as Haptics from 'expo-haptics';
 import { COLORS, SPACING, FONT_SIZE, FONT_WEIGHT, BORDER_RADIUS, BRAND } from '../../config/theme';
 import { MOOD_DISPLAY } from './constants';
 import type { CharacterLoadout } from '../../types';
-import type { CosmeticSlot } from '../../types/enums';
+import type { CharacterMood } from '../../types/enums';
+import { CharacterAvatar } from '../character/CharacterAvatar';
 
 interface Props {
-  characterEmoji: string;
+  characterType: string;
   characterName: string;
   level: number;
   title: string | null;
@@ -21,29 +22,28 @@ interface Props {
   onTitles: () => void;
 }
 
-function getSlotEmoji(loadout: CharacterLoadout[], slot: CosmeticSlot): string | null {
-  return loadout.find((l) => l.slot === slot)?.cosmetic?.preview_emoji ?? null;
-}
-
 export function CharacterInfoCard({
-  characterEmoji, characterName, level, title, mood,
+  characterType, characterName, level, title, mood,
   personalityTraits, coins, loadout,
   onCustomize, onTitles,
 }: Props) {
   const moodInfo = MOOD_DISPLAY[mood] ?? MOOD_DISPLAY.happy;
-  const hatEmoji = getSlotEmoji(loadout, 'hat');
-  const outfitEmoji = getSlotEmoji(loadout, 'outfit');
-  const accessoryEmoji = getSlotEmoji(loadout, 'accessory');
 
   return (
     <View style={styles.container}>
       {/* Character + equipped items */}
       <View style={styles.topRow}>
         <View style={styles.charArea}>
-          {hatEmoji && <Text style={styles.hat}>{hatEmoji}</Text>}
-          <Text style={styles.charEmoji}>{characterEmoji}</Text>
-          {outfitEmoji && <Text style={styles.outfit}>{outfitEmoji}</Text>}
-          {accessoryEmoji && <Text style={styles.accessory}>{accessoryEmoji}</Text>}
+          <CharacterAvatar
+            characterType={characterType}
+            level={level}
+            size={56}
+            loadout={loadout}
+            mood={mood as CharacterMood}
+            interactive={false}
+            borderColor={COLORS.border}
+            backgroundColor={COLORS.surface}
+          />
         </View>
         <View style={styles.infoArea}>
           {/* Title */}
@@ -108,10 +108,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  charEmoji: { fontSize: 40 },
-  hat: { fontSize: 16, position: 'absolute', top: -4 },
-  outfit: { fontSize: 14, position: 'absolute', bottom: 0 },
-  accessory: { fontSize: 14, position: 'absolute', right: -4, top: '50%' },
   infoArea: { flex: 1, gap: 4 },
   titleRow: {
     flexDirection: 'row',

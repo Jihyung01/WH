@@ -26,11 +26,8 @@ import Animated, {
   FadeInUp,
 } from 'react-native-reanimated';
 
-import {
-  useCharacterStore,
-  getEvolutionStage,
-  getEvolutionEmoji,
-} from '../src/stores/characterStore';
+import { useCharacterStore } from '../src/stores/characterStore';
+import { CharacterAvatar } from '../src/components/character/CharacterAvatar';
 import { sendCharacterChat, getChatHistory, AppError } from '../src/lib/api';
 import type { ChatMessage } from '../src/lib/api';
 import {
@@ -107,8 +104,6 @@ export default function ChatScreen() {
 
   const characterType = character?.character_type ?? 'explorer';
   const characterLevel = character?.level ?? 1;
-  const stage = getEvolutionStage(characterLevel);
-  const emoji = getEvolutionEmoji(characterType, stage);
   const characterName = character?.name ?? '도담';
 
   useEffect(() => {
@@ -214,7 +209,15 @@ export default function ChatScreen() {
     return (
       <Animated.View entering={FadeInUp.duration(200)} style={styles.aiRow}>
         <View style={styles.avatarCircle}>
-          <Text style={styles.avatarEmoji}>{emoji}</Text>
+          <CharacterAvatar
+            characterType={characterType}
+            level={characterLevel}
+            size={32}
+            showLoadoutOverlay={false}
+            interactive={false}
+            borderColor={BRAND.primary}
+            backgroundColor={COLORS.surface}
+          />
         </View>
         <View style={styles.aiBubble}>
           <Text style={styles.aiText}>{item.text}</Text>
@@ -235,7 +238,15 @@ export default function ChatScreen() {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <View style={styles.headerAvatar}>
-            <Text style={styles.headerAvatarEmoji}>{emoji}</Text>
+            <CharacterAvatar
+              characterType={characterType}
+              level={characterLevel}
+              size={40}
+              showLoadoutOverlay={false}
+              interactive={false}
+              borderColor={BRAND.primary}
+              backgroundColor={COLORS.surface}
+            />
           </View>
           <View>
             <Text style={styles.headerName}>{characterName}</Text>
@@ -276,7 +287,15 @@ export default function ChatScreen() {
           ListEmptyComponent={
             <Animated.View entering={FadeIn.duration(400)} style={styles.emptyContainer}>
               <View style={styles.emptyAvatarLarge}>
-                <Text style={{ fontSize: 48 }}>{emoji}</Text>
+                <CharacterAvatar
+                  characterType={characterType}
+                  level={characterLevel}
+                  size={88}
+                  showLoadoutOverlay={false}
+                  interactive={false}
+                  borderColor={BRAND.primary}
+                  backgroundColor={COLORS.surface}
+                />
               </View>
               <Text style={styles.emptyTitle}>
                 {characterName}에게 말을 걸어보세요!
@@ -365,15 +384,12 @@ const styles = StyleSheet.create({
     gap: SPACING.md,
   },
   headerAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: COLORS.surfaceLight,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  headerAvatarEmoji: {
-    fontSize: 20,
   },
   headerName: {
     fontSize: FONT_SIZE.md,
@@ -438,16 +454,13 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   avatarCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: `${BRAND.primary}20`,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 2,
-  },
-  avatarEmoji: {
-    fontSize: 16,
   },
   aiBubble: {
     maxWidth: '70%',

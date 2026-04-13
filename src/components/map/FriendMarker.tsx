@@ -3,13 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Marker } from 'react-native-maps';
 import { COLORS, BRAND } from '../../config/theme';
 import type { FriendLocation } from '../../services/friendLocation';
-
-const CHARACTER_EMOJIS: Record<string, string> = {
-  explorer: '🌿',
-  foodie: '🔭',
-  artist: '📚',
-  socialite: '⭐',
-};
+import { CharacterAvatar } from '../character/CharacterAvatar';
 
 interface Props {
   friend: FriendLocation;
@@ -20,7 +14,8 @@ function FriendMarkerInner({ friend, onPress }: Props) {
   const MarkerComponent = Marker as unknown as React.ComponentType<Record<string, unknown>>;
   const latitude = Number(friend.latitude);
   const longitude = Number(friend.longitude);
-  const emoji = CHARACTER_EMOJIS[friend.character_type ?? ''] ?? '👤';
+  const characterType = friend.character_type ?? 'explorer';
+  const characterLevel = friend.level ?? 1;
   const isRecent = useMemo(() => {
     const ms = Date.now() - new Date(friend.last_seen_at).getTime();
     return Number.isFinite(ms) && ms >= 0 && ms < 5 * 60 * 1000;
@@ -44,7 +39,15 @@ function FriendMarkerInner({ friend, onPress }: Props) {
     >
       <View style={styles.container} collapsable={false}>
         <View style={[styles.avatar, isRecent && styles.avatarRecent]}>
-          <Text style={styles.emoji}>{emoji}</Text>
+          <CharacterAvatar
+            characterType={characterType}
+            level={characterLevel}
+            size={32}
+            showLoadoutOverlay={false}
+            interactive={false}
+            borderColor={isRecent ? BRAND.primary : COLORS.surfaceLight}
+            backgroundColor={COLORS.surface}
+          />
         </View>
         <View style={styles.nameTag}>
           <Text style={styles.name} numberOfLines={1}>
@@ -67,7 +70,8 @@ export default memo(FriendMarkerInner, (prev, next) => {
     a.longitude === b.longitude &&
     a.last_seen_at === b.last_seen_at &&
     a.username === b.username &&
-    a.character_type === b.character_type
+    a.character_type === b.character_type &&
+    a.level === b.level
   );
 });
 
@@ -79,22 +83,16 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: COLORS.surface,
-    borderWidth: 2,
-    borderColor: COLORS.surfaceLight,
+    backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
   },
   avatarRecent: {
-    borderColor: BRAND.primary,
     shadowColor: BRAND.primary,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.5,
     shadowRadius: 6,
     elevation: 4,
-  },
-  emoji: {
-    fontSize: 18,
   },
   nameTag: {
     backgroundColor: 'rgba(15, 23, 42, 0.85)',

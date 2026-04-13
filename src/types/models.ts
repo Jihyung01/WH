@@ -20,6 +20,14 @@ export interface GeoPoint {
 
 // ──────────────────────────── DB Row Types ────────────────────────────
 
+/** 온보딩 성격 진단 결과 (profiles.explorer_type JSONB) */
+export interface ExplorerTypePayload {
+  keywords: string[];
+  type_name: string;
+  type_code: string;
+  recommended_character_type: 'explorer' | 'foodie' | 'artist' | 'socialite';
+}
+
 export interface Profile {
   id: string;
   username: string | null;
@@ -35,6 +43,7 @@ export interface Profile {
   is_premium?: boolean;
   community_terms_version?: string | null;
   community_terms_accepted_at?: string | null;
+  explorer_type?: ExplorerTypePayload | null;
 }
 
 export interface Character {
@@ -82,6 +91,8 @@ export interface Event {
   season_id: string | null;
   created_at: string;
   expires_at: string | null;
+  /** 조건부 노출: weather / time / season 키 (JSON) */
+  visibility_conditions?: Record<string, string> | null;
 }
 
 export interface NearbyEvent extends Event {

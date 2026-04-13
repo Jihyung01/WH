@@ -30,12 +30,11 @@ import InventoryScreen from './inventory';
 
 import {
   useCharacterStore,
-  getEvolutionStage,
-  getEvolutionEmoji,
   getLevelTitle,
   getNextEvolutionLevel,
   xpForLevel,
 } from '../../src/stores/characterStore';
+import { CharacterAvatar } from '../../src/components/character/CharacterAvatar';
 import { useProfileStore } from '../../src/stores/profileStore';
 import { useAuthStore } from '../../src/stores/authStore';
 import { CharacterClass } from '../../src/types/enums';
@@ -112,13 +111,21 @@ function ProfileContent() {
   const insets = useSafeAreaInsets();
   const [refreshing, setRefreshing] = useState(false);
 
-  const { character, isLoading: characterLoading, error: characterError, fetchCharacter } =
-    useCharacterStore();
+  const {
+    character,
+    loadout,
+    mood,
+    isLoading: characterLoading,
+    error: characterError,
+    fetchCharacter,
+    fetchLoadout,
+  } = useCharacterStore();
   const { stats, leaderboard, visitedLocations, myRank, fetchStats, fetchLeaderboard, fetchVisitedLocations } = useProfileStore();
   const { signOut } = useAuthStore();
 
   useEffect(() => {
     fetchCharacter();
+    fetchLoadout();
     fetchStats();
     fetchVisitedLocations();
     fetchLeaderboard();
@@ -157,10 +164,6 @@ function ProfileContent() {
     } catch {}
   }, []);
 
-  const stage = character ? getEvolutionStage(character.level) : 'baby';
-  const emoji = character
-    ? getEvolutionEmoji(character.character_type, stage)
-    : '🧑‍🚀';
   const title = character
     ? getLevelTitle(character.character_type, character.level)
     : '탐험가';
@@ -323,16 +326,25 @@ function ProfileContent() {
           <View style={{ width: 40 }} />
         </View>
 
-        <Pressable onPress={handleCharacterTap}>
-          <Animated.View style={[styles.avatarContainer, floatStyle]}>
-            <View style={[styles.avatarCircle, { borderColor: gradient[0] }]}>
-              <Text style={styles.avatarEmoji}>{emoji}</Text>
-            </View>
-            <View style={[styles.levelBadge, { backgroundColor: gradient[0] }]}>
-              <Text style={styles.levelBadgeText}>Lv.{character.level}</Text>
-            </View>
-          </Animated.View>
-        </Pressable>
+        <Animated.View style={[styles.avatarContainer, floatStyle]}>
+          <View style={[styles.avatarCircle, { borderColor: gradient[0] }]}>
+            <CharacterAvatar
+              characterType={character.character_type}
+              level={character.level}
+              size={92}
+              showEvolutionBadge
+              loadout={loadout}
+              favoriteDistrict={character.favorite_district}
+              mood={mood}
+              onPress={handleCharacterTap}
+              borderColor={gradient[0]}
+              backgroundColor={COLORS.surface}
+            />
+          </View>
+          <View style={[styles.levelBadge, { backgroundColor: gradient[0] }]}>
+            <Text style={styles.levelBadgeText}>Lv.{character.level}</Text>
+          </View>
+        </Animated.View>
 
         <Text style={styles.username}>{character.name}</Text>
         <Text style={[styles.titleText, { color: gradient[0] }]}>{title}</Text>
@@ -344,7 +356,12 @@ function ProfileContent() {
             <Text style={styles.xpNumbers}>{formatNumber(character.xp)} / {formatNumber(requiredXp)} XP</Text>
           </View>
           <View style={styles.xpBarTrack}>
-            <LinearGradient colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.xpBarFill, { width: `${xpPercent}%` }]} />
+            <LinearGradient
+              colors={gradient as [string, string]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={[styles.xpBarFill, { width: `${xpPercent}%` }]}
+            />
           </View>
         </View>
 
@@ -378,7 +395,12 @@ function ProfileContent() {
                 <Text style={styles.statIcon}>{icon}</Text>
                 <Text style={styles.statLabel}>{label}</Text>
                 <View style={styles.statBarTrack}>
-                  <LinearGradient colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.statBarFill, { width: `${pct}%` }]} />
+                  <LinearGradient
+                    colors={gradient as [string, string]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={[styles.statBarFill, { width: `${pct}%` }]}
+                  />
                 </View>
                 <Text style={styles.statValue}>{val}</Text>
               </View>
@@ -432,7 +454,10 @@ function ProfileContent() {
 
         {leaderboard.slice(0, 10).map((entry, i) => (
           <Animated.View key={entry.user_id} entering={FadeInDown.delay(i * 40)}>
-            <View style={styles.lbRow}>
+            <Pressable
+              style={styles.lbRow}
+              onPress={() => router.push(`/user/${entry.user_id}` as any)}
+            >
               <Text style={[styles.lbRank, i < 3 && styles.lbRankTop]}>
                 {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${entry.rank}`}
               </Text>
@@ -443,7 +468,7 @@ function ProfileContent() {
                 <Text style={styles.lbName}>{entry.username ?? '탐험가'}</Text>
               </View>
               <Text style={styles.lbXp}>{formatNumber(entry.weekly_xp)} XP</Text>
-            </View>
+            </Pressable>
           </Animated.View>
         ))}
       </View>
@@ -641,7 +666,6 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 3, ...SHADOWS.lg,
   },
-  avatarEmoji: { fontSize: 48 },
   levelBadge: {
     position: 'absolute', bottom: -4, right: -4,
     paddingHorizontal: SPACING.sm, paddingVertical: 2,

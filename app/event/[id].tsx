@@ -285,7 +285,7 @@ export default function EventDetailScreen() {
         {/* ── Hero ── */}
         <View style={styles.hero}>
           <LinearGradient
-            colors={[...meta.gradient, COLORS.background]}
+            colors={[...meta.gradient, COLORS.background] as [string, string, string]}
             style={styles.heroGradient}
           >
             <Text style={styles.heroEmoji}>{meta.emoji}</Text>

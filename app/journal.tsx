@@ -20,11 +20,8 @@ import Animated, {
   Layout,
 } from 'react-native-reanimated';
 
-import {
-  useCharacterStore,
-  getEvolutionStage,
-  getEvolutionEmoji,
-} from '../src/stores/characterStore';
+import { useCharacterStore } from '../src/stores/characterStore';
+import { CharacterAvatar } from '../src/components/character/CharacterAvatar';
 import {
   getJournals,
   getJournalByDate,
@@ -121,8 +118,6 @@ export default function JournalScreen() {
 
   const characterType = character?.character_type ?? 'explorer';
   const characterLevel = character?.level ?? 1;
-  const stage = getEvolutionStage(characterLevel);
-  const emoji = getEvolutionEmoji(characterType, stage);
   const characterName = character?.name ?? '도담';
 
   const journalDateMap = useMemo(() => {
@@ -335,7 +330,16 @@ export default function JournalScreen() {
               <View style={styles.speechContainer}>
                 <View style={styles.speechHeader}>
                   <View style={styles.speechAvatar}>
-                    <Text style={styles.speechAvatarEmoji}>{emoji}</Text>
+                    <CharacterAvatar
+                      characterType={characterType}
+                      level={characterLevel}
+                      size={28}
+                      showLoadoutOverlay={false}
+                      interactive={false}
+                      favoriteDistrict={character?.favorite_district ?? null}
+                      borderColor={BRAND.primary}
+                      backgroundColor={`${BRAND.primary}20`}
+                    />
                   </View>
                   <Text style={styles.speechName}>{characterName}</Text>
                 </View>
@@ -601,15 +605,13 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
   },
   speechAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: `${BRAND.primary}20`,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: `${BRAND.primary}15`,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  speechAvatarEmoji: {
-    fontSize: 16,
+    overflow: 'hidden',
   },
   speechName: {
     fontSize: FONT_SIZE.sm,

@@ -19,6 +19,7 @@ import type {
   VisitedLocation,
   EventCategory,
 } from '../types';
+import type { ExplorerTypePayload } from '../types/models';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Error
@@ -526,8 +527,20 @@ export async function getMyProfile(): Promise<Profile> {
   return data as Profile;
 }
 
+export async function profileNeedsPersonalityQuiz(): Promise<boolean> {
+  const user = await getCurrentUserOrNull();
+  if (!user) return false;
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('explorer_type')
+    .eq('id', user.id)
+    .maybeSingle();
+  if (error) return false;
+  return data?.explorer_type == null;
+}
+
 export async function updateProfile(
-  updates: Partial<Pick<Profile, 'username' | 'avatar_url'>>,
+  updates: Partial<Pick<Profile, 'username' | 'avatar_url' | 'explorer_type'>>,
 ): Promise<Profile> {
   const user = await getCurrentUser();
   const { data, error } = await supabase
@@ -543,8 +556,13 @@ export async function updateProfile(
 export async function getUserStats(): Promise<UserStats> {
   const user = await getCurrentUserOrNull();
   if (!user) throw new AppError('인증이 필요합니다.', 'AUTH_REQUIRED', 401);
+  return getUserStatsForUser(user.id);
+}
+
+export async function getUserStatsForUser(userId: string): Promise<UserStats> {
+  await getCurrentUser();
   const { data, error } = await supabase.rpc('get_user_stats', {
-    p_user_id: user.id,
+    p_user_id: userId,
   });
   throwIfError(error, '통계를 불러오지 못했습니다.');
   return data as UserStats;
@@ -792,16 +810,7 @@ export interface FeedComment {
   created_at: string;
 }
 
-export async function getCommunityFeed(limit = 40): Promise<CommunityFeedItem[]> {
-  const user = await getCurrentUserOrNull();
-  if (!user) return [];
-
-  const { data, error } = await supabase.rpc('get_community_feed', {
-    p_limit: limit,
-  });
-  throwIfError(error, '커뮤니티 피드를 불러오지 못했습니다.');
-
-  const raw = data as unknown;
+function parseCommunityFeedRpcPayload(raw: unknown): CommunityFeedItem[] {
   if (raw == null) return [];
   if (Array.isArray(raw)) return raw as CommunityFeedItem[];
   if (typeof raw === 'string') {
@@ -813,6 +822,138 @@ export async function getCommunityFeed(limit = 40): Promise<CommunityFeedItem[]>
     }
   }
   return [];
+}
+
+export async function getCommunityFeed(limit = 40): Promise<CommunityFeedItem[]> {
+  const user = await getCurrentUserOrNull();
+  if (!user) return [];
+
+  const { data, error } = await supabase.rpc('get_community_feed', {
+    p_limit: limit,
+  });
+  throwIfError(error, '커뮤니티 피드를 불러오지 못했습니다.');
+  return parseCommunityFeedRpcPayload(data as unknown);
+}
+
+export interface PublicProfileCharacter {
+  name: string;
+  character_type: string;
+  level: number;
+  xp: number;
+  equipped_title: string | null;
+}
+
+export interface PublicProfileLocation {
+  latitude: number;
+  longitude: number;
+  last_seen_at: string;
+}
+
+export type PublicProfileResult =
+  | {
+      success: true;
+      user_id: string;
+      username: string | null;
+      avatar_url: string | null;
+      explorer_type: ExplorerTypePayload | null;
+      character: PublicProfileCharacter | null;
+      location: PublicProfileLocation | null;
+      exploration_days: number;
+    }
+  | { success: false; error: string };
+
+export async function getPublicProfile(targetUserId: string): Promise<PublicProfileResult> {
+  await getCurrentUser();
+  const { data, error } = await supabase.rpc('get_public_profile', {
+    p_target_user_id: targetUserId,
+  });
+  throwIfError(error, '프로필을 불러오지 못했습니다.');
+  const row = data as Record<string, unknown> | null;
+  if (!row || row.success !== true) {
+    return { success: false, error: String(row?.error ?? 'unknown') };
+  }
+  return row as unknown as Extract<PublicProfileResult, { success: true }>;
+}
+
+export async function getUserCommunityFeed(userId: string, limit = 30): Promise<CommunityFeedItem[]> {
+  await getCurrentUser();
+  const { data, error } = await supabase.rpc('get_user_community_feed', {
+    p_user_id: userId,
+    p_limit: limit,
+  });
+  throwIfError(error, '피드를 불러오지 못했습니다.');
+  return parseCommunityFeedRpcPayload(data as unknown);
+}
+
+export interface UserEventActivityItem {
+  event_id: string;
+  event_title: string;
+  district: string | null;
+  address: string | null;
+  completed_at: string;
+}
+
+export async function getUserRecentEventActivity(
+  userId: string,
+  limit = 10,
+): Promise<UserEventActivityItem[]> {
+  await getCurrentUser();
+  const { data, error } = await supabase.rpc('get_user_recent_event_activity', {
+    p_user_id: userId,
+    p_limit: limit,
+  });
+  throwIfError(error, '활동 기록을 불러오지 못했습니다.');
+  const raw = data as unknown;
+  if (raw == null) return [];
+  if (Array.isArray(raw)) return raw as UserEventActivityItem[];
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      return Array.isArray(parsed) ? (parsed as UserEventActivityItem[]) : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+export type GiftCosmeticResult =
+  | {
+      success: true;
+      cosmetic_name: string;
+      coins_spent: number;
+      remaining_coins: number;
+      receiver_id: string;
+      sender_username: string;
+    }
+  | {
+      success: false;
+      error: string;
+      required?: number;
+      current?: number;
+    };
+
+export async function giftCosmetic(receiverUserId: string, cosmeticId: string): Promise<GiftCosmeticResult> {
+  await getCurrentUser();
+  const { data, error } = await supabase.rpc('gift_cosmetic', {
+    p_receiver_id: receiverUserId,
+    p_cosmetic_id: cosmeticId,
+  });
+  throwIfError(error, '선물 처리에 실패했습니다.');
+  return data as unknown as GiftCosmeticResult;
+}
+
+/** 수신자 푸시 (실패해도 선물은 유지) */
+export async function sendPushToUser(userId: string, title: string, body: string): Promise<void> {
+  try {
+    await invokeEdgeFunction<{ success?: boolean }>('send-notification', {
+      user_id: userId,
+      title,
+      body,
+    });
+  } catch {
+    /* optional */
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1140,6 +1281,8 @@ export interface FriendInfo {
   avatar_url: string | null;
   level?: number;
   character_type?: string;
+  /** 친구 프로필의 실시간 위치 공유 설정 (소셜 탭 표시용) */
+  location_sharing?: boolean;
 }
 
 export interface FriendsResult {

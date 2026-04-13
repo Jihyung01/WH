@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Marker, Circle } from 'react-native-maps';
+import { CharacterAvatar } from '../character/CharacterAvatar';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -15,9 +16,19 @@ interface UserLocationMarkerProps {
   position: GeoPoint;
   heading: number | null;
   showRadius?: boolean;
+  characterType?: string;
+  characterLevel?: number;
+  favoriteDistrict?: string | null;
 }
 
-export function UserLocationMarker({ position, heading, showRadius = true }: UserLocationMarkerProps) {
+export function UserLocationMarker({
+  position,
+  heading,
+  showRadius = true,
+  characterType,
+  characterLevel,
+  favoriteDistrict,
+}: UserLocationMarkerProps) {
   const pulseScale = useSharedValue(1);
   const pulseOpacity = useSharedValue(0.6);
 
@@ -73,7 +84,21 @@ export function UserLocationMarker({ position, heading, showRadius = true }: Use
           </View>
 
           <View style={styles.outerRing}>
-            <View style={styles.dot} />
+            {characterType != null && characterLevel != null ? (
+              <CharacterAvatar
+                characterType={characterType}
+                level={characterLevel}
+                size={22}
+                showLoadoutOverlay={false}
+                showEvolutionBadge={false}
+                favoriteDistrict={favoriteDistrict}
+                borderColor="#FFFFFF"
+                backgroundColor="rgba(72,219,251,0.35)"
+                interactive={false}
+              />
+            ) : (
+              <View style={styles.dot} />
+            )}
           </View>
         </View>
       </Marker>

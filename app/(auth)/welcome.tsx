@@ -1,7 +1,8 @@
 import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import { useEffect } from 'react';
 import { useAuthStore } from '../../src/stores/authStore';
+import { profileNeedsPersonalityQuiz } from '../../src/lib/api';
 import { startupBreadcrumb } from '../../src/utils/startupTelemetry';
 
 export default function WelcomeScreen() {
@@ -33,9 +34,21 @@ export default function WelcomeScreen() {
     if (isLoading || pendingOnboardingCheck) return;
     if (isAuthenticated && hasCompletedOnboarding) {
       router.replace('/(tabs)/map');
-    } else if (isAuthenticated && !hasCompletedOnboarding) {
-      router.replace('/(auth)/onboarding');
+      return;
     }
+    if (!isAuthenticated || hasCompletedOnboarding) return;
+
+    let cancelled = false;
+    void (async () => {
+      const needsQuiz = await profileNeedsPersonalityQuiz();
+      if (cancelled) return;
+      router.replace(
+        (needsQuiz ? '/(auth)/personality-quiz' : '/(auth)/onboarding') as Href,
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [isLoading, isAuthenticated, hasCompletedOnboarding, pendingOnboardingCheck, router]);
 
   return (

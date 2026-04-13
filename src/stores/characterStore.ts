@@ -20,29 +20,18 @@ import type {
 } from '../types';
 import type { CosmeticSlot, CharacterMood } from '../types/enums';
 import { zustandStorage } from './storage';
+import {
+  getEvolutionStage,
+  getCharacterEmoji,
+  type EvolutionStage,
+  EVOLUTION_STAGES,
+} from '../utils/characterAssets';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Evolution helpers
-// ─────────────────────────────────────────────────────────────────────────────
-
-export type EvolutionStage = 'baby' | 'teen' | 'adult' | 'legendary';
-
-export function getEvolutionStage(level: number): EvolutionStage {
-  if (level <= 5) return 'baby';
-  if (level <= 15) return 'teen';
-  if (level <= 30) return 'adult';
-  return 'legendary';
-}
-
-const EVOLUTION_MAP: Record<string, Record<EvolutionStage, string>> = {
-  explorer: { baby: '🌱', teen: '🌿', adult: '🌳', legendary: '🏔️' },
-  foodie: { baby: '🍃', teen: '💨', adult: '🌊', legendary: '🌪️' },
-  artist: { baby: '🌤️', teen: '☀️', adult: '🔥', legendary: '💎' },
-  socialite: { baby: '✨', teen: '⭐', adult: '🌟', legendary: '💫' },
-};
+export type { EvolutionStage };
+export { getEvolutionStage, EVOLUTION_STAGES };
 
 export function getEvolutionEmoji(characterType: string, stage: EvolutionStage): string {
-  return EVOLUTION_MAP[characterType]?.[stage] ?? '🧑‍🚀';
+  return getCharacterEmoji(characterType, stage);
 }
 
 export function getNextEvolutionLevel(level: number): number | null {
@@ -104,10 +93,22 @@ function computeEquippedEffects(loadout: CharacterLoadout[]): EquippedEffects {
 // Store
 // ─────────────────────────────────────────────────────────────────────────────
 
+export interface EvolutionCelebrationPayload {
+  prevStage: EvolutionStage;
+  nextStage: EvolutionStage;
+  characterType: string;
+  characterName: string;
+  newLevel: number;
+  favoriteDistrict: string | null;
+}
+
 interface CharacterState {
   character: Character | null;
   isLoading: boolean;
   error: string | null;
+
+  evolutionCelebration: EvolutionCelebrationPayload | null;
+  clearEvolutionCelebration: () => void;
 
   // Cosmetic state
   loadout: CharacterLoadout[];
@@ -121,7 +122,7 @@ interface CharacterState {
   activeTitle: string | null;
 
   // Core actions
-  fetchCharacter: () => Promise<void>;
+  fetchCharacter: (opts?: { skipEvolutionCelebration?: boolean }) => Promise<void>;
   createNewCharacter: (
     name: '도담' | '나래' | '하람' | '별찌',
     characterType: string,
@@ -155,6 +156,9 @@ export const useCharacterStore = create<CharacterState>()(
       isLoading: false,
       error: null,
 
+      evolutionCelebration: null,
+      clearEvolutionCelebration: () => set({ evolutionCelebration: null }),
+
       // Cosmetic initial state
       loadout: [],
       equippedEffects: INITIAL_EFFECTS,
@@ -168,9 +172,10 @@ export const useCharacterStore = create<CharacterState>()(
 
       // ── Core actions ────────────────────────────────────────────────
 
-      fetchCharacter: async () => {
+      fetchCharacter: async (opts) => {
         try {
           set({ isLoading: true, error: null });
+          const previous = get().character;
           const character = await getMyCharacter();
           set({
             character,
@@ -181,6 +186,28 @@ export const useCharacterStore = create<CharacterState>()(
             favoriteDistrict: (character?.favorite_district as string) ?? null,
             activeTitle: (character?.equipped_title as string) ?? null,
           });
+
+          if (
+            !opts?.skipEvolutionCelebration &&
+            previous &&
+            character &&
+            previous.id === character.id
+          ) {
+            const prevStage = getEvolutionStage(previous.level);
+            const nextStage = getEvolutionStage(character.level);
+            if (prevStage !== nextStage && character.level >= previous.level) {
+              set({
+                evolutionCelebration: {
+                  prevStage,
+                  nextStage,
+                  characterType: character.character_type,
+                  characterName: character.name,
+                  newLevel: character.level,
+                  favoriteDistrict: character.favorite_district ?? null,
+                },
+              });
+            }
+          }
         } catch (err) {
           const message = err instanceof Error ? err.message : '캐릭터 정보를 불러오지 못했습니다.';
           set({ error: message });

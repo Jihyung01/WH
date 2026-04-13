@@ -3,12 +3,13 @@ import { View, Text, StyleSheet } from 'react-native';
 
 import { COLORS, SPACING, FONT_SIZE, FONT_WEIGHT, BORDER_RADIUS, BRAND } from '../../config/theme';
 import { EquippedEffectBar } from './EquippedEffectBar';
-import { CharacterRenderer } from './character-svg';
+import { CharacterAvatar } from '../character/CharacterAvatar';
 import { MOOD_DISPLAY } from './constants';
 import type { CharacterLoadout, EquippedEffects } from '../../types';
 
 interface Props {
   characterType: string;
+  /** @deprecated 레벨로 진화 단계를 계산합니다 */
   evolutionStage: string;
   name: string;
   level: number;
@@ -31,12 +32,14 @@ export function CharacterPreview({
         {title ? `${title} · ` : ''}Lv.{level} {name}
       </Text>
 
-      {/* SVG Character */}
-      <CharacterRenderer
+      <CharacterAvatar
         characterType={characterType}
-        evolutionStage={evolutionStage}
-        loadout={loadout}
+        level={level}
         size={180}
+        showEvolutionBadge
+        loadout={loadout}
+        borderColor={COLORS.border}
+        backgroundColor={COLORS.surface}
       />
 
       {/* Mood */}

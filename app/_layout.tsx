@@ -15,6 +15,9 @@ import { requestAppTrackingTransparency } from '../src/utils/trackingConsent';
 import { initPurchases } from '../src/config/purchases';
 import { ThemeProvider, useTheme, useThemeStore } from '../src/providers/ThemeProvider';
 import { useNotificationStore } from '../src/stores/notificationStore';
+import { EvolutionCelebrationOverlay } from '../src/components/character/EvolutionCelebrationOverlay';
+import { useWeatherStore } from '../src/stores/weatherStore';
+import { useMapStore } from '../src/stores/mapStore';
 
 function AppContent() {
   const router = useRouter();
@@ -24,6 +27,15 @@ function AppContent() {
 
   useEffect(() => {
     SplashScreen.hideAsync().catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    useWeatherStore.getState().syncTimeOfDay();
+    const tid = setInterval(() => {
+      useWeatherStore.getState().syncTimeOfDay();
+      useMapStore.getState().applyWeatherToBufferedEvents();
+    }, 60_000);
+    return () => clearInterval(tid);
   }, []);
 
   useEffect(() => {
@@ -157,12 +169,14 @@ function AppContent() {
         <Stack.Screen name="season" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
         <Stack.Screen name="premium" options={{ presentation: 'modal', headerShown: false, animation: 'slide_from_bottom' }} />
         <Stack.Screen name="social" options={{ headerShown: false, animation: 'slide_from_right' }} />
+        <Stack.Screen name="user/[id]" options={{ headerShown: false, animation: 'slide_from_right' }} />
         <Stack.Screen name="settings" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="character-customize" options={{ headerShown: false, animation: 'slide_from_right' }} />
         <Stack.Screen name="shop" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
         <Stack.Screen name="titles" options={{ headerShown: false, animation: 'slide_from_right' }} />
         <Stack.Screen name="+not-found" />
       </Stack>
+      <EvolutionCelebrationOverlay />
     </>
   );
 }

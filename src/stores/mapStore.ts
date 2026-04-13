@@ -6,10 +6,23 @@ import { getNearbyEvents } from '../lib/api';
 import { zustandStorage } from './storage';
 import { useModerationStore } from './moderationStore';
 import { filterByBlockedCreators } from '../utils/moderationFilters';
+import { isEventVisible } from '../services/weather';
+import { useWeatherStore } from './weatherStore';
+
+function filterEventsByWeatherVisibility(events: NearbyEvent[]): NearbyEvent[] {
+  const { currentWeather, weatherDataAvailable } = useWeatherStore.getState();
+  return events.filter((e) =>
+    isEventVisible(e.visibility_conditions, currentWeather, {
+      weatherKnown: weatherDataAvailable,
+    }),
+  );
+}
 
 interface MapState {
   region: Region | null;
   selectedEventId: string | null;
+  /** 차단 필터 후 전체(날씨 필터 전) — 날씨 갱신 시 재적용용 */
+  nearbyEventsBuffered: NearbyEvent[];
   visibleEvents: NearbyEvent[];
   isFollowingUser: boolean;
   isFetchingEvents: boolean;
@@ -44,6 +57,7 @@ export const useMapStore = create<MapState>()(
     (set, get) => ({
       region: null,
       selectedEventId: null,
+      nearbyEventsBuffered: [],
       visibleEvents: [],
       isFollowingUser: true,
       isFetchingEvents: false,
@@ -78,8 +92,10 @@ export const useMapStore = create<MapState>()(
             events,
             useModerationStore.getState().blockedUserIds,
           );
+          const visible = filterEventsByWeatherVisibility(events);
           set({
-            visibleEvents: events,
+            nearbyEventsBuffered: events,
+            visibleEvents: visible,
             lastFetchCenter: center,
             lastFetchTimestamp: Date.now(),
           });
@@ -88,6 +104,12 @@ export const useMapStore = create<MapState>()(
         } finally {
           set({ isFetchingEvents: false });
         }
+      },
+
+      applyWeatherToBufferedEvents: () => {
+        const buf = get().nearbyEventsBuffered;
+        if (!Array.isArray(buf) || buf.length === 0) return;
+        set({ visibleEvents: filterEventsByWeatherVisibility(buf) });
       },
     }),
     {

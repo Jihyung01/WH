@@ -37,7 +37,13 @@ import {
   stopLocationSharing,
   isLocationSharingActive,
   getLocationSharingStatus,
+  getFriendLocationsSafe,
+  subscribeToFriendLocations,
 } from '../../src/services/friendLocation';
+import type { FriendLocation } from '../../src/services/friendLocation';
+import { reverseGeocodeToDistrict } from '../../src/utils/reverseGeocodeDistrict';
+import { formatRelativeDate } from '../../src/utils/format';
+import { useAuthStore } from '../../src/stores/authStore';
 import {
   sendKakaoTextToFriends,
   shareKakaoText,
@@ -143,12 +149,18 @@ function FriendsTab({
   refreshing,
   onRefresh,
   onShowToast,
+  friendLocations,
+  districtByUserId,
+  onOpenFriendProfile,
 }: {
   data: FriendsResult | null;
   loading: boolean;
   refreshing: boolean;
   onRefresh: () => void;
   onShowToast: (msg: string, type: 'success' | 'error') => void;
+  friendLocations: FriendLocation[];
+  districtByUserId: Map<string, string>;
+  onOpenFriendProfile: (userId: string) => void;
 }) {
   const [searchText, setSearchText] = useState('');
   const [sending, setSending] = useState(false);
@@ -331,26 +343,54 @@ function FriendsTab({
             <Text style={s.emptyText}>아직 친구가 없어요.{'\n'}닉네임으로 친구를 추가해보세요!</Text>
           </View>
         ) : (
-          friends.map((friend, idx) => (
-            <Animated.View key={friend.friendship_id} entering={FadeInUp.duration(250).delay(idx * 40)}>
-              <View style={s.friendRow}>
-                <AvatarCircle username={friend.username} avatarUrl={friend.avatar_url} />
-                <View style={s.friendInfo}>
-                  <Text style={s.friendName} numberOfLines={1}>{friend.username}</Text>
-                  <View style={s.friendMeta}>
-                    {friend.level != null && (
-                      <View style={s.levelBadge}>
-                        <Text style={s.levelBadgeText}>Lv.{friend.level}</Text>
-                      </View>
-                    )}
-                    {friend.character_type && (
-                      <Text style={s.charIcon}>{CHARACTER_ICONS[friend.character_type] ?? '🎮'}</Text>
-                    )}
+          friends.map((friend, idx) => {
+            const loc = friendLocations.find((l) => l.user_id === friend.user_id);
+            const district = loc ? districtByUserId.get(friend.user_id) : undefined;
+            const sharing = friend.location_sharing === true;
+            let locationSub: string | null = null;
+            if (sharing) {
+              if (loc && district) {
+                locationSub = `📍 ${district} · ${formatRelativeDate(loc.last_seen_at)}`;
+              } else {
+                locationSub = '📍 공유 중 · 최근 위치 없음';
+              }
+            }
+
+            return (
+              <Animated.View key={friend.friendship_id} entering={FadeInUp.duration(250).delay(idx * 40)}>
+                <Pressable
+                  style={s.friendRow}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    onOpenFriendProfile(friend.user_id);
+                  }}
+                >
+                  <AvatarCircle username={friend.username} avatarUrl={friend.avatar_url} />
+                  <View style={s.friendInfo}>
+                    <Text style={s.friendName} numberOfLines={1}>
+                      {friend.username}
+                    </Text>
+                    {locationSub ? (
+                      <Text style={s.friendLocationSub} numberOfLines={1}>
+                        {locationSub}
+                      </Text>
+                    ) : null}
+                    <View style={s.friendMeta}>
+                      {friend.level != null && (
+                        <View style={s.levelBadge}>
+                          <Text style={s.levelBadgeText}>Lv.{friend.level}</Text>
+                        </View>
+                      )}
+                      {friend.character_type && (
+                        <Text style={s.charIcon}>{CHARACTER_ICONS[friend.character_type] ?? '🎮'}</Text>
+                      )}
+                    </View>
                   </View>
-                </View>
-              </View>
-            </Animated.View>
-          ))
+                  <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+                </Pressable>
+              </Animated.View>
+            );
+          })
         )}
       </Animated.View>
     </ScrollView>
@@ -965,9 +1005,12 @@ function MemberRow({ member }: { member: CrewMember }) {
 export default function SocialScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const viewerId = useAuthStore((s) => s.user?.id ?? null);
 
   const [activeTab, setActiveTab] = useState<TabKey>('friends');
   const [friendsData, setFriendsData] = useState<FriendsResult | null>(null);
+  const [friendLocations, setFriendLocations] = useState<FriendLocation[]>([]);
+  const [districtByUserId, setDistrictByUserId] = useState<Map<string, string>>(new Map());
   const [crewData, setCrewData] = useState<MyCrewResult | null>(null);
   const [loadingFriends, setLoadingFriends] = useState(true);
   const [loadingCrew, setLoadingCrew] = useState(true);
@@ -1017,6 +1060,54 @@ export default function SocialScreen() {
     loadFriends();
     loadCrew();
   }, [loadFriends, loadCrew]);
+
+  const friendIdsKey =
+    friendsData?.friends
+      ?.map((f) => f.user_id)
+      .sort()
+      .join(',') ?? '';
+
+  useEffect(() => {
+    if (!viewerId || !friendsData?.friends?.length) {
+      setFriendLocations([]);
+      return;
+    }
+    const ids = friendsData.friends.map((f) => f.user_id);
+    let unsub: (() => void) | null = null;
+
+    void (async () => {
+      const locs = await getFriendLocationsSafe(viewerId);
+      if (locs) setFriendLocations(locs);
+      unsub = subscribeToFriendLocations(ids, (next) => setFriendLocations(next));
+    })();
+
+    const poll = setInterval(() => {
+      void (async () => {
+        const locs = await getFriendLocationsSafe(viewerId);
+        if (locs) setFriendLocations(locs);
+      })();
+    }, 25000);
+
+    return () => {
+      if (unsub) unsub();
+      clearInterval(poll);
+    };
+  }, [viewerId, friendIdsKey]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const next = new Map<string, string>();
+      for (const loc of friendLocations) {
+        const label = await reverseGeocodeToDistrict(loc.latitude, loc.longitude);
+        if (!cancelled) next.set(loc.user_id, label);
+      }
+      if (!cancelled) setDistrictByUserId(next);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [friendLocations]);
 
   const tabs: { key: TabKey; label: string }[] = [
     { key: 'friends', label: '친구' },
@@ -1072,6 +1163,9 @@ export default function SocialScreen() {
           refreshing={refreshingFriends}
           onRefresh={() => loadFriends(true)}
           onShowToast={showToast}
+          friendLocations={friendLocations}
+          districtByUserId={districtByUserId}
+          onOpenFriendProfile={(uid) => router.push(`/user/${uid}` as any)}
         />
       ) : (
         <CrewTab
@@ -1251,7 +1345,12 @@ const s = StyleSheet.create({
     color: COLORS.textPrimary,
     flex: 1,
   },
-  friendMeta: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginTop: 2 },
+  friendLocationSub: {
+    fontSize: FONT_SIZE.xs,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
+  friendMeta: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginTop: 4 },
   levelBadge: {
     backgroundColor: `${BRAND.primary}20`,
     paddingHorizontal: SPACING.sm,

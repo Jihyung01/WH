@@ -12,6 +12,7 @@ export default function AuthLayout() {
     >
       <Stack.Screen name="welcome" />
       <Stack.Screen name="login" options={{ animation: 'fade' }} />
+      <Stack.Screen name="personality-quiz" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="onboarding" options={{ animation: 'slide_from_right' }} />
     </Stack>
   );

@@ -16,17 +16,11 @@ import Animated, {
   FadeInUp,
 } from 'react-native-reanimated';
 
-import {
-  useCharacterStore,
-  getEvolutionStage,
-  getEvolutionEmoji,
-  getLevelTitle,
-  xpForLevel,
-} from '../../src/stores/characterStore';
+import { useCharacterStore, getLevelTitle, xpForLevel } from '../../src/stores/characterStore';
+import { CharacterAvatar } from '../../src/components/character/CharacterAvatar';
 import { COLORS, SPACING, FONT_SIZE, FONT_WEIGHT, BORDER_RADIUS, SHADOWS, BRAND, RARITY } from '../../src/config/theme';
 import { MOOD_DISPLAY, SLOT_CONFIG } from '../../src/components/cosmetic/constants';
 import { EquippedEffectBar } from '../../src/components/cosmetic/EquippedEffectBar';
-import { CharacterRenderer } from '../../src/components/cosmetic/character-svg';
 import type { CharacterLoadout } from '../../src/types';
 import type { CosmeticSlot } from '../../src/types/enums';
 
@@ -38,7 +32,7 @@ export default function CharacterScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const {
-    character, loadout, equippedEffects, coins, mood,
+    character, loadout, equippedEffects, coins, mood, favoriteDistrict,
     personalityTraits, activeTitle, isLoading,
     fetchCharacter, fetchLoadout, fetchCoins, refreshPersonality,
   } = useCharacterStore();
@@ -48,15 +42,11 @@ export default function CharacterScreen() {
   const characterType = character?.character_type ?? 'explorer';
   const level = character?.level ?? 1;
   const xp = character?.xp ?? 0;
-  const stage = getEvolutionStage(level);
-  const emoji = getEvolutionEmoji(characterType, stage);
   const charName = character?.name ?? '도담';
   const levelTitle = getLevelTitle(characterType, level);
   const nextLevelXp = xpForLevel(level);
   const xpProgress = nextLevelXp > 0 ? Math.min(xp / nextLevelXp, 1) : 0;
   const moodInfo = MOOD_DISPLAY[mood] ?? MOOD_DISPLAY.happy;
-
-  // Character tap handled by CharacterRenderer internally
 
   useEffect(() => {
     fetchCharacter();
@@ -99,13 +89,17 @@ export default function CharacterScreen() {
             <Ionicons name="chevron-forward" size={14} color={COLORS.textMuted} />
           </Pressable>
 
-          {/* Character display — SVG layered renderer */}
-          <CharacterRenderer
+          <CharacterAvatar
             characterType={characterType}
-            evolutionStage={stage}
-            loadout={loadout}
+            level={level}
             size={200}
+            showEvolutionBadge
+            loadout={loadout}
+            favoriteDistrict={favoriteDistrict ?? character?.favorite_district}
+            mood={mood}
             onPress={handleCharTap}
+            borderColor={BRAND.primary}
+            backgroundColor={COLORS.surface}
           />
 
           {/* Name & Level bar */}

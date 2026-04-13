@@ -125,7 +125,9 @@ export default function QuestsScreen({ embedded }: { embedded?: boolean }) {
       if (searchQuery.trim()) {
         const q = searchQuery.trim().toLowerCase();
         filtered = filtered.filter(
-          (e) => e.title.toLowerCase().includes(q) || e.address.toLowerCase().includes(q),
+          (e) =>
+            e.title.toLowerCase().includes(q) ||
+            (e.address ?? '').toLowerCase().includes(q),
         );
       }
       if (categoryFilter) {

@@ -25,11 +25,8 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { COLORS, SPACING, FONT_SIZE, FONT_WEIGHT, BORDER_RADIUS, SHADOWS, BRAND } from '../../config/theme';
-import {
-  getEvolutionStage,
-  getEvolutionEmoji,
-  getLevelTitle,
-} from '../../stores/characterStore';
+import { getLevelTitle } from '../../stores/characterStore';
+import { CharacterAvatar } from '../character/CharacterAvatar';
 import { shareKakaoText } from '../../services/kakaoShare';
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -71,8 +68,6 @@ export default function ShareJournalCard({ data, onClose }: Props) {
   const cardRef = useRef<ViewShot>(null);
   const [isSharing, setIsSharing] = useState(false);
 
-  const stage = getEvolutionStage(data.characterLevel);
-  const emoji = getEvolutionEmoji(data.characterType, stage);
   const title = getLevelTitle(data.characterType, data.characterLevel);
   const gradientColors = CHARACTER_GRADIENTS[data.characterType] ?? ['#1E293B', '#0F172A', '#1E293B'];
 
@@ -184,7 +179,15 @@ export default function ShareJournalCard({ data, onClose }: Props) {
           {/* Character section */}
           <View style={styles.characterSection}>
             <View style={styles.emojiCircle}>
-              <Text style={styles.characterEmoji}>{emoji}</Text>
+              <CharacterAvatar
+                characterType={data.characterType}
+                level={data.characterLevel}
+                size={64}
+                showLoadoutOverlay={false}
+                interactive={false}
+                borderColor="rgba(255,255,255,0.45)"
+                backgroundColor="rgba(255,255,255,0.12)"
+              />
             </View>
             <Text style={styles.characterName}>{data.characterName}</Text>
             <View style={styles.levelBadge}>
@@ -370,9 +373,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.15)',
     marginBottom: 12,
-  },
-  characterEmoji: {
-    fontSize: 42,
   },
   characterName: {
     fontSize: 20,

@@ -17,7 +17,8 @@ import Animated, {
   SlideInDown,
 } from 'react-native-reanimated';
 
-import { useCharacterStore, getEvolutionStage, getEvolutionEmoji, getLevelTitle } from '../../src/stores/characterStore';
+import { useCharacterStore, getLevelTitle } from '../../src/stores/characterStore';
+import { CharacterAvatar } from '../../src/components/character/CharacterAvatar';
 import { completeEvent } from '../../src/lib/api';
 import type { CompleteEventResult, CosmeticDropResult } from '../../src/types';
 import { COLORS, SPACING, FONT_SIZE, FONT_WEIGHT, BORDER_RADIUS, SHADOWS } from '../../src/config/theme';
@@ -177,7 +178,7 @@ export default function RewardRevealScreen() {
       fireNotificationSuccess();
       levelUpScale.value = withSpring(1, { damping: 6, stiffness: 80 });
       await sleep(2500);
-      await fetchCharacter();
+      await fetchCharacter({ skipEvolutionCelebration: true });
     }
 
     // Refresh cosmetic data
@@ -385,9 +386,17 @@ export default function RewardRevealScreen() {
       {!error && phase === 'personality' && rewardData?.character?.new_traits && (
         <View style={styles.personalityOverlay}>
           <Animated.View entering={FadeInDown.springify()} style={styles.personalityCard}>
-            <Text style={styles.personalityIcon}>
-              {character ? getEvolutionEmoji(character.character_type, getEvolutionStage(character.level)) : '🧑‍🚀'}
-            </Text>
+            <View style={styles.personalityIcon}>
+              <CharacterAvatar
+                characterType={character?.character_type ?? 'explorer'}
+                level={character?.level ?? 1}
+                size={72}
+                showLoadoutOverlay={false}
+                interactive={false}
+                borderColor={COLORS.primary}
+                backgroundColor={COLORS.surface}
+              />
+            </View>
             <Text style={styles.personalityTitle}>
               {character?.name ?? '캐릭터'}의 성격이 변했어요!
             </Text>
@@ -409,11 +418,17 @@ export default function RewardRevealScreen() {
       {phase === 'levelup' && rewardData?.character && (
         <Animated.View style={[styles.levelUpOverlay, levelUpStyle]}>
           <View style={styles.levelUpContent}>
-            <Text style={styles.levelUpEmoji}>
-              {character
-                ? getEvolutionEmoji(character.character_type, getEvolutionStage(rewardData.character.new_level))
-                : '🎉'}
-            </Text>
+            <View style={styles.levelUpEmoji}>
+              <CharacterAvatar
+                characterType={character?.character_type ?? 'explorer'}
+                level={rewardData.character.new_level}
+                size={88}
+                showLoadoutOverlay={false}
+                interactive={false}
+                borderColor={COLORS.primary}
+                backgroundColor={COLORS.surface}
+              />
+            </View>
             <Text style={styles.levelUpTitle}>레벨 업!</Text>
             <Text style={styles.levelUpLevel}>Lv.{rewardData.character.new_level} 달성!</Text>
             <Text style={styles.levelUpSubtitle}>
@@ -725,7 +740,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.15)',
   },
-  personalityIcon: { fontSize: 56, marginBottom: SPACING.md },
+  personalityIcon: { marginBottom: SPACING.md, alignItems: 'center' },
   personalityTitle: {
     fontSize: FONT_SIZE.lg,
     fontWeight: FONT_WEIGHT.bold,
@@ -762,7 +777,7 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   levelUpContent: { alignItems: 'center' },
-  levelUpEmoji: { fontSize: 80, marginBottom: SPACING.xl },
+  levelUpEmoji: { marginBottom: SPACING.xl, alignItems: 'center' },
   levelUpTitle: {
     fontSize: 48,
     fontWeight: FONT_WEIGHT.extrabold,

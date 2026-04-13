@@ -1,6 +1,7 @@
 export type {
   GeoPoint,
   Profile,
+  ExplorerTypePayload,
   Character,
   Event,
   NearbyEvent,
