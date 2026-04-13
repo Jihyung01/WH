@@ -2,7 +2,7 @@
   "expo": {
     "name": "WhereHere",
     "slug": "wherehere-app",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "runtimeVersion": {
       "policy": "appVersion"
     },
@@ -35,6 +35,8 @@
         "NSCameraUsageDescription": "WhereHere needs camera access to complete mission photos.",
         "NSUserTrackingUsageDescription": "WhereHere uses this to measure product interactions and improve the app. You can tap Ask App Not to Track and still use all features.",
         "NSPhotoLibraryUsageDescription": "WhereHere needs photo library access to set your profile picture.",
+        "NSHealthShareUsageDescription": "WhereHere uses Health data to read your step count and give exploration rewards.",
+        "NSHealthUpdateUsageDescription": "WhereHere updates your activity progress and rewards based on your step count.",
         "LSApplicationQueriesSchemes": [
           "maps",
           "comgooglemaps",
@@ -80,7 +82,9 @@
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_LOCATION",
         "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACTIVITY_RECOGNITION",
+        "com.google.android.gms.permission.ACTIVITY_RECOGNITION"
       ],
       "intentFilters": [
         {
@@ -123,6 +127,8 @@
       "expo-secure-store",
       "expo-web-browser",
       "expo-task-manager",
+      "react-native-health",
+      "react-native-google-fit",
       [
         "expo-location",
         {

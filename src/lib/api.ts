@@ -1651,3 +1651,15 @@ export async function getCoinPurchaseHistory(): Promise<
   if (error) throw new AppError(error.message, 'PURCHASE_HISTORY_FAILED');
   return (data ?? []) as { product_id: string; coins_granted: number; created_at: string }[];
 }
+
+export async function claimDailyStepReward(
+  milestoneSteps: 1000 | 3000 | 5000 | 10000,
+): Promise<{ success: boolean; xp_awarded?: number; coins_awarded?: number; error?: string }> {
+  const user = await getCurrentUser();
+  const { data, error } = await supabase.rpc('claim_daily_step_reward', {
+    p_user_id: user.id,
+    p_milestone_steps: milestoneSteps,
+  });
+  if (error) throw new AppError(error.message, 'STEP_REWARD_FAILED');
+  return data as { success: boolean; xp_awarded?: number; coins_awarded?: number; error?: string };
+}

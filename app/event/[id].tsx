@@ -46,6 +46,7 @@ import { GPSCheckIn, PhotoMission, QuizMission, TextMission, TimerMission } from
 import type { Event, NearbyEvent, MissionWithStatus } from '../../src/types';
 import { Image } from 'expo-image';
 import { searchNearbyPlaces, getPlaceDetails, getPlacePhotoUrl, type PlaceDetails } from '../../src/services/placesService';
+import { speakCharacterLine } from '../../src/services/voiceService';
 
 const CATEGORY_META: Record<string, { emoji: string; label: string; gradient: string[] }> = {
   exploration: { emoji: '🏃', label: '탐험', gradient: [EVENT_COLORS.exploration, '#059669'] },
@@ -201,6 +202,9 @@ export default function EventDetailScreen() {
           prev.map((m) => (m.id === mission.id ? { ...m, is_completed: true } : m)),
         );
         fireNotificationSuccess();
+        if (mission.mission_type === 'gps_checkin') {
+          speakCharacterLine('checkin');
+        }
 
         if (mission.mission_type === 'quiz') {
           grantQuizCoins().catch(() => {});

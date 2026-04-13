@@ -30,6 +30,7 @@ import {
   fireImpactMedium,
   fireNotificationSuccess,
 } from '../../src/utils/hapticsSafe';
+import { speakCharacterLine } from '../../src/services/voiceService';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -176,9 +177,14 @@ export default function RewardRevealScreen() {
     if (result.character?.level_up) {
       setPhase('levelup');
       fireNotificationSuccess();
+      speakCharacterLine('levelup', character?.character_type);
       levelUpScale.value = withSpring(1, { damping: 6, stiffness: 80 });
       await sleep(2500);
       await fetchCharacter({ skipEvolutionCelebration: true });
+    }
+
+    if (result.character?.evolution) {
+      speakCharacterLine('evolution', character?.character_type);
     }
 
     // Refresh cosmetic data

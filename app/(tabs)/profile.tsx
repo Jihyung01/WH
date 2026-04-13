@@ -40,6 +40,9 @@ import { useAuthStore } from '../../src/stores/authStore';
 import { CharacterClass } from '../../src/types/enums';
 import { formatNumber } from '../../src/utils/format';
 import { COLORS, SPACING, FONT_SIZE, FONT_WEIGHT, BORDER_RADIUS, SHADOWS } from '../../src/config/theme';
+import { requestHealthPermission, getTodaySteps, getAchievedMilestones } from '../../src/services/healthService';
+import { claimDailyStepReward } from '../../src/lib/api';
+import { speakCharacterLine } from '../../src/services/voiceService';
 
 const CLASS_GRADIENTS: Record<string, string[]> = {
   [CharacterClass.EXPLORER]:  ['#00D68F', '#009B6A'],
@@ -110,6 +113,9 @@ function ProfileContent() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [refreshing, setRefreshing] = useState(false);
+  const [todaySteps, setTodaySteps] = useState(0);
+  const [healthReady, setHealthReady] = useState(false);
+  const [claimingStep, setClaimingStep] = useState<number | null>(null);
 
   const {
     character,
@@ -130,6 +136,29 @@ function ProfileContent() {
     fetchVisitedLocations();
     fetchLeaderboard();
   }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      const granted = await requestHealthPermission();
+      if (!mounted) return;
+      setHealthReady(granted);
+      if (granted) {
+        const steps = await getTodaySteps();
+        if (!mounted) return;
+        setTodaySteps(steps);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (character) {
+      speakCharacterLine('startup', character.character_type);
+    }
+  }, [character?.id]);
 
   const floatY = useSharedValue(0);
   const charScale = useSharedValue(1);
@@ -193,6 +222,7 @@ function ProfileContent() {
         stat_creativity: 0,
       };
   const maxStat = Math.max(...Object.values(statValues), 1);
+  const milestoneList = getAchievedMilestones(todaySteps);
 
   return (
     <ScrollView
@@ -204,6 +234,10 @@ function ProfileContent() {
           onRefresh={async () => {
             setRefreshing(true);
             await Promise.all([fetchCharacter(), fetchStats(), fetchLeaderboard(), fetchVisitedLocations()]);
+            if (healthReady) {
+              const steps = await getTodaySteps();
+              setTodaySteps(steps);
+            }
             setRefreshing(false);
           }}
           tintColor={COLORS.primary}
@@ -375,6 +409,44 @@ function ProfileContent() {
 
       {/* Activity Stats */}
       <Animated.View entering={FadeInDown.delay(100)} style={styles.section}>
+        <View style={styles.stepsCard}>
+          <View style={styles.stepsHeader}>
+            <Text style={styles.stepsTitle}>오늘의 걸음 수</Text>
+            <Text style={styles.stepsValue}>{todaySteps.toLocaleString()} / 10,000</Text>
+          </View>
+          <View style={styles.stepsTrack}>
+            <View style={[styles.stepsFill, { width: `${Math.min(100, (todaySteps / 10000) * 100)}%` }]} />
+          </View>
+          <View style={styles.stepsMilestones}>
+            {[1000, 3000, 5000, 10000].map((m) => (
+              <Pressable
+                key={m}
+                style={[styles.stepChip, todaySteps >= m && styles.stepChipActive]}
+                disabled={todaySteps < m || claimingStep === m}
+                onPress={async () => {
+                  try {
+                    setClaimingStep(m);
+                    const res = await claimDailyStepReward(m as 1000 | 3000 | 5000 | 10000);
+                    if (res.success) {
+                      await Promise.all([fetchCharacter(), fetchStats()]);
+                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    }
+                  } catch {
+                    // ignore
+                  } finally {
+                    setClaimingStep(null);
+                  }
+                }}
+              >
+                <Text style={styles.stepChipText}>{m >= 10000 ? '🏅' : '👟'} {m}</Text>
+              </Pressable>
+            ))}
+          </View>
+          {!healthReady && (
+            <Text style={styles.stepsHint}>건강 데이터 권한을 허용하면 자동 집계됩니다.</Text>
+          )}
+        </View>
+
         <View style={styles.statsGrid2x2}>
           <StatCard emoji="🏁" value={`${stats?.events_completed ?? 0}개`} label="총 탐험" />
           <StatCard emoji="🔥" value={`${stats?.login_streak ?? 0}일`} label="연속 기록" />
@@ -688,6 +760,53 @@ const styles = StyleSheet.create({
   evoText: { fontSize: FONT_SIZE.xs, color: COLORS.primaryLight, fontWeight: FONT_WEIGHT.medium },
 
   section: { paddingHorizontal: SPACING.xl, marginTop: SPACING.xxl },
+  stepsCard: {
+    backgroundColor: COLORS.surfaceLight,
+    borderRadius: BORDER_RADIUS.md,
+    padding: SPACING.lg,
+    marginBottom: SPACING.lg,
+    borderWidth: 1,
+    borderColor: COLORS.surfaceHighlight,
+  },
+  stepsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.sm,
+  },
+  stepsTitle: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.semibold, color: COLORS.textSecondary },
+  stepsValue: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.bold, color: COLORS.textPrimary },
+  stepsTrack: {
+    height: 8,
+    backgroundColor: COLORS.surfaceHighlight,
+    borderRadius: 999,
+    overflow: 'hidden',
+  },
+  stepsFill: {
+    height: '100%',
+    backgroundColor: COLORS.primary,
+    borderRadius: 999,
+  },
+  stepsMilestones: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+    marginTop: SPACING.md,
+  },
+  stepChip: {
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 6,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: COLORS.background,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  stepChipActive: {
+    backgroundColor: `${COLORS.primary}22`,
+    borderColor: `${COLORS.primary}66`,
+  },
+  stepChipText: { fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.semibold, color: COLORS.textSecondary },
+  stepsHint: { marginTop: SPACING.sm, fontSize: FONT_SIZE.xs, color: COLORS.textMuted },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: SPACING.lg },
   sectionTitle: { fontSize: FONT_SIZE.lg, fontWeight: FONT_WEIGHT.bold, color: COLORS.textPrimary, marginBottom: SPACING.lg },
   sectionBadge: {
