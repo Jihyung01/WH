@@ -49,7 +49,7 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 let regionChangeTimer: ReturnType<typeof setTimeout> | null = null;
 
-const FRIEND_LOCATIONS_POLL_MS = 20_000;
+const FRIEND_LOCATIONS_POLL_MS = 15_000;
 const FRIEND_LOCATION_STALE_KEEP_MS = 12 * 60 * 60 * 1000; // keep missing friends for up to 12h to avoid flicker
 const MAP_BOOT_TIMEOUT_MS = 6000;
 
@@ -74,7 +74,7 @@ function mergeFriendLocations(
     }
   }
 
-  return Array.from(byId.values());
+  return Array.from(byId.values()).sort((a, b) => a.user_id.localeCompare(b.user_id));
 }
 
 function areFriendLocationsEqual(a: FriendLocation[], b: FriendLocation[]): boolean {
@@ -88,7 +88,8 @@ function areFriendLocationsEqual(a: FriendLocation[], b: FriendLocation[]): bool
       prev.longitude !== next.longitude ||
       prev.last_seen_at !== next.last_seen_at ||
       prev.username !== next.username ||
-      prev.character_type !== next.character_type
+      prev.character_type !== next.character_type ||
+      prev.level !== next.level
     ) {
       return false;
     }
@@ -195,22 +196,30 @@ export default function MapScreen() {
 
   // ── Load friend locations ──
   useEffect(() => {
-    let unsubscribe: (() => void) | null = null;
+    if (!isFocused || !userId) {
+      return;
+    }
+
+    let cancelled = false;
+    const unsubRef: { current: (() => void) | null } = { current: null };
     let pollId: ReturnType<typeof setInterval> | null = null;
+    const uid = userId;
 
     async function initFriendLocations() {
-      if (!isFocused) return;
-      if (!userId) return;
       try {
         await ensureFriendLocationPublishingIfNeeded();
+        if (cancelled) return;
 
         const { friends } = await getFriends();
+        if (cancelled) return;
+
         if (friends.length === 0) {
           setFriendLocations([]);
           return;
         }
 
-        const locations = await getFriendLocationsSafe(userId);
+        const locations = await getFriendLocationsSafe(uid);
+        if (cancelled) return;
         if (locations !== null) {
           setFriendLocations((prev) => {
             const merged = mergeFriendLocations(prev, locations);
@@ -218,33 +227,38 @@ export default function MapScreen() {
           });
         }
 
+        if (cancelled) return;
         const friendIds = friends.map((f) => f.user_id);
-        unsubscribe = subscribeToFriendLocations(friendIds, (next) => {
+        unsubRef.current = subscribeToFriendLocations(friendIds, uid, (next) => {
+          if (cancelled) return;
           setFriendLocations((prev) => {
             const merged = mergeFriendLocations(prev, next);
             return areFriendLocationsEqual(prev, merged) ? prev : merged;
           });
         });
 
-        pollId = setInterval(async () => {
-          if (!isFocused) return;
-          const next = await getFriendLocationsSafe(userId);
-          if (next !== null) {
+        pollId = setInterval(() => {
+          if (cancelled) return;
+          void (async () => {
+            const next = await getFriendLocationsSafe(uid);
+            if (cancelled || next === null) return;
             setFriendLocations((prev) => {
               const merged = mergeFriendLocations(prev, next);
               return areFriendLocationsEqual(prev, merged) ? prev : merged;
             });
-          }
+          })();
         }, FRIEND_LOCATIONS_POLL_MS);
       } catch (e) {
-        console.warn('[map] initFriendLocations failed:', e);
+        if (!cancelled) console.warn('[map] initFriendLocations failed:', e);
       }
     }
 
-    initFriendLocations();
+    void initFriendLocations();
 
     return () => {
-      if (unsubscribe) unsubscribe();
+      cancelled = true;
+      unsubRef.current?.();
+      unsubRef.current = null;
       if (pollId) clearInterval(pollId);
     };
   }, [isFocused, userId]);

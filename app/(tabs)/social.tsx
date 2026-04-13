@@ -1072,24 +1072,32 @@ export default function SocialScreen() {
       setFriendLocations([]);
       return;
     }
+    let cancelled = false;
     const ids = friendsData.friends.map((f) => f.user_id);
-    let unsub: (() => void) | null = null;
+    const unsubRef: { current: (() => void) | null } = { current: null };
 
     void (async () => {
       const locs = await getFriendLocationsSafe(viewerId);
+      if (cancelled) return;
       if (locs) setFriendLocations(locs);
-      unsub = subscribeToFriendLocations(ids, (next) => setFriendLocations(next));
+      if (cancelled) return;
+      unsubRef.current = subscribeToFriendLocations(ids, viewerId, (next) => {
+        if (!cancelled) setFriendLocations(next);
+      });
     })();
 
     const poll = setInterval(() => {
+      if (cancelled) return;
       void (async () => {
         const locs = await getFriendLocationsSafe(viewerId);
-        if (locs) setFriendLocations(locs);
+        if (!cancelled && locs) setFriendLocations(locs);
       })();
-    }, 25000);
+    }, 15_000);
 
     return () => {
-      if (unsub) unsub();
+      cancelled = true;
+      unsubRef.current?.();
+      unsubRef.current = null;
       clearInterval(poll);
     };
   }, [viewerId, friendIdsKey]);

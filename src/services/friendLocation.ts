@@ -104,7 +104,7 @@ export async function getFriendLocationsSafe(userId?: string): Promise<FriendLoc
     userId ??
     (await supabase.auth.getUser()).data.user?.id ??
     null;
-  if (!resolvedUserId) return [];
+  if (!resolvedUserId) return null;
 
   const { data, error } = await supabase.rpc('get_friend_locations', {
     p_user_id: resolvedUserId,
@@ -141,18 +141,47 @@ export async function getLocationSharingStatus(): Promise<boolean> {
   return !!data?.location_sharing;
 }
 
+const FRIEND_LOC_REALTIME_DEBOUNCE_MS = 400;
+
+/**
+ * Realtime 구독 시 `viewerUserId`를 넘겨 auth.getUser() 레이스를 피합니다.
+ * 디바운스로 연속 UPDATE 시 RPC/상태 폭주·마커 깜빡임을 줄입니다.
+ */
 export function subscribeToFriendLocations(
   friendIds: string[],
+  viewerUserId: string,
   onUpdate: (locations: FriendLocation[]) => void,
 ) {
-  if (friendIds.length === 0) {
+  if (friendIds.length === 0 || !viewerUserId) {
     return () => {};
   }
 
-  const inList = friendIds.map((id) => `"${id}"`).join(',');
+  const uniqueSorted = [...new Set(friendIds)].sort();
+  const inList = uniqueSorted.map((id) => `"${id}"`).join(',');
+
+  let disposed = false;
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const runRefetch = () => {
+    if (disposed) return;
+    void (async () => {
+      const locations = await getFriendLocationsSafe(viewerUserId);
+      if (disposed || locations === null) return;
+      onUpdate(locations);
+    })();
+  };
+
+  const scheduleRefetch = () => {
+    if (disposed) return;
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      debounceTimer = null;
+      runRefetch();
+    }, FRIEND_LOC_REALTIME_DEBOUNCE_MS);
+  };
 
   const channel = supabase
-    .channel(`friend-loc-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`)
+    .channel(`friend-loc-${viewerUserId.slice(0, 12)}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`)
     .on(
       'postgres_changes',
       {
@@ -161,14 +190,18 @@ export function subscribeToFriendLocations(
         table: 'profiles',
         filter: `id=in.(${inList})`,
       },
-      async () => {
-        const locations = await getFriendLocationsSafe();
-        if (locations !== null) onUpdate(locations);
+      () => {
+        scheduleRefetch();
       },
     )
     .subscribe();
 
   return () => {
+    disposed = true;
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+      debounceTimer = null;
+    }
     supabase.removeChannel(channel);
   };
 }
