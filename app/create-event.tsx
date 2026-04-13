@@ -31,6 +31,7 @@ import {
 import { AppleMusicAttachSheet } from '../src/components/music/AppleMusicAttachSheet';
 import type { UGCSuggestedEvent } from '../src/lib/api';
 import { validateUGCText } from '../src/utils/contentModeration';
+import { autocompletePlaces, getPlaceDetails, getPlacePhotoUrl, type AutocompleteSuggestion } from '../src/services/placesService';
 import {
   COLORS,
   SPACING,
@@ -81,6 +82,10 @@ export default function CreateEventScreen() {
   const [lat, setLat] = useState<number | null>(null);
   const [lng, setLng] = useState<number | null>(null);
   const [loadingLocation, setLoadingLocation] = useState(false);
+  const [placeQuery, setPlaceQuery] = useState('');
+  const [placeSuggestions, setPlaceSuggestions] = useState<AutocompleteSuggestion[]>([]);
+  const [placesLoading, setPlacesLoading] = useState(false);
+  const [selectedPlacePhoto, setSelectedPlacePhoto] = useState<string | null>(null);
 
   // Step 2: Details
   const [category, setCategory] = useState('');
@@ -120,6 +125,60 @@ export default function CreateEventScreen() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const q = placeQuery.trim();
+    if (q.length < 2) {
+      setPlaceSuggestions([]);
+      setPlacesLoading(false);
+      return;
+    }
+
+    setPlacesLoading(true);
+    const t = setTimeout(() => {
+      (async () => {
+        try {
+          const list = await autocompletePlaces(q, {
+            lat: lat ?? undefined,
+            lng: lng ?? undefined,
+            radiusMeters: 20000,
+          });
+          if (!cancelled) setPlaceSuggestions(list);
+        } catch {
+          if (!cancelled) setPlaceSuggestions([]);
+        } finally {
+          if (!cancelled) setPlacesLoading(false);
+        }
+      })();
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [placeQuery, lat, lng]);
+
+  async function handlePickSuggestion(s: AutocompleteSuggestion) {
+    try {
+      setPlacesLoading(true);
+      const details = await getPlaceDetails(s.placeId);
+      setLocationName(details.displayName);
+      setAddress(details.formattedAddress ?? s.secondaryText ?? s.text);
+      if (details.location) {
+        setLat(details.location.latitude);
+        setLng(details.location.longitude);
+      }
+      const photoName = details.photos?.[0]?.name;
+      setSelectedPlacePhoto(photoName ? getPlacePhotoUrl(photoName, 1200) : null);
+      setPlaceQuery('');
+      setPlaceSuggestions([]);
+    } catch (e: any) {
+      Alert.alert('오류', e?.message ?? '장소 정보를 불러오지 못했습니다.');
+    } finally {
+      setPlacesLoading(false);
+    }
+  }
 
   async function handleAcceptTerms() {
     try {
@@ -358,11 +417,46 @@ export default function CreateEventScreen() {
         <TextInput
           style={styles.textInput}
           value={locationName}
-          onChangeText={setLocationName}
+          onChangeText={(t) => {
+            setLocationName(t);
+            setPlaceQuery(t);
+          }}
           placeholder="예: 경복궁, 홍대 놀이터..."
           placeholderTextColor={COLORS.textMuted}
           maxLength={50}
         />
+
+        {placeQuery.trim().length >= 2 ? (
+          <View style={styles.placesDropdown}>
+            {placesLoading ? (
+              <View style={styles.placesLoadingRow}>
+                <ActivityIndicator size="small" color={BRAND.primary} />
+                <Text style={styles.placesLoadingText}>장소 검색 중…</Text>
+              </View>
+            ) : placeSuggestions.length > 0 ? (
+              placeSuggestions.slice(0, 6).map((s) => (
+                <Pressable
+                  key={s.placeId}
+                  style={styles.placesRow}
+                  onPress={() => void handlePickSuggestion(s)}
+                >
+                  <Text style={styles.placesPrimary} numberOfLines={1}>{s.text}</Text>
+                  {s.secondaryText ? (
+                    <Text style={styles.placesSecondary} numberOfLines={1}>{s.secondaryText}</Text>
+                  ) : null}
+                </Pressable>
+              ))
+            ) : (
+              <Text style={styles.placesEmpty}>검색 결과가 없어요.</Text>
+            )}
+          </View>
+        ) : null}
+
+        {selectedPlacePhoto ? (
+          <View style={styles.placePhotoWrap}>
+            <Image source={{ uri: selectedPlacePhoto }} style={styles.placePhoto} />
+          </View>
+        ) : null}
 
         <Text style={styles.inputLabel}>주소</Text>
         <TextInput
@@ -832,6 +926,61 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
     borderWidth: 1,
     borderColor: COLORS.border,
+  },
+  placesDropdown: {
+    marginTop: SPACING.sm,
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    overflow: 'hidden',
+  },
+  placesLoadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+  },
+  placesLoadingText: {
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.textSecondary,
+    fontWeight: FONT_WEIGHT.semibold,
+  },
+  placesRow: {
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: COLORS.border,
+  },
+  placesPrimary: {
+    fontSize: FONT_SIZE.sm,
+    fontWeight: FONT_WEIGHT.semibold,
+    color: COLORS.textPrimary,
+  },
+  placesSecondary: {
+    marginTop: 2,
+    fontSize: FONT_SIZE.xs,
+    color: COLORS.textMuted,
+  },
+  placesEmpty: {
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.lg,
+    textAlign: 'center',
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.textMuted,
+  },
+  placePhotoWrap: {
+    marginTop: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.surfaceLight,
+  },
+  placePhoto: {
+    width: '100%',
+    aspectRatio: 16 / 9,
   },
   textArea: {
     minHeight: 100,

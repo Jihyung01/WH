@@ -7,6 +7,7 @@ import {
   Pressable,
   ActivityIndicator,
   Alert,
+  Linking,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -43,6 +44,8 @@ import { COLORS, SPACING, FONT_SIZE, FONT_WEIGHT, BORDER_RADIUS, SHADOWS, BRAND,
 import { useTheme } from '../../src/providers/ThemeProvider';
 import { GPSCheckIn, PhotoMission, QuizMission, TextMission, TimerMission } from '../../src/components/mission';
 import type { Event, NearbyEvent, MissionWithStatus } from '../../src/types';
+import { Image } from 'expo-image';
+import { searchNearbyPlaces, getPlaceDetails, getPlacePhotoUrl, type PlaceDetails } from '../../src/services/placesService';
 
 const CATEGORY_META: Record<string, { emoji: string; label: string; gradient: string[] }> = {
   exploration: { emoji: '🏃', label: '탐험', gradient: [EVENT_COLORS.exploration, '#059669'] },
@@ -70,6 +73,8 @@ export default function EventDetailScreen() {
   const [missions, setMissions] = useState<MissionWithStatus[]>([]);
   const [missionStarted, setMissionStarted] = useState(false);
   const [appleMusicAttachSubmissionId, setAppleMusicAttachSubmissionId] = useState<string | null>(null);
+  const [placeDetails, setPlaceDetails] = useState<PlaceDetails | null>(null);
+  const [placeLoading, setPlaceLoading] = useState(false);
 
   const { displayedText, status: narrativeStatus, retry: retryNarrative } = useNarrative(
     event?.id,
@@ -111,6 +116,37 @@ export default function EventDetailScreen() {
       }
     })();
   }, [id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadPlace() {
+      if (!event) return;
+      if (!event.address || typeof event.address !== 'string') return;
+      if (placeDetails) return;
+
+      // Prefer lat/lng when available
+      const lat = (event as any).lat as number | undefined;
+      const lng = (event as any).lng as number | undefined;
+      if (lat == null || lng == null) return;
+
+      setPlaceLoading(true);
+      try {
+        const nearby = await searchNearbyPlaces(lat, lng, 120, undefined);
+        const best = nearby[0];
+        if (!best?.id) return;
+        const details = await getPlaceDetails(best.id);
+        if (!cancelled) setPlaceDetails(details);
+      } catch {
+        // optional: keep silent, fall back to default UI
+      } finally {
+        if (!cancelled) setPlaceLoading(false);
+      }
+    }
+    void loadPlace();
+    return () => {
+      cancelled = true;
+    };
+  }, [event, placeDetails]);
 
   // 이미 DB에 모든 미션이 완료된 상태로 들어오면 `allCompleted`만 true이고 `missionStarted`는 false라
   // 미션 단계 블록이 렌더되지 않음 → 단계가 "삭제된 것처럼" 보임. 완료된 단계도 목록은 보이게 연다.
@@ -360,6 +396,75 @@ export default function EventDetailScreen() {
           </View>
 
           <Text style={styles.description}>{event.description}</Text>
+
+          {/* ── Places (Google) ── */}
+          {placeDetails ? (
+            <View style={styles.placesCard}>
+              {placeDetails.photos?.[0]?.name ? (
+                <Image
+                  source={{ uri: getPlacePhotoUrl(placeDetails.photos[0].name, 1200) }}
+                  style={styles.placesHero}
+                  contentFit="cover"
+                />
+              ) : null}
+              <View style={styles.placesBody}>
+                <View style={styles.placesTitleRow}>
+                  <Text style={styles.placesTitle} numberOfLines={1}>
+                    {placeDetails.displayName}
+                  </Text>
+                  <Text style={styles.placesSource}>Google</Text>
+                </View>
+
+                {placeDetails.formattedAddress ? (
+                  <Text style={styles.placesAddr} numberOfLines={2}>
+                    {placeDetails.formattedAddress}
+                  </Text>
+                ) : null}
+
+                <View style={styles.placesMetaRow}>
+                  {typeof placeDetails.rating === 'number' ? (
+                    <View style={styles.placesChip}>
+                      <Ionicons name="star" size={14} color={BRAND.gold} />
+                      <Text style={styles.placesChipText}>
+                        {placeDetails.rating.toFixed(1)}
+                        {placeDetails.userRatingCount ? ` (${placeDetails.userRatingCount.toLocaleString()})` : ''}
+                      </Text>
+                    </View>
+                  ) : null}
+
+                  {placeDetails.regularOpeningHours?.openNow != null ? (
+                    <View style={styles.placesChip}>
+                      <Ionicons
+                        name="time-outline"
+                        size={14}
+                        color={placeDetails.regularOpeningHours.openNow ? BRAND.primary : COLORS.textMuted}
+                      />
+                      <Text style={styles.placesChipText}>
+                        {placeDetails.regularOpeningHours.openNow ? '영업 중' : '영업 종료'}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+
+                {placeDetails.googleMapsUri ? (
+                  <Pressable
+                    style={styles.placesLinkBtn}
+                    onPress={() => void Linking.openURL(placeDetails.googleMapsUri!)}
+                  >
+                    <Ionicons name="map-outline" size={16} color={BRAND.primary} />
+                    <Text style={styles.placesLinkText}>구글맵에서 보기</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            </View>
+          ) : placeLoading ? (
+            <View style={styles.placesCard}>
+              <View style={styles.placesBody}>
+                <ActivityIndicator size="small" color={BRAND.primary} />
+                <Text style={styles.placesLoadingText}>장소 정보를 불러오는 중…</Text>
+              </View>
+            </View>
+          ) : null}
         </View>
 
         {/* ── Narrative (AI-generated via Edge Function → Claude) ── */}
@@ -663,6 +768,93 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     lineHeight: 24,
     marginBottom: SPACING.xl,
+  },
+
+  // ── Places (Google) ──
+  placesCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.lg,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginBottom: SPACING.xl,
+    ...SHADOWS.sm,
+  },
+  placesHero: {
+    width: '100%',
+    height: 180,
+    backgroundColor: COLORS.surfaceLight,
+  },
+  placesBody: {
+    padding: SPACING.lg,
+  },
+  placesTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  placesTitle: {
+    flex: 1,
+    minWidth: 0,
+    fontSize: FONT_SIZE.md,
+    fontWeight: FONT_WEIGHT.bold,
+    color: COLORS.textPrimary,
+  },
+  placesSource: {
+    fontSize: 10,
+    fontWeight: FONT_WEIGHT.semibold,
+    color: COLORS.textMuted,
+  },
+  placesAddr: {
+    marginTop: 6,
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.textSecondary,
+    lineHeight: 20,
+  },
+  placesMetaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+    marginTop: SPACING.md,
+  },
+  placesChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 6,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: COLORS.surfaceLight,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  placesChipText: {
+    fontSize: FONT_SIZE.xs,
+    fontWeight: FONT_WEIGHT.semibold,
+    color: COLORS.textPrimary,
+  },
+  placesLinkBtn: {
+    marginTop: SPACING.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: SPACING.sm,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: `${BRAND.primary}12`,
+    borderWidth: 1,
+    borderColor: `${BRAND.primary}35`,
+  },
+  placesLinkText: {
+    fontSize: FONT_SIZE.sm,
+    fontWeight: FONT_WEIGHT.bold,
+    color: BRAND.primary,
+  },
+  placesLoadingText: {
+    marginTop: SPACING.sm,
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.textMuted,
+    textAlign: 'center',
   },
 
   // ── Narrative ──
