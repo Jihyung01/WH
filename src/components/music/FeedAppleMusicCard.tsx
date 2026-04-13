@@ -2,7 +2,6 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, Pressable, ActivityIndicator, Linking } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { Audio } from 'expo-av';
 import type { AppleMusicFeedAttachment } from '../../lib/api';
 import { COLORS, SPACING, FONT_SIZE, FONT_WEIGHT, BORDER_RADIUS, BRAND } from '../../config/theme';
 
@@ -10,13 +9,35 @@ interface Props {
   music: AppleMusicFeedAttachment;
 }
 
+type AvAudioModule = {
+  setAudioModeAsync: (mode: {
+    playsInSilentModeIOS?: boolean;
+    staysActiveInBackground?: boolean;
+  }) => Promise<void>;
+  Sound: {
+    createAsync: (
+      source: { uri: string },
+      initialStatus: { shouldPlay: boolean },
+      onPlaybackStatusUpdate?: (status: any) => void,
+    ) => Promise<{ sound: AvSound }>;
+  };
+};
+
+type AvSound = {
+  unloadAsync: () => Promise<void>;
+  getStatusAsync: () => Promise<any>;
+  pauseAsync: () => Promise<void>;
+  replayAsync: () => Promise<void>;
+};
+
 export function FeedAppleMusicCard({ music }: Props) {
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
+  const [sound, setSound] = useState<AvSound | null>(null);
   const [playing, setPlaying] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [avReady, setAvReady] = useState<boolean | null>(null);
 
   const preview = music.preview_url;
-  const canPreview = typeof preview === 'string' && preview.length > 8;
+  const canPreview = typeof preview === 'string' && preview.length > 8 && avReady !== false;
 
   useEffect(() => {
     return () => {
@@ -24,9 +45,33 @@ export function FeedAppleMusicCard({ music }: Props) {
     };
   }, [sound]);
 
+  useEffect(() => {
+    let cancelled = false;
+    async function warmup() {
+      if (avReady !== null) return;
+      try {
+        await import('expo-av');
+        if (!cancelled) setAvReady(true);
+      } catch {
+        if (!cancelled) setAvReady(false);
+      }
+    }
+    void warmup();
+    return () => {
+      cancelled = true;
+    };
+  }, [avReady]);
+
   const togglePreview = useCallback(async () => {
     if (!canPreview || !preview) return;
     try {
+      const mod = await import('expo-av');
+      const Audio = (mod as any).Audio as AvAudioModule | undefined;
+      if (!Audio) {
+        setAvReady(false);
+        return;
+      }
+
       if (sound) {
         const st = await sound.getStatusAsync();
         if (st.isLoaded && st.isPlaying) {
@@ -57,7 +102,8 @@ export function FeedAppleMusicCard({ music }: Props) {
       setSound(s);
       setPlaying(true);
     } catch (e) {
-      console.warn('Preview playback failed:', e);
+      // expo-av 미포함 빌드(iOS)에서는 여기서 죽지 않도록 안전하게 비활성화
+      setAvReady(false);
     } finally {
       setLoading(false);
     }

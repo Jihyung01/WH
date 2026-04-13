@@ -1,25 +1,49 @@
+import { Platform } from 'react-native';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { zustandStorage } from './storage';
-import { checkPremiumStatus, getOfferings, purchasePackage, restorePurchases } from '../config/purchases';
+import {
+  checkPremiumStatus,
+  getOfferings,
+  purchasePackage,
+  restorePurchases,
+  getCustomerInfo,
+  type PurchaseResult,
+} from '../config/purchases';
+import {
+  verifyAndGrantCoinPurchase,
+  verifyAndActivatePremium,
+  getCoinProducts,
+  type CoinProduct,
+} from '../lib/api';
 
 interface PremiumState {
   isPremium: boolean;
   isLoading: boolean;
   offerings: unknown[];
+  coinProducts: CoinProduct[];
+  coinProductsLoaded: boolean;
 
   checkStatus: () => Promise<void>;
   loadOfferings: () => Promise<void>;
+  loadCoinProducts: () => Promise<void>;
+
   purchase: (pkg: unknown) => Promise<{ success: boolean; error?: string }>;
+  purchaseCoins: (
+    pkg: unknown,
+    productId: string,
+  ) => Promise<{ success: boolean; coinsGranted?: number; totalCoins?: number; error?: string }>;
   restore: () => Promise<boolean>;
 }
 
 export const usePremiumStore = create<PremiumState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       isPremium: false,
       isLoading: false,
       offerings: [],
+      coinProducts: [],
+      coinProductsLoaded: false,
 
       checkStatus: async () => {
         try {
@@ -44,16 +68,75 @@ export const usePremiumStore = create<PremiumState>()(
         }
       },
 
+      loadCoinProducts: async () => {
+        if (get().coinProductsLoaded) return;
+        try {
+          const products = await getCoinProducts();
+          set({ coinProducts: products, coinProductsLoaded: true });
+        } catch {
+          // ignore
+        }
+      },
+
       purchase: async (pkg: unknown) => {
         set({ isLoading: true });
         try {
-          const result = await purchasePackage(pkg);
+          const result: PurchaseResult = await purchasePackage(pkg);
           if (result.success) {
+            const info = result.customerInfo as Record<string, unknown> | undefined;
+            const txnId =
+              (info as Record<string, unknown>)?.originalTransactionId as string | undefined;
+            const productId = (pkg as Record<string, unknown>)?.identifier as string ?? 'wh_premium_monthly';
+
+            try {
+              await verifyAndActivatePremium(
+                productId,
+                txnId,
+                Platform.OS,
+              );
+            } catch {
+              // Edge Function 실패해도 RevenueCat 구매는 유효
+            }
+
             set({ isPremium: true });
           }
           return { success: result.success, error: result.error };
-        } catch (e: any) {
-          return { success: false, error: e.message };
+        } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : 'unknown';
+          return { success: false, error: msg };
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+
+      purchaseCoins: async (pkg: unknown, productId: string) => {
+        set({ isLoading: true });
+        try {
+          const result: PurchaseResult = await purchasePackage(pkg);
+          if (!result.success) {
+            return { success: false, error: result.error };
+          }
+
+          const info = result.customerInfo as Record<string, unknown> | undefined;
+          const txnId = (info as Record<string, unknown>)?.originalTransactionId as string | undefined;
+
+          const verified = await verifyAndGrantCoinPurchase(
+            productId,
+            txnId,
+            Platform.OS,
+          );
+
+          if (verified.success) {
+            return {
+              success: true,
+              coinsGranted: verified.coins_granted,
+              totalCoins: verified.total_coins,
+            };
+          }
+          return { success: false, error: verified.error };
+        } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : 'unknown';
+          return { success: false, error: msg };
         } finally {
           set({ isLoading: false });
         }
@@ -62,9 +145,23 @@ export const usePremiumStore = create<PremiumState>()(
       restore: async () => {
         set({ isLoading: true });
         try {
-          const info: any = await restorePurchases();
-          const isPremium = info?.entitlements?.active?.['premium'] !== undefined;
+          const info = await restorePurchases();
+          if (!info) {
+            set({ isLoading: false });
+            return false;
+          }
+          const customerInfo = info as Record<string, Record<string, Record<string, unknown>>>;
+          const isPremium = customerInfo?.entitlements?.active?.['premium'] !== undefined;
           set({ isPremium });
+
+          if (isPremium) {
+            try {
+              await verifyAndActivatePremium('wh_premium_monthly', undefined, Platform.OS);
+            } catch {
+              // Edge Function 실패해도 RevenueCat 복원은 유효
+            }
+          }
+
           return isPremium;
         } catch {
           return false;

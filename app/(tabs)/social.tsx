@@ -215,11 +215,11 @@ function FriendsTab({
     }
   };
 
-  const handleRespond = async (friendshipId: string, accept: boolean) => {
+  const handleRespond = async (friendshipId: string, accept: boolean, requesterId?: string) => {
     try {
       setRespondingIds((prev) => new Set(prev).add(friendshipId));
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      await respondFriendRequest(friendshipId, accept);
+      await respondFriendRequest(friendshipId, accept, requesterId);
       onShowToast(accept ? '친구가 되었어요!' : '요청을 거절했어요.', accept ? 'success' : 'error');
       onRefresh();
     } catch {
@@ -312,7 +312,7 @@ function FriendsTab({
               <View style={s.pendingActions}>
                 <Pressable
                   style={s.acceptBtn}
-                  onPress={() => handleRespond(req.friendship_id, true)}
+                  onPress={() => handleRespond(req.friendship_id, true, req.user_id)}
                   disabled={respondingIds.has(req.friendship_id)}
                 >
                   {respondingIds.has(req.friendship_id) ? (

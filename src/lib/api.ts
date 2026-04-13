@@ -1326,13 +1326,27 @@ export async function sendFriendRequest(username: string): Promise<{ success: bo
   return data as { success: boolean; reason?: string };
 }
 
-export async function respondFriendRequest(friendshipId: string, accept: boolean): Promise<{ success: boolean }> {
+export async function respondFriendRequest(
+  friendshipId: string,
+  accept: boolean,
+  requesterId?: string,
+): Promise<{ success: boolean }> {
   const { data, error } = await supabase.rpc('respond_friend_request', {
     p_friendship_id: friendshipId,
     p_accept: accept,
   });
   throwIfError(error, '친구 요청을 처리하지 못했습니다.');
-  return data as { success: boolean };
+  const result = data as { success: boolean };
+
+  if (result.success && accept && requesterId) {
+    try {
+      await grantReferralCoins(requesterId);
+    } catch {
+      // non-critical — duplicate or self-referral will silently fail
+    }
+  }
+
+  return result;
 }
 
 export async function getFriends(): Promise<FriendsResult> {
@@ -1550,4 +1564,90 @@ export async function grantQuizCoins(): Promise<void> {
     p_user_id: user.id,
   });
   if (error) console.warn('Failed to grant quiz coins:', error.message);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 26. Coin Economy & In-App Purchases
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface CoinProduct {
+  id: string;
+  coins: number;
+  price_krw: number;
+  label: string;
+  badge: string | null;
+  sort_order: number;
+}
+
+export async function getCoinProducts(): Promise<CoinProduct[]> {
+  const { data, error } = await supabase
+    .from('coin_products')
+    .select('*')
+    .order('sort_order');
+  if (error) throw new AppError(error.message, 'COIN_PRODUCTS_FETCH_FAILED');
+  return (data ?? []) as CoinProduct[];
+}
+
+export interface VerifyPurchaseResult {
+  success: boolean;
+  coins_granted?: number;
+  total_coins?: number;
+  error?: string;
+}
+
+export async function verifyAndGrantCoinPurchase(
+  productId: string,
+  transactionId?: string,
+  platform?: string,
+): Promise<VerifyPurchaseResult> {
+  return invokeEdgeFunction<VerifyPurchaseResult>('verify-purchase', {
+    product_id: productId,
+    transaction_id: transactionId,
+    platform,
+    type: 'coins',
+  });
+}
+
+export async function verifyAndActivatePremium(
+  productId: string,
+  transactionId?: string,
+  platform?: string,
+): Promise<{ success: boolean }> {
+  return invokeEdgeFunction<{ success: boolean }>('verify-purchase', {
+    product_id: productId,
+    transaction_id: transactionId,
+    platform,
+    type: 'premium',
+  });
+}
+
+export async function grantCheckinCoins(): Promise<{ total_coins: number }> {
+  const user = await getCurrentUser();
+  const { data, error } = await supabase.rpc('grant_checkin_coins', {
+    p_user_id: user.id,
+  });
+  if (error) throw new AppError(error.message, 'CHECKIN_COINS_FAILED');
+  return data as { total_coins: number };
+}
+
+export async function grantReferralCoins(inviteeId: string): Promise<VerifyPurchaseResult> {
+  const user = await getCurrentUser();
+  const { data, error } = await supabase.rpc('grant_referral_coins', {
+    p_inviter_id: user.id,
+    p_invitee_id: inviteeId,
+  });
+  if (error) throw new AppError(error.message, 'REFERRAL_COINS_FAILED');
+  return data as VerifyPurchaseResult;
+}
+
+export async function getCoinPurchaseHistory(): Promise<
+  { product_id: string; coins_granted: number; created_at: string }[]
+> {
+  const { data, error } = await supabase
+    .from('coin_purchases')
+    .select('product_id, coins_granted, created_at')
+    .order('created_at', { ascending: false })
+    .limit(50);
+  if (error) throw new AppError(error.message, 'PURCHASE_HISTORY_FAILED');
+  return (data ?? []) as { product_id: string; coins_granted: number; created_at: string }[];
 }

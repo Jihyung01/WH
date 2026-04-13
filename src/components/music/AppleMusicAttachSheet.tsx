@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -31,12 +32,14 @@ export function AppleMusicAttachSheet({ visible, submissionId, onClose }: Props)
   const [loading, setLoading] = useState(false);
   const [tracks, setTracks] = useState<AppleMusicFeedAttachment[]>([]);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [errorText, setErrorText] = useState<string | null>(null);
 
   useEffect(() => {
     if (!visible) {
       setQuery('');
       setTracks([]);
       setLoading(false);
+      setErrorText(null);
     }
   }, [visible]);
 
@@ -45,11 +48,21 @@ export function AppleMusicAttachSheet({ visible, submissionId, onClose }: Props)
   const runSearch = useCallback(async () => {
     if (!canSearch) return;
     setLoading(true);
+    setErrorText(null);
     try {
       const list = await searchAppleMusicTracks(query.trim());
       setTracks(list);
+      if (list.length === 0) {
+        setErrorText('검색 결과가 없어요. 곡명/아티스트를 바꿔서 다시 검색해 주세요.');
+      }
     } catch (e) {
-      console.warn('Apple Music search:', e);
+      const msg = e instanceof Error ? e.message : null;
+      // Edge Function/Secrets 문제 등은 여기로 들어오므로 사용자에게 안내
+      setErrorText(
+        msg?.includes('Apple Music')
+          ? 'Apple Music 검색에 실패했어요. 잠시 후 다시 시도해 주세요.'
+          : '검색에 실패했어요. 네트워크 상태를 확인해 주세요.',
+      );
       setTracks([]);
     } finally {
       setLoading(false);
@@ -64,7 +77,7 @@ export function AppleMusicAttachSheet({ visible, submissionId, onClose }: Props)
         await updateCommunitySubmissionMusic(submissionId, t);
         onClose();
       } catch (e) {
-        console.warn('save music:', e);
+        Alert.alert('오류', '음악 정보를 저장하지 못했어요. 다시 시도해 주세요.');
       } finally {
         setSavingId(null);
       }
@@ -126,7 +139,9 @@ export function AppleMusicAttachSheet({ visible, submissionId, onClose }: Props)
             keyboardShouldPersistTaps="handled"
             ListEmptyComponent={
               !loading && canSearch ? (
-                <Text style={styles.empty}>검색 결과가 없거나 검색해 주세요.</Text>
+                <Text style={styles.empty}>
+                  {errorText ?? '검색 결과가 없어요.'}
+                </Text>
               ) : null
             }
             renderItem={({ item }) => (
