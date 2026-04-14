@@ -14,8 +14,10 @@ import {
   Modal,
   Switch,
   Share,
+  Linking,
 } from 'react-native';
 import { Image } from 'expo-image';
+import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -182,7 +184,40 @@ function FriendsTab({
     if (value) {
       const granted = await startLocationSharing();
       setLocationSharingEnabled(granted);
-      if (!granted) onShowToast('위치 권한이 필요해요.', 'error');
+      if (!granted) {
+        onShowToast('앱 종료 중 공유를 위해 위치 "항상 허용"이 필요해요.', 'error');
+        Alert.alert(
+          '항상 허용 필요',
+          '앱을 꺼도 친구에게 현재 위치를 공유하려면 위치 권한을 "항상 허용"으로 설정해야 해요.',
+          [
+            { text: '나중에', style: 'cancel' },
+            {
+              text: '설정 열기',
+              onPress: () => {
+                void Linking.openSettings();
+              },
+            },
+          ],
+        );
+      }
+      if (granted) {
+        const bg = await Location.getBackgroundPermissionsAsync();
+        if (bg.status !== 'granted') {
+          Alert.alert(
+            '백그라운드 위치 권한 필요',
+            '친구 위치를 더 정확하게 실시간으로 공유하려면 위치 권한을 "항상 허용"으로 설정해 주세요.',
+            [
+              { text: '나중에', style: 'cancel' },
+              {
+                text: '설정 열기',
+                onPress: () => {
+                  void Linking.openSettings();
+                },
+              },
+            ],
+          );
+        }
+      }
     } else {
       await stopLocationSharing();
       setLocationSharingEnabled(false);
@@ -1020,6 +1055,7 @@ export default function SocialScreen() {
   const [toastMsg, setToastMsg] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error'>('success');
   const [toastVisible, setToastVisible] = useState(false);
+  const friendPollMs = Platform.OS === 'android' ? 7_000 : 15_000;
 
   const showToast = useCallback((msg: string, type: 'success' | 'error') => {
     setToastMsg(msg);
@@ -1092,7 +1128,7 @@ export default function SocialScreen() {
         const locs = await getFriendLocationsSafe(viewerId);
         if (!cancelled && locs) setFriendLocations(locs);
       })();
-    }, 15_000);
+    }, friendPollMs);
 
     return () => {
       cancelled = true;
@@ -1100,7 +1136,7 @@ export default function SocialScreen() {
       unsubRef.current = null;
       clearInterval(poll);
     };
-  }, [viewerId, friendIdsKey]);
+  }, [viewerId, friendIdsKey, friendPollMs]);
 
   useEffect(() => {
     let cancelled = false;

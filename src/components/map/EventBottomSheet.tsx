@@ -144,7 +144,7 @@ export function EventBottomSheet({ event, userLocation, onDismiss, onChallenge }
             onPress={() => onChallenge(event)}
             disabled={!isInRange}
           >
-            <Text style={styles.challengeBtnText}>
+            <Text style={styles.challengeBtnText} numberOfLines={1} ellipsizeMode="tail">
               {isInRange ? '도전하기' : distance !== null ? `${formatDistance(distance)} 남음` : '위치 확인 중...'}
             </Text>
           </Pressable>
@@ -249,6 +249,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    minWidth: 112,
+    flexShrink: 0,
     backgroundColor: COLORS.surfaceLight,
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.lg,
@@ -275,5 +277,6 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.md,
     fontWeight: FONT_WEIGHT.bold,
     color: COLORS.textPrimary,
+    textAlign: 'center',
   },
 });

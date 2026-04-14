@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import {
   View, Text, StyleSheet, Pressable, FlatList,
-  ActivityIndicator, Alert, Modal, ScrollView, Platform,
+  ActivityIndicator, Alert, Modal, ScrollView, Platform, useWindowDimensions,
 } from 'react-native';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -35,6 +35,7 @@ type SlotFilter = 'all' | CosmeticSlot;
 export default function ShopScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
   const params = useLocalSearchParams<{ giftTo?: string; giftToName?: string; tab?: string }>();
   const { coins, fetchCoins, purchaseItem } = useCharacterStore();
 
@@ -117,6 +118,11 @@ export default function ShopScreen() {
         });
     }
   }, [allCosmetics, cosmeticTab, slotFilter]);
+  const cardWidth = useMemo(() => {
+    const horizontalPadding = SPACING.lg * 2;
+    const betweenGap = SPACING.md;
+    return Math.max(140, Math.floor((windowWidth - horizontalPadding - betweenGap) / 2));
+  }, [windowWidth]);
 
   // ── Coin Purchase ──
   const handleCoinPurchase = useCallback(async (product: CoinProduct) => {
@@ -318,7 +324,13 @@ export default function ShopScreen() {
     const isPurchasing = purchasingId === item.id;
 
     return (
-      <Animated.View entering={FadeIn.delay(index * 40)} style={styles.cardWrapper}>
+      <Animated.View
+        entering={FadeIn.delay(index * 40)}
+        style={[
+          styles.cardWrapper,
+          { width: cardWidth, marginRight: index % 2 === 0 ? SPACING.md : 0 },
+        ]}
+      >
         <View style={[styles.card, { borderColor: rarityColor }]}>
           <Pressable style={styles.cardMainTap} onPress={() => handlePurchase(item)}>
             <Text style={styles.cardEmoji}>{item.preview_emoji}</Text>
@@ -362,7 +374,7 @@ export default function ShopScreen() {
         </View>
       </Animated.View>
     );
-  }, [ownedIds, purchasingId, handlePurchase, openGiftFriendPicker, giftingId]);
+  }, [ownedIds, purchasingId, handlePurchase, openGiftFriendPicker, giftingId, cardWidth]);
 
   const renderCoinProduct = useCallback(({ item, index }: { item: CoinProduct; index: number }) => {
     const isPurchasing = purchasingCoinId === item.id;
@@ -489,6 +501,7 @@ export default function ShopScreen() {
             data={SLOT_FILTERS}
             horizontal
             showsHorizontalScrollIndicator={false}
+            style={styles.slotFilterList}
             keyExtractor={(item) => item.key}
             contentContainerStyle={styles.slotFilterRow}
             renderItem={({ item: { key, label } }) => (
@@ -514,6 +527,7 @@ export default function ShopScreen() {
               renderItem={renderCosmeticItem}
               keyExtractor={(item) => item.id}
               numColumns={2}
+              extraData={cardWidth}
               columnWrapperStyle={styles.gridRow}
               contentContainerStyle={styles.gridContent}
               showsVerticalScrollIndicator={false}
@@ -719,9 +733,18 @@ const styles = StyleSheet.create({
   tabText: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.semibold, color: COLORS.textMuted },
   tabTextActive: { color: '#FFF', fontWeight: FONT_WEIGHT.bold },
 
-  slotFilterRow: { paddingHorizontal: SPACING.lg, gap: SPACING.sm, marginVertical: SPACING.md },
+  slotFilterList: { maxHeight: 44 },
+  slotFilterRow: {
+    paddingHorizontal: SPACING.lg,
+    gap: SPACING.sm,
+    marginVertical: SPACING.md,
+    alignItems: 'center',
+  },
   slotChip: {
-    paddingHorizontal: SPACING.md, paddingVertical: SPACING.xs,
+    paddingHorizontal: SPACING.md,
+    height: 34,
+    justifyContent: 'center',
+    alignSelf: 'center',
     borderRadius: BORDER_RADIUS.full, backgroundColor: COLORS.surfaceLight,
   },
   slotChipActive: { backgroundColor: `${BRAND.primary}25`, borderWidth: 1, borderColor: BRAND.primary },
@@ -729,9 +752,9 @@ const styles = StyleSheet.create({
   slotChipTextActive: { color: BRAND.primary, fontWeight: FONT_WEIGHT.bold },
 
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  gridRow: { justifyContent: 'space-between', paddingHorizontal: SPACING.lg },
+  gridRow: { justifyContent: 'flex-start', paddingHorizontal: SPACING.lg },
   gridContent: { paddingBottom: SPACING.xxxl },
-  cardWrapper: { width: '48%', marginBottom: SPACING.md },
+  cardWrapper: { marginBottom: SPACING.md },
   card: {
     alignItems: 'stretch', padding: SPACING.md,
     backgroundColor: COLORS.surfaceLight, borderRadius: BORDER_RADIUS.md,

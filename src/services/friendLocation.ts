@@ -1,4 +1,5 @@
 import * as Location from 'expo-location';
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../config/supabase';
 import {
@@ -25,11 +26,27 @@ export interface FriendLocation {
 
 async function uploadLocation() {
   try {
-    let location = await Location.getLastKnownPositionAsync({ maxAge: 60_000 });
-    if (!location) {
-      location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
+    // Android can return stale lastKnown for long periods.
+    // Prefer a fresh reading first, then fall back.
+    let location = null as Location.LocationObject | null;
+    if (Platform.OS === 'android') {
+      try {
+        location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+      } catch {
+        location = null;
+      }
+      if (!location) {
+        location = await Location.getLastKnownPositionAsync({ maxAge: 90_000 });
+      }
+    } else {
+      location = await Location.getLastKnownPositionAsync({ maxAge: 60_000 });
+      if (!location) {
+        location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+      }
     }
     if (!location) return;
 
@@ -55,8 +72,13 @@ async function notifySyncContinuousTask(): Promise<void> {
 export async function startLocationSharing(): Promise<boolean> {
   if (isRunning) return true;
 
-  const { status } = await Location.requestForegroundPermissionsAsync();
-  if (status !== 'granted') return false;
+  const fg = await Location.requestForegroundPermissionsAsync();
+  if (fg.status !== 'granted') return false;
+
+  // Live sharing is defined as "works even when app is in background/closed".
+  // Require background permission so users do not assume full realtime while getting foreground-only updates.
+  const bg = await Location.requestBackgroundPermissionsAsync();
+  if (bg.status !== 'granted') return false;
 
   const { error } = await supabase.rpc('toggle_location_sharing', { p_enabled: true });
   if (error) {
@@ -65,14 +87,8 @@ export async function startLocationSharing(): Promise<boolean> {
   }
 
   await AsyncStorage.setItem(FRIEND_LIVE_SHARING_STORAGE_KEY, 'true');
-
+  await notifySyncContinuousTask();
   await uploadLocation();
-
-  // iOS/Android: “Always” 위치로 백그라운드에서도 친구 지도에 실시간에 가깝게 반영
-  const bg = await Location.requestBackgroundPermissionsAsync();
-  if (bg.status === 'granted') {
-    await notifySyncContinuousTask();
-  }
 
   intervalId = setInterval(uploadLocation, UPDATE_INTERVAL_MS);
   isRunning = true;

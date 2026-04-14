@@ -49,7 +49,7 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 let regionChangeTimer: ReturnType<typeof setTimeout> | null = null;
 
-const FRIEND_LOCATIONS_POLL_MS = 15_000;
+const FRIEND_LOCATIONS_POLL_MS = Platform.OS === 'android' ? 7_000 : 15_000;
 const FRIEND_LOCATION_STALE_KEEP_MS = 12 * 60 * 60 * 1000; // keep missing friends for up to 12h to avoid flicker
 const MAP_BOOT_TIMEOUT_MS = 6000;
 
