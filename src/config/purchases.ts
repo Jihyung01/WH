@@ -5,28 +5,49 @@ const REVENUECAT_API_KEY_ANDROID = process.env.EXPO_PUBLIC_REVENUECAT_ANDROID ??
 
 let isConfigured = false;
 let Purchases: any = null;
+/** Single in-flight init so Shop/Premium don't race before configure() completes. */
+let initPromise: Promise<void> | null = null;
+
+/**
+ * Call before getOfferings / purchase / customerInfo. Safe to call many times.
+ * Returns false if EXPO_PUBLIC_REVENUECAT_* is missing (EAS env not inlined in build).
+ */
+export async function ensurePurchasesReady(): Promise<boolean> {
+  if (isConfigured && Purchases) return true;
+
+  const apiKey = Platform.OS === 'ios' ? REVENUECAT_API_KEY_IOS : REVENUECAT_API_KEY_ANDROID;
+  if (!apiKey) {
+    console.warn(
+      'RevenueCat: EXPO_PUBLIC_REVENUECAT_IOS / EXPO_PUBLIC_REVENUECAT_ANDROID not set in this build.',
+    );
+    return false;
+  }
+
+  if (!initPromise) {
+    initPromise = (async () => {
+      try {
+        const mod = await import('react-native-purchases');
+        Purchases = mod.default;
+        Purchases.setLogLevel(mod.LOG_LEVEL.DEBUG);
+        await Purchases.configure({ apiKey });
+        isConfigured = true;
+      } catch (e) {
+        console.warn('RevenueCat init failed:', e);
+        initPromise = null;
+      }
+    })();
+  }
+  await initPromise;
+  return isConfigured && !!Purchases;
+}
 
 export async function initPurchases() {
-  const apiKey = Platform.OS === 'ios' ? REVENUECAT_API_KEY_IOS : REVENUECAT_API_KEY_ANDROID;
-
-  if (!apiKey) {
-    console.warn('RevenueCat API key not configured, skipping initialization');
-    return;
-  }
-
-  try {
-    const mod = await import('react-native-purchases');
-    Purchases = mod.default;
-    Purchases.setLogLevel(mod.LOG_LEVEL.DEBUG);
-    await Purchases.configure({ apiKey });
-    isConfigured = true;
-  } catch (e) {
-    console.warn('RevenueCat init failed:', e);
-  }
+  await ensurePurchasesReady();
 }
 
 export async function identifyUser(userId: string) {
-  if (!isConfigured || !Purchases) return;
+  const ok = await ensurePurchasesReady();
+  if (!ok || !Purchases) return;
   try {
     await Purchases.logIn(userId);
   } catch (e) {
@@ -57,11 +78,50 @@ function pickPurchasesOffering(offerings: {
   return cur;
 }
 
+/** Merge packages from every offering (dedupe by package identifier) — helps split configs. */
+function mergeAllOfferingPackages(offerings: {
+  current?: { availablePackages?: unknown[] } | null;
+  all?: Record<string, { availablePackages?: unknown[] } | undefined> | null;
+}): unknown[] {
+  const seen = new Set<string>();
+  const out: unknown[] = [];
+  const add = (pkgs: unknown[] | undefined) => {
+    for (const p of pkgs ?? []) {
+      const id =
+        typeof (p as { identifier?: string })?.identifier === 'string'
+          ? (p as { identifier: string }).identifier
+          : String((p as { packageIdentifier?: string })?.packageIdentifier ?? '');
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      out.push(p);
+    }
+  };
+  add(offerings.current?.availablePackages);
+  const all = offerings.all ?? {};
+  for (const key of Object.keys(all)) {
+    add(all[key]?.availablePackages);
+  }
+  return out;
+}
+
 export async function getOfferings() {
-  if (!isConfigured || !Purchases) return null;
-  try {
+  const ok = await ensurePurchasesReady();
+  if (!ok || !Purchases) return null;
+
+  const fetchOnce = async () => {
     const offerings = await Purchases.getOfferings();
-    const picked = pickPurchasesOffering(offerings);
+    let picked = pickPurchasesOffering(offerings);
+
+    if (!picked?.availablePackages?.length) {
+      const merged = mergeAllOfferingPackages(offerings);
+      if (merged.length) {
+        picked = {
+          ...(picked ?? offerings.current ?? {}),
+          availablePackages: merged,
+        };
+      }
+    }
+
     if (
       __DEV__ &&
       picked &&
@@ -72,6 +132,17 @@ export async function getOfferings() {
       );
     }
     return picked ?? null;
+  };
+
+  try {
+    let result = await fetchOnce();
+    if (!result?.availablePackages?.length) {
+      for (let i = 0; i < 3 && (!result?.availablePackages?.length); i++) {
+        await new Promise((r) => setTimeout(r, 400 * (i + 1)));
+        result = await fetchOnce();
+      }
+    }
+    return result;
   } catch (e) {
     console.warn('Failed to get offerings:', e);
     return null;
@@ -85,7 +156,8 @@ export interface PurchaseResult {
 }
 
 export async function purchasePackage(pkg: unknown): Promise<PurchaseResult> {
-  if (!isConfigured || !Purchases) return { success: false, error: 'not_configured' };
+  const ok = await ensurePurchasesReady();
+  if (!ok || !Purchases) return { success: false, error: 'not_configured' };
   try {
     const result = await Purchases.purchasePackage(pkg);
     return { success: true, customerInfo: result.customerInfo };
@@ -98,7 +170,8 @@ export async function purchasePackage(pkg: unknown): Promise<PurchaseResult> {
 }
 
 export async function restorePurchases(): Promise<unknown> {
-  if (!isConfigured || !Purchases) return null;
+  const ok = await ensurePurchasesReady();
+  if (!ok || !Purchases) return null;
   try {
     return await Purchases.restorePurchases();
   } catch (e) {
@@ -108,7 +181,8 @@ export async function restorePurchases(): Promise<unknown> {
 }
 
 export async function getCustomerInfo(): Promise<any> {
-  if (!isConfigured || !Purchases) return null;
+  const ok = await ensurePurchasesReady();
+  if (!ok || !Purchases) return null;
   try {
     return await Purchases.getCustomerInfo();
   } catch (e) {
