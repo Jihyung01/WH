@@ -26,6 +26,10 @@
       "supportsTablet": false,
       "usesAppleSignIn": true,
       "bundleIdentifier": "com.wherehere.app",
+      "entitlements": {
+        "com.apple.developer.healthkit": true,
+        "com.apple.developer.healthkit.access": []
+      },
       "config": {
         "googleMapsApiKey": "AIzaSyCNloDZuWrMK_TYx-0HD_ip_LBegmGypOg"
       },

@@ -43,7 +43,12 @@ import { useAuthStore } from '../../src/stores/authStore';
 import { CharacterClass } from '../../src/types/enums';
 import { formatNumber } from '../../src/utils/format';
 import { COLORS, SPACING, FONT_SIZE, FONT_WEIGHT, BORDER_RADIUS, SHADOWS } from '../../src/config/theme';
-import { requestHealthPermission, getTodaySteps, getAchievedMilestones } from '../../src/services/healthService';
+import {
+  requestHealthPermission,
+  getTodaySteps,
+  getAchievedMilestones,
+  type HealthAuthResult,
+} from '../../src/services/healthService';
 import { claimDailyStepReward } from '../../src/lib/api';
 import { speakCharacterLine } from '../../src/services/voiceService';
 
@@ -69,6 +74,9 @@ const PROFILE_TABS: { key: ProfileTab; label: string; icon: string }[] = [
   { key: 'quests', label: '탐험', icon: 'compass' },
   { key: 'inventory', label: '가방', icon: 'bag-handle' },
 ];
+
+/** App Store Connect Apple ID (eas.json submit.production.ios.ascAppId) — deep link for “update app” from Health hints. */
+const IOS_APP_STORE_WHEREHERE = 'https://apps.apple.com/app/id6761450806';
 
 export default function ProfileTabContainer() {
   const insets = useSafeAreaInsets();
@@ -118,6 +126,8 @@ function ProfileContent() {
   const [refreshing, setRefreshing] = useState(false);
   const [todaySteps, setTodaySteps] = useState(0);
   const [healthReady, setHealthReady] = useState(false);
+  /** iOS: native HealthKit binary missing vs HK unavailable on device */
+  const [healthIssue, setHealthIssue] = useState<'nativeMissing' | 'unavailable' | null>(null);
   const [claimingStep, setClaimingStep] = useState<number | null>(null);
 
   const {
@@ -140,13 +150,17 @@ function ProfileContent() {
     fetchLeaderboard();
   }, []);
 
-  const refreshHealthSteps = useCallback(async () => {
-    const granted = await requestHealthPermission();
-    setHealthReady(granted);
-    if (granted) {
+  const refreshHealthSteps = useCallback(async (): Promise<HealthAuthResult> => {
+    const r = await requestHealthPermission();
+    setHealthReady(r.granted);
+    setHealthIssue(
+      r.nativeMissing ? 'nativeMissing' : r.unavailable ? 'unavailable' : null,
+    );
+    if (r.granted) {
       const steps = await getTodaySteps();
       setTodaySteps(steps);
     }
+    return r;
   }, []);
 
   useEffect(() => {
@@ -451,7 +465,13 @@ function ProfileContent() {
           {!healthReady && (
             <View style={styles.stepsHintBlock}>
               <Text style={styles.stepsHint}>
-                건강(걸음 수) 권한을 허용하면 자동 집계됩니다. 시스템 팝업이 안 뜨면 아래를 눌러 다시 시도하거나, 설정에서 허용해 주세요.
+                {healthIssue === 'nativeMissing'
+                  ? '이 설치본에는 건강(HealthKit) 연동이 들어 있지 않을 수 있어요. 코드 업데이트(OTA)만으로는 걸음 연동이 생기지 않을 수 있습니다. App Store·TestFlight에서 최신 전체 빌드를 설치해 주세요.'
+                  : healthIssue === 'unavailable'
+                    ? '이 기기에서는 건강(HealthKit)을 사용할 수 없어요.'
+                    : Platform.OS === 'ios'
+                      ? '걸음 수는「건강」앱 데이터를 읽습니다. 권한은 보통 설정 → 개인 정보 보호 및 보안 → 건강 → 데이터 접근 및 기기 → WhereHere 에서 켭니다.「설정 → WhereHere」에만 들어가면 건강 메뉴가 없을 수 있어요.'
+                      : 'Google Fit 연동 권한을 허용하면 자동 집계됩니다.'}
               </Text>
               <View style={styles.stepsHintActions}>
                 <Pressable
@@ -459,19 +479,56 @@ function ProfileContent() {
                   onPress={() => {
                     void (async () => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      await refreshHealthSteps();
+                      if (healthIssue === 'nativeMissing') {
+                        Linking.openURL(IOS_APP_STORE_WHEREHERE);
+                        return;
+                      }
+                      const r = await refreshHealthSteps();
+                      if (r.granted) return;
+                      if (r.nativeMissing) {
+                        Alert.alert(
+                          '만보기 · 건강',
+                          '이 앱 바이너리에 HealthKit 모듈이 없습니다. 앱스토어(또는 TestFlight)에서 WhereHere 최신 버전을 다시 설치해 주세요.',
+                          [
+                            { text: '닫기', style: 'cancel' },
+                            {
+                              text: '앱스토어',
+                              onPress: () => void Linking.openURL(IOS_APP_STORE_WHEREHERE),
+                            },
+                          ],
+                        );
+                        return;
+                      }
+                      if (r.unavailable) {
+                        Alert.alert('안내', '이 기기에서는 건강(HealthKit)을 사용할 수 없습니다.');
+                        return;
+                      }
+                      if (Platform.OS === 'ios') {
+                        Alert.alert(
+                          '설정에서 걸음 허용',
+                          '이미 한 번 거절하면 시스템 팝업이 다시 안 뜰 수 있어요.\n\n설정 → 개인 정보 보호 및 보안 → 건강 → 데이터 접근 및 기기 → WhereHere → 걸음',
+                          [
+                            { text: '닫기', style: 'cancel' },
+                            { text: '앱 설정 열기', onPress: () => void Linking.openSettings() },
+                          ],
+                        );
+                      } else {
+                        Linking.openSettings();
+                      }
                     })();
                   }}
                 >
-                  <Text style={styles.stepsHintBtnText}>권한 다시 요청</Text>
+                  <Text style={styles.stepsHintBtnText}>
+                    {healthIssue === 'nativeMissing' ? '앱스토어로 이동' : '권한 다시 요청'}
+                  </Text>
                 </Pressable>
                 <Pressable
                   style={[styles.stepsHintBtn, styles.stepsHintBtnSecondary]}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     Alert.alert(
-                      '건강 권한',
-                      'iPhone: 설정 → 개인 정보 보호 및 보안 → 건강 → WhereHere 에서「걸음」을 켜 주세요.\n\n앱 설정만 열려면「앱 설정 열기」를 누르세요.',
+                      '건강 권한 (iPhone)',
+                      '걸음은「건강」데이터 접근으로 허용합니다.\n\n1) 설정 → 개인 정보 보호 및 보안 → 건강 → 데이터 접근 및 기기 → WhereHere\n2) 여기서 WhereHere 가 안 보이면, 위 경로가 아니라 앱이 HealthKit 을 요청한 빌드가 아닐 수 있습니다. App Store 최신 버전을 확인해 주세요.\n\n앱 알림·위치 등은「설정 → WhereHere」에 있습니다.',
                       [
                         { text: '닫기', style: 'cancel' },
                         { text: '앱 설정 열기', onPress: () => void Linking.openSettings() },

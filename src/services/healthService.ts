@@ -1,5 +1,14 @@
 import { Platform, InteractionManager } from 'react-native';
 
+/** Result of requesting Health / Google Fit access (see `nativeMissing` when OTA cannot add native HealthKit). */
+export type HealthAuthResult = {
+  granted: boolean;
+  /** iOS: `react-native-health` native module not in this binary — install a full build from TestFlight/App Store, not JS-only update. */
+  nativeMissing?: boolean;
+  /** iOS: HealthKit not available on this device. */
+  unavailable?: boolean;
+};
+
 export interface HealthMilestone {
   steps: 1000 | 3000 | 5000 | 10000;
   xp: number;
@@ -26,7 +35,7 @@ async function afterInteractions(): Promise<void> {
   });
 }
 
-export async function requestHealthPermission(): Promise<boolean> {
+export async function requestHealthPermission(): Promise<HealthAuthResult> {
   try {
     if (Platform.OS === 'ios') {
       await afterInteractions();
@@ -35,7 +44,7 @@ export async function requestHealthPermission(): Promise<boolean> {
       const HealthKit = (await import('react-native-health')).default as any;
       if (typeof HealthKit?.initHealthKit !== 'function') {
         console.warn('[health] AppleHealthKit native module missing (needs dev/production build with react-native-health).');
-        return false;
+        return { granted: false, nativeMissing: true };
       }
 
       const kitAvailable = await new Promise<boolean>((resolve) => {
@@ -50,10 +59,10 @@ export async function requestHealthPermission(): Promise<boolean> {
       });
       if (!kitAvailable) {
         console.warn('[health] HealthKit not available on this device.');
-        return false;
+        return { granted: false, unavailable: true };
       }
 
-      return await new Promise<boolean>((resolve) => {
+      const granted = await new Promise<boolean>((resolve) => {
         HealthKit.initHealthKit(
           {
             permissions: {
@@ -67,6 +76,7 @@ export async function requestHealthPermission(): Promise<boolean> {
           },
         );
       });
+      return { granted };
     }
 
     if (Platform.OS === 'android') {
@@ -75,11 +85,11 @@ export async function requestHealthPermission(): Promise<boolean> {
         scopes: ['https://www.googleapis.com/auth/fitness.activity.read'],
       };
       const authRes = await GoogleFit.authorize(options);
-      return !!authRes?.success;
+      return { granted: !!authRes?.success };
     }
-    return false;
+    return { granted: false };
   } catch {
-    return false;
+    return { granted: false };
   }
 }
 
