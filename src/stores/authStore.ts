@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
-import { supabase } from '../config/supabase';
+import { supabase, SUPABASE_URL } from '../config/supabase';
 import { getMyCharacter } from '../lib/api';
 import type { Session, User } from '@supabase/supabase-js';
 import { useModerationStore } from './moderationStore';
@@ -10,6 +10,17 @@ import { clearUserLocalCaches } from '../utils/clearUserLocalCaches';
 import { loginWithKakaoForSupabaseOidc } from '../services/kakaoCore';
 
 WebBrowser.maybeCompleteAuthSession();
+
+function assertSupabaseUrlConfigured(): void {
+  if (
+    !SUPABASE_URL.startsWith('https://') ||
+    SUPABASE_URL.includes('your-project.supabase.co')
+  ) {
+    throw new Error(
+      'Supabase 주소(EXPO_PUBLIC_SUPABASE_URL)가 앱에 포함되지 않았습니다. Expo 환경 변수·EAS Update 시 --environment production 등을 확인하세요. 잘못된 주소로 Safari가 열리면 “서버를 찾을 수 없음”이 날 수 있습니다.',
+    );
+  }
+}
 
 /** Avoid stacking Supabase auth listeners if initializeAuth runs more than once. */
 let authStateListenerRegistered = false;
@@ -150,6 +161,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   signInWithKakao: async () => {
     try {
       set({ isLoading: true });
+      assertSupabaseUrlConfigured();
 
       /**
        * Android: 카카오 네이티브 SDK + OIDC id_token → Supabase 세션.
