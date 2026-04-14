@@ -57,13 +57,30 @@ export const usePremiumStore = create<PremiumState>()(
 
       loadOfferings: async () => {
         set({ isLoading: true });
-        try {
-          const offering = await getOfferings();
-          if (offering && Array.isArray(offering.availablePackages)) {
-            set({ offerings: offering.availablePackages });
+        const fetchPackages = async (): Promise<unknown[] | null> => {
+          try {
+            const offering = await getOfferings();
+            if (offering && Array.isArray(offering.availablePackages)) {
+              return offering.availablePackages;
+            }
+          } catch (e) {
+            console.warn('[premium] getOfferings failed:', e);
           }
-        } catch {
-          // ignore
+          return null;
+        };
+        try {
+          let pkgs = await fetchPackages();
+          if (!pkgs?.length) {
+            await new Promise((r) => setTimeout(r, 1200));
+            pkgs = await fetchPackages();
+          }
+          if (!pkgs?.length) {
+            await new Promise((r) => setTimeout(r, 2000));
+            pkgs = await fetchPackages();
+          }
+          if (pkgs?.length) {
+            set({ offerings: pkgs });
+          }
         } finally {
           set({ isLoading: false });
         }

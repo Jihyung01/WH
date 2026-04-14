@@ -127,7 +127,13 @@
       "expo-secure-store",
       "expo-web-browser",
       "expo-task-manager",
-      "react-native-health",
+      [
+        "react-native-health",
+        {
+          "healthSharePermission": "WhereHere uses Health data to read your step count and give exploration rewards.",
+          "healthUpdatePermission": "WhereHere updates your activity progress and rewards based on your step count."
+        }
+      ],
       "react-native-google-fit",
       [
         "expo-location",

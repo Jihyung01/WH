@@ -8,6 +8,9 @@ import {
   RefreshControl,
   ActivityIndicator,
   Platform,
+  Alert,
+  Linking,
+  InteractionManager,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -137,22 +140,28 @@ function ProfileContent() {
     fetchLeaderboard();
   }, []);
 
+  const refreshHealthSteps = useCallback(async () => {
+    const granted = await requestHealthPermission();
+    setHealthReady(granted);
+    if (granted) {
+      const steps = await getTodaySteps();
+      setTodaySteps(steps);
+    }
+  }, []);
+
   useEffect(() => {
     let mounted = true;
     (async () => {
-      const granted = await requestHealthPermission();
+      await new Promise<void>((resolve) => {
+        InteractionManager.runAfterInteractions(() => resolve());
+      });
       if (!mounted) return;
-      setHealthReady(granted);
-      if (granted) {
-        const steps = await getTodaySteps();
-        if (!mounted) return;
-        setTodaySteps(steps);
-      }
+      await refreshHealthSteps();
     })();
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [refreshHealthSteps]);
 
   useEffect(() => {
     if (character) {
@@ -234,10 +243,7 @@ function ProfileContent() {
           onRefresh={async () => {
             setRefreshing(true);
             await Promise.all([fetchCharacter(), fetchStats(), fetchLeaderboard(), fetchVisitedLocations()]);
-            if (healthReady) {
-              const steps = await getTodaySteps();
-              setTodaySteps(steps);
-            }
+            await refreshHealthSteps();
             setRefreshing(false);
           }}
           tintColor={COLORS.primary}
@@ -443,7 +449,40 @@ function ProfileContent() {
             ))}
           </View>
           {!healthReady && (
-            <Text style={styles.stepsHint}>건강 데이터 권한을 허용하면 자동 집계됩니다.</Text>
+            <View style={styles.stepsHintBlock}>
+              <Text style={styles.stepsHint}>
+                건강(걸음 수) 권한을 허용하면 자동 집계됩니다. 시스템 팝업이 안 뜨면 아래를 눌러 다시 시도하거나, 설정에서 허용해 주세요.
+              </Text>
+              <View style={styles.stepsHintActions}>
+                <Pressable
+                  style={styles.stepsHintBtn}
+                  onPress={() => {
+                    void (async () => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      await refreshHealthSteps();
+                    })();
+                  }}
+                >
+                  <Text style={styles.stepsHintBtnText}>권한 다시 요청</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.stepsHintBtn, styles.stepsHintBtnSecondary]}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    Alert.alert(
+                      '건강 권한',
+                      'iPhone: 설정 → 개인 정보 보호 및 보안 → 건강 → WhereHere 에서「걸음」을 켜 주세요.\n\n앱 설정만 열려면「앱 설정 열기」를 누르세요.',
+                      [
+                        { text: '닫기', style: 'cancel' },
+                        { text: '앱 설정 열기', onPress: () => void Linking.openSettings() },
+                      ],
+                    );
+                  }}
+                >
+                  <Text style={[styles.stepsHintBtnText, styles.stepsHintBtnTextSecondary]}>안내</Text>
+                </Pressable>
+              </View>
+            </View>
           )}
         </View>
 
@@ -806,7 +845,27 @@ const styles = StyleSheet.create({
     borderColor: `${COLORS.primary}66`,
   },
   stepChipText: { fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.semibold, color: COLORS.textSecondary },
-  stepsHint: { marginTop: SPACING.sm, fontSize: FONT_SIZE.xs, color: COLORS.textMuted },
+  stepsHintBlock: { marginTop: SPACING.sm },
+  stepsHint: { fontSize: FONT_SIZE.xs, color: COLORS.textMuted, lineHeight: 18 },
+  stepsHintActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+    marginTop: SPACING.sm,
+  },
+  stepsHintBtn: {
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: COLORS.primary,
+  },
+  stepsHintBtnSecondary: {
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  stepsHintBtnText: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.semibold, color: '#fff' },
+  stepsHintBtnTextSecondary: { color: COLORS.textPrimary },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: SPACING.lg },
   sectionTitle: { fontSize: FONT_SIZE.lg, fontWeight: FONT_WEIGHT.bold, color: COLORS.textPrimary, marginBottom: SPACING.lg },
   sectionBadge: {

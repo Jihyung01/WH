@@ -1,4 +1,4 @@
-import { Platform } from 'react-native';
+import { Platform, InteractionManager } from 'react-native';
 
 export interface HealthMilestone {
   steps: 1000 | 3000 | 5000 | 10000;
@@ -20,10 +20,39 @@ function startOfToday() {
   return d;
 }
 
+async function afterInteractions(): Promise<void> {
+  await new Promise<void>((resolve) => {
+    InteractionManager.runAfterInteractions(() => resolve());
+  });
+}
+
 export async function requestHealthPermission(): Promise<boolean> {
   try {
     if (Platform.OS === 'ios') {
+      await afterInteractions();
+      await new Promise((r) => setTimeout(r, 400));
+
       const HealthKit = (await import('react-native-health')).default as any;
+      if (typeof HealthKit?.initHealthKit !== 'function') {
+        console.warn('[health] AppleHealthKit native module missing (needs dev/production build with react-native-health).');
+        return false;
+      }
+
+      const kitAvailable = await new Promise<boolean>((resolve) => {
+        if (typeof HealthKit.isAvailable !== 'function') {
+          resolve(true);
+          return;
+        }
+        HealthKit.isAvailable((err: unknown, ok: boolean) => {
+          if (err) console.warn('[health] isAvailable:', err);
+          resolve(!!ok);
+        });
+      });
+      if (!kitAvailable) {
+        console.warn('[health] HealthKit not available on this device.');
+        return false;
+      }
+
       return await new Promise<boolean>((resolve) => {
         HealthKit.initHealthKit(
           {
@@ -32,7 +61,10 @@ export async function requestHealthPermission(): Promise<boolean> {
               write: [],
             },
           },
-          (err: unknown) => resolve(!err),
+          (err: unknown) => {
+            if (err) console.warn('[health] initHealthKit:', err);
+            resolve(!err);
+          },
         );
       });
     }

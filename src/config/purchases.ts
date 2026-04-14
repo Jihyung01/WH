@@ -55,8 +55,26 @@ export async function identifyUser(userId: string) {
   if (!ok || !Purchases) return;
   try {
     await Purchases.logIn(userId);
+    try {
+      await Purchases.syncAttributesAndOfferingsIfNeeded();
+    } catch {
+      /* optional */
+    }
   } catch (e) {
     console.warn('RevenueCat identify failed:', e);
+  }
+}
+
+/** Call after Supabase sign-out so the next user does not inherit RC entitlements. */
+export async function logoutPurchases(): Promise<void> {
+  const ok = await ensurePurchasesReady();
+  if (!ok || !Purchases) return;
+  try {
+    if (typeof Purchases.logOut === 'function') {
+      await Purchases.logOut();
+    }
+  } catch (e) {
+    console.warn('RevenueCat logOut failed:', e);
   }
 }
 

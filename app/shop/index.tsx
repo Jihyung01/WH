@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, Pressable, FlatList,
   ActivityIndicator, Alert, Modal, ScrollView, Platform,
 } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -60,6 +60,12 @@ export default function ShopScreen() {
     void loadCoinProducts();
     void loadOfferings();
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadOfferings();
+    }, [loadOfferings]),
+  );
 
   const loadData = async () => {
     setIsLoading(true);

@@ -3,6 +3,8 @@ import { Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { supabase, SUPABASE_URL } from '../config/supabase';
+import { identifyUser, logoutPurchases } from '../config/purchases';
+import { usePremiumStore } from './premiumStore';
 import { getMyCharacter } from '../lib/api';
 import type { Session, User } from '@supabase/supabase-js';
 import { useModerationStore } from './moderationStore';
@@ -384,6 +386,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         /* native Kakao SDK may be unavailable in some builds */
       }
       useModerationStore.getState().clearBlocks();
+      await logoutPurchases().catch(() => {});
+      usePremiumStore.setState({ offerings: [] });
       await supabase.auth.signOut();
       await clearUserLocalCaches();
       set({
@@ -412,6 +416,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         supabase.auth.onAuthStateChange((_event, session) => {
           if (session?.user) {
             void ensureProfileRow(session.user);
+            void identifyUser(session.user.id)
+              .catch(() => {})
+              .finally(() => {
+                void usePremiumStore.getState().loadOfferings();
+              });
+          } else {
+            void logoutPurchases().catch(() => {});
+            usePremiumStore.setState({ offerings: [] });
           }
           set({
             session,
@@ -444,6 +456,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           hasCompletedOnboarding: false,
         });
         void useModerationStore.getState().refreshBlockedUsers();
+        void identifyUser(session.user.id)
+          .catch(() => {})
+          .finally(() => {
+            void usePremiumStore.getState().loadOfferings();
+          });
       }
     } catch (error) {
       console.error('Auth initialization error:', error);
