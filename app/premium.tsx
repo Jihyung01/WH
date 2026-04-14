@@ -74,15 +74,30 @@ export default function PremiumScreen() {
   const hasOfferings = subscriptionOfferings.length > 0;
 
   const handlePurchase = useCallback(async () => {
-    if (!hasOfferings) {
-      Alert.alert('안내', '구독 상품을 준비 중입니다.\nRevenueCat 대시보드에서 상품을 등록해 주세요.');
+    const readSubs = () =>
+      sortSubscriptionPackages(
+        usePremiumStore.getState().offerings.filter(isSubscriptionPurchaseItem),
+      );
+    let subs = readSubs();
+    if (!subs.length) {
+      await usePremiumStore.getState().loadOfferings();
+      subs = readSubs();
+    }
+
+    if (!subs.length) {
+      Alert.alert(
+        '안내',
+        '구독 상품을 스토어에서 불러오지 못했어요.\n\n'
+          + '위에 보이는 요금은 안내용이며, 결제는 스토어에 구독 상품이 준비된 뒤에 가능합니다.\n\n'
+          + '네트워크와 앱스토어 인앱 구입 상태를 확인한 뒤 다시 시도해 주세요.',
+      );
       return;
     }
 
     const pkg =
       selectedPlan === 'annual'
-        ? subscriptionOfferings[1] ?? subscriptionOfferings[0]
-        : subscriptionOfferings[0];
+        ? subs[1] ?? subs[0]
+        : subs[0];
     if (!pkg) return;
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -94,7 +109,7 @@ export default function PremiumScreen() {
     } else if (result.error && result.error !== 'cancelled' && result.error !== 'not_configured') {
       Alert.alert('오류', '구매 처리 중 문제가 발생했습니다.');
     }
-  }, [hasOfferings, subscriptionOfferings, selectedPlan, purchase]);
+  }, [selectedPlan, purchase]);
 
   const handleRestore = useCallback(async () => {
     setRestoring(true);
