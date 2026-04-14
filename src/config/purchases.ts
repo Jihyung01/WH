@@ -5,8 +5,13 @@ import {
   REVENUECAT_SUBSCRIPTION_PRODUCT_IDS,
 } from './revenuecatProductIds';
 
-const REVENUECAT_API_KEY_IOS = process.env.EXPO_PUBLIC_REVENUECAT_IOS ?? '';
-const REVENUECAT_API_KEY_ANDROID = process.env.EXPO_PUBLIC_REVENUECAT_ANDROID ?? '';
+// Public SDK keys are safe to ship in client apps.
+// Keep env first, but fall back to known production keys so TestFlight builds
+// don't break when EXPO_PUBLIC_* is not inlined as expected.
+const REVENUECAT_API_KEY_IOS =
+  process.env.EXPO_PUBLIC_REVENUECAT_IOS ?? 'appl_oJuyMXIsMCOPhiGtSxjdDusvFcd';
+const REVENUECAT_API_KEY_ANDROID =
+  process.env.EXPO_PUBLIC_REVENUECAT_ANDROID ?? 'goog_nnQAGvxyoeMPaLSIKrcAFTQzRhe';
 
 let isConfigured = false;
 let Purchases: any = null;
