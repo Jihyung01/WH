@@ -12,7 +12,7 @@
     "eas:snapshot": "git add -A && git diff --cached --quiet || git commit -m \"chore: eas snapshot\"",
     "eas:android:prod": "npm run eas:snapshot && eas build --platform android --profile production",
     "eas:ios:prod": "npm run eas:snapshot && eas build --platform ios --profile production",
-    "eas:update:prod": "eas update --channel production"
+    "eas:update:prod": "eas update --channel production --non-interactive -m \"OTA production\""
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
