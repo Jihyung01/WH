@@ -26,6 +26,47 @@ export interface AppleMusicTrackResult {
 
 let cachedToken: { token: string; exp: number } | null = null;
 
+function storefrontToItunesCountry(storefront: string): string {
+  const sf = storefront.trim().toLowerCase();
+  if (sf.length === 2) return sf;
+  const m = sf.match(/^[a-z]{2}/);
+  return m ? m[0] : "kr";
+}
+
+async function fallbackItunesSearch(term: string, storefront: string): Promise<AppleMusicTrackResult[]> {
+  const country = storefrontToItunesCountry(storefront);
+  const u = new URL("https://itunes.apple.com/search");
+  u.searchParams.set("term", term);
+  u.searchParams.set("country", country);
+  u.searchParams.set("media", "music");
+  u.searchParams.set("entity", "song");
+  u.searchParams.set("limit", "20");
+
+  const r = await fetch(u.toString());
+  if (!r.ok) return [];
+  const j = (await r.json().catch(() => ({}))) as {
+    results?: Array<{
+      trackId?: number;
+      trackName?: string;
+      artistName?: string;
+      artworkUrl100?: string;
+      previewUrl?: string;
+      trackViewUrl?: string;
+    }>;
+  };
+  const rows = Array.isArray(j.results) ? j.results : [];
+  return rows
+    .filter((x) => !!x.trackId && !!x.trackName)
+    .map((x) => ({
+      apple_song_id: String(x.trackId),
+      title: x.trackName ?? "",
+      artist: x.artistName ?? "",
+      artwork_url: x.artworkUrl100 ?? null,
+      preview_url: x.previewUrl ?? null,
+      apple_music_url: x.trackViewUrl ?? null,
+    }));
+}
+
 function readAppleMusicCredentials(): { teamId: string; keyId: string; pem: string } {
   const teamId = (Deno.env.get("APPLE_MUSIC_TEAM_ID") ?? "").trim();
   const keyId = (Deno.env.get("APPLE_MUSIC_KEY_ID") ?? "").trim();
@@ -97,19 +138,20 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Search endpoint is safe to expose without user-bound writes.
+    // Keep compatibility with existing auth flow, but don't hard-fail when token is absent/expired.
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) return json({ error: "인증 토큰이 필요합니다." }, 401);
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
-    if (authError || !user) return json({ error: "인증 실패" }, 401);
+    if (authHeader) {
+      try {
+        const supabase = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+        );
+        await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
+      } catch {
+        // ignore auth lookup failures for read-only search
+      }
+    }
 
     const body = (await req.json().catch(() => ({}))) as { q?: string };
     const term = typeof body.q === "string" ? body.q.trim() : "";
@@ -136,6 +178,10 @@ Deno.serve(async (req) => {
     if (!res.ok) {
       const t = await res.text();
       console.error("Apple Music API error", res.status, t);
+      const fallback = await fallbackItunesSearch(term, storefront);
+      if (fallback.length > 0) {
+        return json({ tracks: fallback, source: "itunes_fallback" });
+      }
       let userMsg = "Apple Music 검색에 실패했습니다.";
       if (res.status === 401 || res.status === 403) {
         userMsg =

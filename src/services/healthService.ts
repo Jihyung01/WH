@@ -63,10 +63,12 @@ export async function requestHealthPermission(): Promise<HealthAuthResult> {
       }
 
       const granted = await new Promise<boolean>((resolve) => {
+        // react-native-health versions differ on accepted permission strings.
+        // Ask both legacy/new aliases to avoid false negatives.
         HealthKit.initHealthKit(
           {
             permissions: {
-              read: ['Steps'],
+              read: ['Steps', 'StepCount'],
               write: [],
             },
           },
@@ -97,9 +99,12 @@ export async function getTodaySteps(): Promise<number> {
   try {
     if (Platform.OS === 'ios') {
       const HealthKit = (await import('react-native-health')).default as any;
+      if (typeof HealthKit?.getStepCount !== 'function') {
+        return 0;
+      }
       const startDate = startOfToday().toISOString();
       const endDate = new Date().toISOString();
-      return await new Promise<number>((resolve) => {
+      const total = await new Promise<number>((resolve) => {
         HealthKit.getStepCount(
           { startDate, endDate },
           (_err: unknown, res: { value?: number }) => {
@@ -107,10 +112,33 @@ export async function getTodaySteps(): Promise<number> {
           },
         );
       });
+      if (total > 0) return total;
+
+      // Some devices return 0 for getStepCount but provide bucketed samples.
+      if (typeof HealthKit?.getDailyStepCountSamples === 'function') {
+        const samplesTotal = await new Promise<number>((resolve) => {
+          HealthKit.getDailyStepCountSamples(
+            { startDate, endDate },
+            (_err: unknown, rows: Array<{ value?: number }> | undefined) => {
+              const sum = (rows ?? []).reduce((acc, row) => acc + Math.max(0, Number(row?.value) || 0), 0);
+              resolve(Math.floor(sum));
+            },
+          );
+        });
+        return Math.max(0, samplesTotal);
+      }
+      return 0;
     }
 
     if (Platform.OS === 'android') {
       const GoogleFit = (await import('react-native-google-fit')).default as any;
+      try {
+        await GoogleFit.authorize({
+          scopes: ['https://www.googleapis.com/auth/fitness.activity.read'],
+        });
+      } catch {
+        // ignore, query below will return 0 on failure
+      }
       const samples = await GoogleFit.getDailyStepCountSamples({
         startDate: startOfToday().toISOString(),
         endDate: new Date().toISOString(),
