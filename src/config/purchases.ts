@@ -18,6 +18,40 @@ let Purchases: any = null;
 /** Single in-flight init so Shop/Premium don't race before configure() completes. */
 let initPromise: Promise<void> | null = null;
 
+type PurchasesDebugState = {
+  platform: 'ios' | 'android';
+  hasEnvKey: boolean;
+  usingFallbackKey: boolean;
+  configured: boolean;
+  lastOfferingId: string | null;
+  lastOfferingsCurrentCount: number;
+  lastMergedPackagesCount: number;
+  lastDirectProductsCount: number;
+  lastError: string | null;
+  updatedAt: string;
+};
+
+const purchasesDebugState: PurchasesDebugState = {
+  platform: Platform.OS === 'ios' ? 'ios' : 'android',
+  hasEnvKey: false,
+  usingFallbackKey: false,
+  configured: false,
+  lastOfferingId: null,
+  lastOfferingsCurrentCount: 0,
+  lastMergedPackagesCount: 0,
+  lastDirectProductsCount: 0,
+  lastError: null,
+  updatedAt: new Date().toISOString(),
+};
+
+function setPurchasesDebug(patch: Partial<PurchasesDebugState>) {
+  Object.assign(purchasesDebugState, patch, { updatedAt: new Date().toISOString() });
+}
+
+export function getPurchasesDebugState(): PurchasesDebugState {
+  return { ...purchasesDebugState };
+}
+
 /**
  * Call before getOfferings / purchase / customerInfo. Safe to call many times.
  * Returns false if EXPO_PUBLIC_REVENUECAT_* is missing (EAS env not inlined in build).
@@ -25,8 +59,20 @@ let initPromise: Promise<void> | null = null;
 export async function ensurePurchasesReady(): Promise<boolean> {
   if (isConfigured && Purchases) return true;
 
+  const envKey = Platform.OS === 'ios'
+    ? process.env.EXPO_PUBLIC_REVENUECAT_IOS ?? ''
+    : process.env.EXPO_PUBLIC_REVENUECAT_ANDROID ?? '';
   const apiKey = Platform.OS === 'ios' ? REVENUECAT_API_KEY_IOS : REVENUECAT_API_KEY_ANDROID;
+  setPurchasesDebug({
+    platform: Platform.OS === 'ios' ? 'ios' : 'android',
+    hasEnvKey: !!envKey,
+    usingFallbackKey: !envKey && !!apiKey,
+  });
   if (!apiKey) {
+    setPurchasesDebug({
+      configured: false,
+      lastError: 'missing_api_key',
+    });
     console.warn(
       'RevenueCat: EXPO_PUBLIC_REVENUECAT_IOS / EXPO_PUBLIC_REVENUECAT_ANDROID not set in this build.',
     );
@@ -41,8 +87,16 @@ export async function ensurePurchasesReady(): Promise<boolean> {
         Purchases.setLogLevel(mod.LOG_LEVEL.DEBUG);
         await Purchases.configure({ apiKey });
         isConfigured = true;
+        setPurchasesDebug({
+          configured: true,
+          lastError: null,
+        });
       } catch (e) {
         console.warn('RevenueCat init failed:', e);
+        setPurchasesDebug({
+          configured: false,
+          lastError: e instanceof Error ? e.message : 'init_failed',
+        });
         initPromise = null;
       }
     })();
@@ -162,6 +216,9 @@ async function fetchDirectStoreProducts(PurchasesMod: typeof Purchases): Promise
     }
   }
 
+  setPurchasesDebug({
+    lastDirectProductsCount: combined.length,
+  });
   return combined;
 }
 
@@ -177,6 +234,9 @@ export async function getOfferings() {
 
   const fetchOnce = async () => {
     const offerings = await Purchases.getOfferings();
+    const currentCount = Array.isArray(offerings?.current?.availablePackages)
+      ? offerings.current.availablePackages.length
+      : 0;
     let picked = pickPurchasesOffering(offerings);
 
     if (!picked?.availablePackages?.length) {
@@ -186,8 +246,18 @@ export async function getOfferings() {
           ...(picked ?? offerings.current ?? {}),
           availablePackages: merged,
         };
+        setPurchasesDebug({
+          lastMergedPackagesCount: merged.length,
+        });
       }
     }
+
+    const pickedId = (picked as { identifier?: unknown } | null)?.identifier;
+    setPurchasesDebug({
+      lastOfferingId: typeof pickedId === 'string' ? pickedId : null,
+      lastOfferingsCurrentCount: currentCount,
+      lastError: null,
+    });
 
     if (
       __DEV__ &&
@@ -232,6 +302,9 @@ export async function getOfferings() {
     return result;
   } catch (e) {
     console.warn('Failed to get offerings:', e);
+    setPurchasesDebug({
+      lastError: e instanceof Error ? e.message : 'get_offerings_failed',
+    });
     return null;
   }
 }
