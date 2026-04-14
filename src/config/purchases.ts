@@ -34,11 +34,44 @@ export async function identifyUser(userId: string) {
   }
 }
 
+/** Prefer Current, then named offerings, then any offering that has store-backed packages. */
+const OFFERING_FALLBACK_IDS = ['main_subscription', 'default'] as const;
+
+function pickPurchasesOffering(offerings: {
+  current?: { availablePackages?: unknown[] } | null;
+  all?: Record<string, { availablePackages?: unknown[] } | undefined> | null;
+}) {
+  const cur = offerings.current ?? null;
+  if (cur?.availablePackages?.length) return cur;
+
+  const all = offerings.all ?? {};
+  for (const id of OFFERING_FALLBACK_IDS) {
+    const o = all[id];
+    if (o?.availablePackages?.length) return o;
+  }
+  for (const key of Object.keys(all)) {
+    const o = all[key];
+    if (o?.availablePackages?.length) return o;
+  }
+
+  return cur;
+}
+
 export async function getOfferings() {
   if (!isConfigured || !Purchases) return null;
   try {
     const offerings = await Purchases.getOfferings();
-    return offerings.current;
+    const picked = pickPurchasesOffering(offerings);
+    if (
+      __DEV__ &&
+      picked &&
+      (!picked.availablePackages || picked.availablePackages.length === 0)
+    ) {
+      console.warn(
+        '[RevenueCat] No packages in offerings. Check App Store / Play product state, RC product links, and Paid Apps Agreement.',
+      );
+    }
+    return picked ?? null;
   } catch (e) {
     console.warn('Failed to get offerings:', e);
     return null;
