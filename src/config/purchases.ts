@@ -1,5 +1,10 @@
 import { Platform } from 'react-native';
 
+import {
+  REVENUECAT_COIN_PRODUCT_IDS,
+  REVENUECAT_SUBSCRIPTION_PRODUCT_IDS,
+} from './revenuecatProductIds';
+
 const REVENUECAT_API_KEY_IOS = process.env.EXPO_PUBLIC_REVENUECAT_IOS ?? '';
 const REVENUECAT_API_KEY_ANDROID = process.env.EXPO_PUBLIC_REVENUECAT_ANDROID ?? '';
 
@@ -104,9 +109,48 @@ function mergeAllOfferingPackages(offerings: {
   return out;
 }
 
+/**
+ * When Offerings.packages are empty (common while IAPs are "Waiting for Review" or RC cache lags),
+ * ask the store directly by product id. Same IDs must exist in App Store Connect / Play Console + RC Products.
+ */
+async function fetchDirectStoreProducts(PurchasesMod: typeof Purchases): Promise<unknown[]> {
+  const P = PurchasesMod as any;
+  const combined: unknown[] = [];
+
+  const subType = P?.PRODUCT_CATEGORY?.SUBSCRIPTION ?? 'SUBSCRIPTION';
+  const nonSubType = P?.PRODUCT_CATEGORY?.NON_SUBSCRIPTION ?? 'NON_SUBSCRIPTION';
+
+  try {
+    const subs = await P.getProducts([...REVENUECAT_SUBSCRIPTION_PRODUCT_IDS], subType);
+    if (Array.isArray(subs) && subs.length) combined.push(...subs);
+  } catch (e) {
+    console.warn('[RevenueCat] getProducts(subscriptions) fallback:', e);
+  }
+
+  try {
+    const coins = await P.getProducts([...REVENUECAT_COIN_PRODUCT_IDS], nonSubType);
+    if (Array.isArray(coins) && coins.length) combined.push(...coins);
+  } catch (e) {
+    try {
+      const coins2 = await P.getProducts([...REVENUECAT_COIN_PRODUCT_IDS]);
+      if (Array.isArray(coins2) && coins2.length) combined.push(...coins2);
+    } catch (e2) {
+      console.warn('[RevenueCat] getProducts(coins) fallback:', e2);
+    }
+  }
+
+  return combined;
+}
+
 export async function getOfferings() {
   const ok = await ensurePurchasesReady();
   if (!ok || !Purchases) return null;
+
+  try {
+    await Purchases.syncAttributesAndOfferingsIfNeeded();
+  } catch {
+    /* network / optional */
+  }
 
   const fetchOnce = async () => {
     const offerings = await Purchases.getOfferings();
@@ -128,7 +172,7 @@ export async function getOfferings() {
       (!picked.availablePackages || picked.availablePackages.length === 0)
     ) {
       console.warn(
-        '[RevenueCat] No packages in offerings. Check App Store / Play product state, RC product links, and Paid Apps Agreement.',
+        '[RevenueCat] No packages in offerings yet; will try getProducts by id.',
       );
     }
     return picked ?? null;
@@ -141,6 +185,26 @@ export async function getOfferings() {
         await new Promise((r) => setTimeout(r, 400 * (i + 1)));
         result = await fetchOnce();
       }
+    }
+
+    if (!result?.availablePackages?.length && Purchases) {
+      const direct = await fetchDirectStoreProducts(Purchases);
+      if (direct.length) {
+        result = {
+          availablePackages: direct,
+          identifier: 'store_direct',
+        } as NonNullable<typeof result>;
+      }
+    }
+
+    if (
+      __DEV__ &&
+      result &&
+      (!result.availablePackages || result.availablePackages.length === 0)
+    ) {
+      console.warn(
+        '[RevenueCat] Still no products. Confirm IAPs in App Store Connect (in review OK for sandbox), Paid Apps Agreement, and product IDs in revenuecatProductIds.ts.',
+      );
     }
     return result;
   } catch (e) {
@@ -160,6 +224,32 @@ export async function purchasePackage(pkg: unknown): Promise<PurchaseResult> {
   if (!ok || !Purchases) return { success: false, error: 'not_configured' };
   try {
     const result = await Purchases.purchasePackage(pkg);
+    return { success: true, customerInfo: result.customerInfo };
+  } catch (e: any) {
+    if (e.userCancelled) {
+      return { success: false, error: 'cancelled' };
+    }
+    return { success: false, error: e.message ?? 'unknown' };
+  }
+}
+
+/** Package from getOfferings, or StoreProduct from getProducts fallback. */
+export async function purchaseAny(pkg: unknown): Promise<PurchaseResult> {
+  const ok = await ensurePurchasesReady();
+  if (!ok || !Purchases) return { success: false, error: 'not_configured' };
+  if (pkg == null || typeof pkg !== 'object') {
+    return { success: false, error: 'invalid_package' };
+  }
+
+  const maybePackage = pkg as Record<string, unknown>;
+  const isRcPackage = 'packageType' in maybePackage;
+
+  try {
+    if (isRcPackage) {
+      const result = await Purchases.purchasePackage(pkg as any);
+      return { success: true, customerInfo: result.customerInfo };
+    }
+    const result = await Purchases.purchaseStoreProduct(pkg as any);
     return { success: true, customerInfo: result.customerInfo };
   } catch (e: any) {
     if (e.userCancelled) {

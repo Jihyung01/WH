@@ -21,6 +21,7 @@ import {
   COLORS, SPACING, FONT_SIZE, FONT_WEIGHT,
   BORDER_RADIUS, BRAND, SHADOWS,
 } from '../../src/config/theme';
+import { findPurchaseItemByStoreId } from '../../src/config/revenuecatProductIds';
 
 type MainTab = 'cosmetics' | 'coins';
 type CosmeticTab = 'recommend' | 'new' | 'limited';
@@ -108,12 +109,13 @@ export default function ShopScreen() {
       return;
     }
 
-    const pkg = (offerings as { identifier?: string }[]).find(
-      (o) => o.identifier === product.id,
-    ) ?? offerings[0];
+    const pkg = findPurchaseItemByStoreId(offerings, product.id);
 
     if (!pkg) {
-      Alert.alert('오류', '상품 정보를 찾을 수 없습니다.');
+      Alert.alert(
+        '오류',
+        '해당 코인 상품을 스토어에서 찾지 못했어요.\n앱을 재시작하거나 잠시 후 다시 시도해 주세요.',
+      );
       return;
     }
 

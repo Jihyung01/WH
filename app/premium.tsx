@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -22,6 +22,10 @@ import Animated, {
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { usePremiumStore } from '../src/stores/premiumStore';
+import {
+  isSubscriptionPurchaseItem,
+  sortSubscriptionPackages,
+} from '../src/config/revenuecatProductIds';
 import {
   COLORS,
   SPACING,
@@ -63,7 +67,11 @@ export default function PremiumScreen() {
     loadOfferings();
   }, []);
 
-  const hasOfferings = offerings.length > 0;
+  const subscriptionOfferings = useMemo(
+    () => sortSubscriptionPackages(offerings.filter(isSubscriptionPurchaseItem)),
+    [offerings],
+  );
+  const hasOfferings = subscriptionOfferings.length > 0;
 
   const handlePurchase = useCallback(async () => {
     if (!hasOfferings) {
@@ -71,7 +79,10 @@ export default function PremiumScreen() {
       return;
     }
 
-    const pkg = selectedPlan === 'annual' ? offerings[1] ?? offerings[0] : offerings[0];
+    const pkg =
+      selectedPlan === 'annual'
+        ? subscriptionOfferings[1] ?? subscriptionOfferings[0]
+        : subscriptionOfferings[0];
     if (!pkg) return;
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -83,7 +94,7 @@ export default function PremiumScreen() {
     } else if (result.error && result.error !== 'cancelled' && result.error !== 'not_configured') {
       Alert.alert('오류', '구매 처리 중 문제가 발생했습니다.');
     }
-  }, [hasOfferings, offerings, selectedPlan, purchase]);
+  }, [hasOfferings, subscriptionOfferings, selectedPlan, purchase]);
 
   const handleRestore = useCallback(async () => {
     setRestoring(true);

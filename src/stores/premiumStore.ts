@@ -5,7 +5,7 @@ import { zustandStorage } from './storage';
 import {
   checkPremiumStatus,
   getOfferings,
-  purchasePackage,
+  purchaseAny,
   restorePurchases,
   getCustomerInfo,
   type PurchaseResult,
@@ -16,6 +16,7 @@ import {
   getCoinProducts,
   type CoinProduct,
 } from '../lib/api';
+import { getStoreProductIdFromPurchaseItem } from '../config/revenuecatProductIds';
 
 interface PremiumState {
   isPremium: boolean;
@@ -58,7 +59,7 @@ export const usePremiumStore = create<PremiumState>()(
         set({ isLoading: true });
         try {
           const offering = await getOfferings();
-          if (offering?.availablePackages) {
+          if (offering && Array.isArray(offering.availablePackages)) {
             set({ offerings: offering.availablePackages });
           }
         } catch {
@@ -81,12 +82,13 @@ export const usePremiumStore = create<PremiumState>()(
       purchase: async (pkg: unknown) => {
         set({ isLoading: true });
         try {
-          const result: PurchaseResult = await purchasePackage(pkg);
+          const result: PurchaseResult = await purchaseAny(pkg);
           if (result.success) {
             const info = result.customerInfo as Record<string, unknown> | undefined;
             const txnId =
               (info as Record<string, unknown>)?.originalTransactionId as string | undefined;
-            const productId = (pkg as Record<string, unknown>)?.identifier as string ?? 'wh_premium_monthly';
+            const productId =
+              getStoreProductIdFromPurchaseItem(pkg) ?? 'wh_premium_monthly';
 
             try {
               await verifyAndActivatePremium(
@@ -112,7 +114,7 @@ export const usePremiumStore = create<PremiumState>()(
       purchaseCoins: async (pkg: unknown, productId: string) => {
         set({ isLoading: true });
         try {
-          const result: PurchaseResult = await purchasePackage(pkg);
+          const result: PurchaseResult = await purchaseAny(pkg);
           if (!result.success) {
             return { success: false, error: result.error };
           }
