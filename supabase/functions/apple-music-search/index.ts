@@ -26,30 +26,55 @@ export interface AppleMusicTrackResult {
 
 let cachedToken: { token: string; exp: number } | null = null;
 
+function readAppleMusicCredentials(): { teamId: string; keyId: string; pem: string } {
+  const teamId = (Deno.env.get("APPLE_MUSIC_TEAM_ID") ?? "").trim();
+  const keyId = (Deno.env.get("APPLE_MUSIC_KEY_ID") ?? "").trim();
+  let pem = (Deno.env.get("APPLE_MUSIC_PRIVATE_KEY") ?? "").trim();
+  const missing: string[] = [];
+  if (!teamId) missing.push("APPLE_MUSIC_TEAM_ID");
+  if (!keyId) missing.push("APPLE_MUSIC_KEY_ID");
+  if (!pem) missing.push("APPLE_MUSIC_PRIVATE_KEY");
+  if (missing.length) {
+    throw new Error(
+      `[Apple Music] Supabase → Edge Functions → Secrets에 다음이 없습니다: ${missing.join(", ")}. `
+        + "Apple Developer → Keys에서 **Apple Music API**용으로 만든 키의 Team ID·Key ID·.p8 전체를 넣어 주세요. "
+        + "(Sign in with Apple 전용 키 ID는 사용할 수 없습니다.)",
+    );
+  }
+  pem = pem.replace(/\\n/g, "\n").trim();
+  if (!pem.includes("BEGIN PRIVATE KEY")) {
+    throw new Error(
+      "[Apple Music] APPLE_MUSIC_PRIVATE_KEY 형식이 잘못되었습니다. .p8 파일 전체(BEGIN PRIVATE KEY~END)를 한 값으로 넣었는지 확인해 주세요.",
+    );
+  }
+  return { teamId, keyId, pem };
+}
+
 async function getDeveloperToken(): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
   if (cachedToken && cachedToken.exp > now + 60) {
     return cachedToken.token;
   }
 
-  const teamId = Deno.env.get("APPLE_MUSIC_TEAM_ID");
-  const keyId = Deno.env.get("APPLE_MUSIC_KEY_ID");
-  let pem = Deno.env.get("APPLE_MUSIC_PRIVATE_KEY");
-  if (!teamId || !keyId || !pem) {
-    throw new Error("APPLE_MUSIC_TEAM_ID / KEY_ID / PRIVATE_KEY 가 설정되지 않았습니다.");
-  }
-  pem = pem.replace(/\\n/g, "\n").trim();
-  if (!pem.includes("BEGIN PRIVATE KEY")) {
-    throw new Error("APPLE_MUSIC_PRIVATE_KEY 형식이 올바르지 않습니다.");
-  }
+  const { teamId, keyId, pem } = readAppleMusicCredentials();
 
-  const key = await importPKCS8(pem, "ES256");
-  const token = await new SignJWT({})
-    .setProtectedHeader({ alg: "ES256", kid: keyId, typ: "JWT" })
-    .setIssuer(teamId)
-    .setIssuedAt(now)
-    .setExpirationTime(now + 60 * 24 * 60 * 60)
-    .sign(key);
+  let token: string;
+  try {
+    const key = await importPKCS8(pem, "ES256");
+    token = await new SignJWT({})
+      .setProtectedHeader({ alg: "ES256", kid: keyId, typ: "JWT" })
+      .setIssuer(teamId)
+      .setIssuedAt(now)
+      .setExpirationTime(now + 60 * 24 * 60 * 60)
+      .sign(key);
+  } catch (e) {
+    const hint = e instanceof Error ? e.message : String(e);
+    throw new Error(
+      "[Apple Music] 개발자 토큰(JWT)을 만들지 못했습니다. "
+        + "KEY_ID와 PRIVATE_KEY가 **같은 키**에서 나온 짝인지, Music API 권한이 있는 .p8인지 확인해 주세요. "
+        + `(상세: ${hint.slice(0, 120)})`,
+    );
+  }
 
   cachedToken = { token, exp: now + 60 * 24 * 60 * 60 };
   return token;
@@ -111,8 +136,14 @@ Deno.serve(async (req) => {
     if (!res.ok) {
       const t = await res.text();
       console.error("Apple Music API error", res.status, t);
+      let userMsg = "Apple Music 검색에 실패했습니다.";
+      if (res.status === 401 || res.status === 403) {
+        userMsg =
+          "[Apple Music] Apple이 개발자 토큰을 거부했습니다(401/403). "
+            + "Supabase Secrets의 KEY_ID·PRIVATE_KEY가 같은 Music 키인지, 그 키에 Apple Music API가 붙어 있는지 확인해 주세요.";
+      }
       return json(
-        { error: "Apple Music 검색에 실패했습니다.", detail: t.slice(0, 200) },
+        { error: userMsg, detail: t.slice(0, 200), status: res.status },
         502,
       );
     }
