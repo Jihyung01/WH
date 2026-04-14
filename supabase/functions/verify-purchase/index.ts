@@ -16,6 +16,8 @@ function json(body: unknown, status = 200) {
 
 const COIN_PRODUCTS: Record<string, number> = {
   wh_coins_500: 500,
+  /** ASC에서 `wh_coins_500` ID 충돌 시 쓰는 대체 SKU — 앱 `resolveAppleStoreCoinProductId`와 동일 문자열 */
+  wh_coins_500_pack: 500,
   wh_coins_1200: 1200,
   wh_coins_3500: 3500,
   wh_coins_8000: 8000,
@@ -24,6 +26,7 @@ const COIN_PRODUCTS: Record<string, number> = {
 
 const PRICE_KRW: Record<string, number> = {
   wh_coins_500: 1100,
+  wh_coins_500_pack: 1100,
   wh_coins_1200: 2200,
   wh_coins_3500: 5500,
   wh_coins_8000: 11000,

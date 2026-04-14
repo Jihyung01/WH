@@ -21,7 +21,11 @@ import {
   COLORS, SPACING, FONT_SIZE, FONT_WEIGHT,
   BORDER_RADIUS, BRAND, SHADOWS,
 } from '../../src/config/theme';
-import { findPurchaseItemByStoreId } from '../../src/config/revenuecatProductIds';
+import {
+  findPurchaseItemByStoreId,
+  REVENUECAT_COIN_PRODUCT_IDS,
+  resolveAppleStoreCoinProductId,
+} from '../../src/config/revenuecatProductIds';
 
 type MainTab = 'cosmetics' | 'coins';
 type CosmeticTab = 'recommend' | 'new' | 'limited';
@@ -35,7 +39,7 @@ export default function ShopScreen() {
 
   const {
     coinProducts, coinProductsLoaded, loadCoinProducts,
-    offerings, loadOfferings, purchaseCoins: purchaseCoinsPkg,
+    loadOfferings, purchaseCoins: purchaseCoinsPkg,
     isLoading: premiumLoading,
   } = usePremiumStore();
 
@@ -84,6 +88,11 @@ export default function ShopScreen() {
     }
   };
 
+  const coinProductsForStore = useMemo(() => {
+    const appleIds = new Set<string>(REVENUECAT_COIN_PRODUCT_IDS);
+    return coinProducts.filter((p) => appleIds.has(resolveAppleStoreCoinProductId(p.id)));
+  }, [coinProducts]);
+
   const purchasableItems = useMemo(() => {
     const items = allCosmetics.filter(
       (c) => c.unlock_method === 'purchase' && c.coin_price > 0,
@@ -110,12 +119,27 @@ export default function ShopScreen() {
 
   // ── Coin Purchase ──
   const handleCoinPurchase = useCallback(async (product: CoinProduct) => {
-    if (!offerings.length) {
-      Alert.alert('안내', 'RevenueCat 상품이 아직 로드되지 않았어요.\n잠시 후 다시 시도해 주세요.');
-      return;
+    const readPkgs = () => usePremiumStore.getState().offerings;
+    let pkgs = readPkgs();
+    if (!pkgs.length) {
+      await usePremiumStore.getState().loadOfferings();
+      pkgs = readPkgs();
     }
 
-    const pkg = findPurchaseItemByStoreId(offerings, product.id);
+    const storeProductId = resolveAppleStoreCoinProductId(product.id);
+    const pkg = findPurchaseItemByStoreId(pkgs, storeProductId);
+
+    if (!pkgs.length) {
+      Alert.alert(
+        '안내',
+        '애플 스토어에서 인앱 상품 목록을 불러오지 못했어요.\n\n'
+          + '화면 가격은 서버에서 받은 정보이고, 결제는 스토어가 상품을 내려줘야 진행돼요.\n\n'
+          + '인앱 구입이 App Store Connect에서 “판매 준비됨”이 되기 전이면 목록이 비는 경우가 많아요. '
+          + '유료 앱 계약·세금 정보와 함께 인앱 구입을 앱 버전에 연결해 심사에 올렸는지 확인해 주세요.\n\n'
+          + '잠시 후 다시 시도해 주세요.',
+      );
+      return;
+    }
 
     if (!pkg) {
       Alert.alert(
@@ -142,7 +166,7 @@ export default function ShopScreen() {
     } else if (result.error && result.error !== 'cancelled' && result.error !== 'not_configured') {
       Alert.alert('오류', '결제 처리 중 문제가 발생했습니다.');
     }
-  }, [offerings, purchaseCoinsPkg, coins]);
+  }, [loadOfferings, purchaseCoinsPkg, coins]);
 
   // ── Gift logic (unchanged) ──
   const openGiftFriendPicker = useCallback(async (cosmetic: Cosmetic) => {
@@ -531,7 +555,7 @@ export default function ShopScreen() {
             <ActivityIndicator size="large" color={BRAND.gold} style={{ marginVertical: SPACING.xl }} />
           ) : (
             <FlatList
-              data={coinProducts}
+              data={coinProductsForStore}
               renderItem={renderCoinProduct}
               keyExtractor={(item) => item.id}
               scrollEnabled={false}

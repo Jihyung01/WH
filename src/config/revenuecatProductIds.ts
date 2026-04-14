@@ -9,8 +9,21 @@ export const REVENUECAT_SUBSCRIPTION_PRODUCT_IDS = [
   'wh_premium_annual',
 ] as const;
 
+/**
+ * App Store / Play에 실제로 등록된 **스토어 Product ID**만 넣습니다.
+ * `wh_coins_500` 은 팀 전역에서 ID 충돌이 나면 ASC에 못 만들 수 있어,
+ * 동일 500코인 팩은 **`wh_coins_500_pack`** 같은 새 SKU로 올리고 아래 매핑으로 연결합니다.
+ * (ASC·RC에서 쓴 문자열과 반드시 동일하게 맞추세요.)
+ */
+export const APPLE_STORE_COIN_PRODUCT_ID_FOR_500 = 'wh_coins_500_pack' as const;
+
+/** DB `coin_products.id`(카탈로그) → 스토어 Product ID */
+const CATALOG_COIN_ID_TO_APPLE_STORE: Record<string, string> = {
+  wh_coins_500: APPLE_STORE_COIN_PRODUCT_ID_FOR_500,
+};
+
 export const REVENUECAT_COIN_PRODUCT_IDS = [
-  'wh_coins_500',
+  APPLE_STORE_COIN_PRODUCT_ID_FOR_500,
   'wh_coins_1200',
   'wh_coins_3500',
   'wh_coins_8000',
@@ -18,7 +31,16 @@ export const REVENUECAT_COIN_PRODUCT_IDS = [
 ] as const;
 
 const SUB_ID_SET = new Set<string>(REVENUECAT_SUBSCRIPTION_PRODUCT_IDS);
-const COIN_ID_SET = new Set<string>(REVENUECAT_COIN_PRODUCT_IDS);
+/** 스토어 ID + 카탈로그 ID(오퍼링 메타에 남는 경우) */
+const COIN_ID_SET = new Set<string>([
+  ...REVENUECAT_COIN_PRODUCT_IDS,
+  ...Object.keys(CATALOG_COIN_ID_TO_APPLE_STORE),
+]);
+
+/** 코인 팩: 스토어에서 조회·매칭할 때 사용할 Product ID */
+export function resolveAppleStoreCoinProductId(catalogProductId: string): string {
+  return CATALOG_COIN_ID_TO_APPLE_STORE[catalogProductId] ?? catalogProductId;
+}
 
 /** Store product id: RC Package has `product.identifier`; StoreProduct from getProducts has root `identifier`. */
 export function getStoreProductIdFromPurchaseItem(pkg: unknown): string | null {
