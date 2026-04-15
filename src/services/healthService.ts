@@ -35,13 +35,23 @@ async function afterInteractions(): Promise<void> {
   });
 }
 
+async function loadHealthKitModule(): Promise<any> {
+  const mod = await import('react-native-health');
+  return (mod as any)?.default ?? mod;
+}
+
+async function loadGoogleFitModule(): Promise<any> {
+  const mod = await import('react-native-google-fit');
+  return (mod as any)?.default ?? mod;
+}
+
 export async function requestHealthPermission(): Promise<HealthAuthResult> {
   try {
     if (Platform.OS === 'ios') {
       await afterInteractions();
       await new Promise((r) => setTimeout(r, 400));
 
-      const HealthKit = (await import('react-native-health')).default as any;
+      const HealthKit = await loadHealthKitModule();
       if (typeof HealthKit?.initHealthKit !== 'function') {
         console.warn('[health] AppleHealthKit native module missing (needs dev/production build with react-native-health).');
         return { granted: false, nativeMissing: true };
@@ -82,7 +92,7 @@ export async function requestHealthPermission(): Promise<HealthAuthResult> {
     }
 
     if (Platform.OS === 'android') {
-      const GoogleFit = (await import('react-native-google-fit')).default as any;
+      const GoogleFit = await loadGoogleFitModule();
       const options = {
         scopes: ['https://www.googleapis.com/auth/fitness.activity.read'],
       };
@@ -98,7 +108,7 @@ export async function requestHealthPermission(): Promise<HealthAuthResult> {
 export async function getTodaySteps(): Promise<number> {
   try {
     if (Platform.OS === 'ios') {
-      const HealthKit = (await import('react-native-health')).default as any;
+      const HealthKit = await loadHealthKitModule();
       if (typeof HealthKit?.getStepCount !== 'function') {
         return 0;
       }
@@ -131,7 +141,7 @@ export async function getTodaySteps(): Promise<number> {
     }
 
     if (Platform.OS === 'android') {
-      const GoogleFit = (await import('react-native-google-fit')).default as any;
+      const GoogleFit = await loadGoogleFitModule();
       try {
         await GoogleFit.authorize({
           scopes: ['https://www.googleapis.com/auth/fitness.activity.read'],
@@ -158,7 +168,7 @@ export async function getWeeklySteps(): Promise<number[]> {
   const out: number[] = [];
   try {
     if (Platform.OS === 'ios') {
-      const HealthKit = (await import('react-native-health')).default as any;
+      const HealthKit = await loadHealthKitModule();
       for (let i = 6; i >= 0; i--) {
         const start = new Date();
         start.setDate(start.getDate() - i);
