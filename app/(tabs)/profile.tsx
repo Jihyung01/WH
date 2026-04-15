@@ -177,6 +177,18 @@ function ProfileContent() {
     };
   }, [refreshHealthSteps]);
 
+  // Periodically refresh step count while screen is visible
+  useEffect(() => {
+    if (!healthReady) return;
+    const interval = setInterval(async () => {
+      try {
+        const steps = await getTodaySteps();
+        setTodaySteps(steps);
+      } catch { /* ignore */ }
+    }, 30_000);
+    return () => clearInterval(interval);
+  }, [healthReady]);
+
   useEffect(() => {
     if (character) {
       speakCharacterLine('startup', character.character_type);

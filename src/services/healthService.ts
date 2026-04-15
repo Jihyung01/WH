@@ -96,8 +96,6 @@ export async function requestHealthPermission(): Promise<HealthAuthResult> {
       }
 
       const granted = await new Promise<boolean>((resolve) => {
-        // react-native-health versions differ on accepted permission strings.
-        // Ask both legacy/new aliases to avoid false negatives.
         HealthKit.initHealthKit(
           {
             permissions: {
@@ -106,11 +104,17 @@ export async function requestHealthPermission(): Promise<HealthAuthResult> {
             },
           },
           (err: unknown) => {
-            if (err) console.warn('[health] initHealthKit:', err);
-            resolve(!err);
+            if (err) console.warn('[health] initHealthKit err (often benign on iOS):', err);
+            // iOS HealthKit never reveals whether READ permission was actually granted.
+            // initHealthKit succeeding means the request was processed; assume granted
+            // and rely on query results (0 steps = possibly denied).
+            resolve(true);
           },
         );
       });
+
+      // Give HealthKit a moment to propagate the permission grant before querying.
+      await new Promise((r) => setTimeout(r, 500));
       return { granted };
     }
 
@@ -133,14 +137,19 @@ export async function getTodaySteps(): Promise<number> {
     if (Platform.OS === 'ios') {
       const HealthKit = await loadHealthKitModule();
       if (typeof HealthKit?.getStepCount !== 'function') {
+        console.warn('[health] getStepCount is not a function on resolved module');
         return 0;
       }
-      const startDate = startOfToday().toISOString();
-      const endDate = new Date().toISOString();
+      const today = startOfToday();
+      const now = new Date();
+
+      // getStepCount uses `date` key (falls back to current date).
+      // Also pass startDate/endDate for getDailyStepCountSamples fallback.
       const total = await new Promise<number>((resolve) => {
         HealthKit.getStepCount(
-          { startDate, endDate },
-          (_err: unknown, res: { value?: number }) => {
+          { date: today.toISOString(), startDate: today.toISOString(), endDate: now.toISOString() },
+          (err: unknown, res: { value?: number }) => {
+            if (err) console.warn('[health] getStepCount error:', err);
             resolve(Math.max(0, Math.floor(res?.value ?? 0)));
           },
         );
@@ -151,8 +160,9 @@ export async function getTodaySteps(): Promise<number> {
       if (typeof HealthKit?.getDailyStepCountSamples === 'function') {
         const samplesTotal = await new Promise<number>((resolve) => {
           HealthKit.getDailyStepCountSamples(
-            { startDate, endDate },
-            (_err: unknown, rows: Array<{ value?: number }> | undefined) => {
+            { startDate: today.toISOString(), endDate: now.toISOString() },
+            (err: unknown, rows: Array<{ value?: number }> | undefined) => {
+              if (err) console.warn('[health] getDailyStepCountSamples error:', err);
               const sum = (rows ?? []).reduce((acc, row) => acc + Math.max(0, Number(row?.value) || 0), 0);
               resolve(Math.floor(sum));
             },
