@@ -1,4 +1,9 @@
-import { Platform, NativeModules, InteractionManager } from 'react-native';
+import {
+  Platform,
+  NativeModules,
+  InteractionManager,
+  PermissionsAndroid,
+} from 'react-native';
 
 export type HealthAuthResult = {
   granted: boolean;
@@ -59,6 +64,26 @@ function hlog(msg: string): void {
   if (_healthDiagLog.length > 30) _healthDiagLog.shift();
 }
 
+async function ensureAndroidActivityPermission(): Promise<boolean> {
+  if (Platform.OS !== 'android') return true;
+  try {
+    if (Platform.Version < 29) return true;
+    const perm = PermissionsAndroid.PERMISSIONS.ACTIVITY_RECOGNITION;
+    const already = await PermissionsAndroid.check(perm);
+    if (already) {
+      hlog('Android ACTIVITY_RECOGNITION already granted');
+      return true;
+    }
+    const granted = await PermissionsAndroid.request(perm);
+    const ok = granted === PermissionsAndroid.RESULTS.GRANTED;
+    hlog(`Android ACTIVITY_RECOGNITION request: ${granted}`);
+    return ok;
+  } catch (e) {
+    hlog(`Android ACTIVITY_RECOGNITION error: ${String(e)}`);
+    return false;
+  }
+}
+
 export async function requestHealthPermission(): Promise<HealthAuthResult> {
   try {
     if (Platform.OS === 'ios') {
@@ -110,14 +135,18 @@ export async function requestHealthPermission(): Promise<HealthAuthResult> {
 
     if (Platform.OS === 'android') {
       try {
+        const permissionOk = await ensureAndroidActivityPermission();
+        if (!permissionOk) return { granted: false };
         const mod = await import('react-native-google-fit');
         const GoogleFit = (mod as any)?.default ?? (mod as any)?.GoogleFit ?? mod;
         const options = {
           scopes: ['https://www.googleapis.com/auth/fitness.activity.read'],
         };
         const authRes = await GoogleFit.authorize(options);
+        hlog(`GoogleFit authorize: ${JSON.stringify(authRes)}`);
         return { granted: !!authRes?.success };
-      } catch {
+      } catch (e) {
+        hlog(`GoogleFit authorize exception: ${String(e)}`);
         return { granted: false };
       }
     }
@@ -226,27 +255,37 @@ export async function getTodaySteps(): Promise<number> {
 
     if (Platform.OS === 'android') {
       try {
+        const permissionOk = await ensureAndroidActivityPermission();
+        if (!permissionOk) {
+          hlog('Android step query blocked: ACTIVITY_RECOGNITION denied');
+          return 0;
+        }
         const mod = await import('react-native-google-fit');
         const GoogleFit = (mod as any)?.default ?? (mod as any)?.GoogleFit ?? mod;
         try {
-          await GoogleFit.authorize({
+          const authRes = await GoogleFit.authorize({
             scopes: ['https://www.googleapis.com/auth/fitness.activity.read'],
           });
-        } catch {
-          // ignore
+          hlog(`GoogleFit authorize (query): ${JSON.stringify(authRes)}`);
+        } catch (e) {
+          hlog(`GoogleFit authorize (query) err: ${String(e)}`);
         }
         const samples = await GoogleFit.getDailyStepCountSamples({
           startDate: startOfToday().toISOString(),
           endDate: new Date().toISOString(),
         });
+        const sampleCount = Array.isArray(samples) ? samples.length : 0;
         const merged = Array.isArray(samples)
           ? samples.flatMap((s: any) => (Array.isArray(s?.steps) ? s.steps : []))
           : [];
-        return merged.reduce(
+        const sum = merged.reduce(
           (sum: number, row: any) => sum + (Number(row?.value) || 0),
           0,
         );
-      } catch {
+        hlog(`GoogleFit daily samples: providers=${sampleCount}, rows=${merged.length}, total=${sum}`);
+        return sum;
+      } catch (e) {
+        hlog(`GoogleFit getDailyStepCountSamples err: ${String(e)}`);
         return 0;
       }
     }
