@@ -193,26 +193,67 @@ function mergeAllOfferingPackages(offerings: {
 async function fetchDirectStoreProducts(PurchasesMod: typeof Purchases): Promise<unknown[]> {
   const P = PurchasesMod as any;
   const combined: unknown[] = [];
+  const seen = new Set<string>();
 
   const subType = P?.PURCHASE_TYPE?.SUBS ?? 'subs';
   const nonSubType = P?.PURCHASE_TYPE?.INAPP ?? 'inapp';
+  const pushUnique = (items: unknown[]) => {
+    for (const item of items) {
+      if (item == null || typeof item !== 'object') continue;
+      const id = (item as { identifier?: unknown }).identifier;
+      const key = typeof id === 'string' && id.length > 0 ? id : JSON.stringify(item);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      combined.push(item);
+    }
+  };
+
+  const fetchPerId = async (ids: readonly string[], type?: string) => {
+    for (const id of ids) {
+      try {
+        const result = type
+          ? await P.getProducts([id], type)
+          : await P.getProducts([id]);
+        if (Array.isArray(result) && result.length) {
+          pushUnique(result);
+        }
+      } catch (e) {
+        console.warn(`[RevenueCat] getProducts(single:${id}) fallback:`, e);
+      }
+    }
+  };
 
   try {
     const subs = await P.getProducts([...REVENUECAT_SUBSCRIPTION_PRODUCT_IDS], subType);
-    if (Array.isArray(subs) && subs.length) combined.push(...subs);
+    if (Array.isArray(subs) && subs.length) {
+      pushUnique(subs);
+    } else {
+      await fetchPerId(REVENUECAT_SUBSCRIPTION_PRODUCT_IDS, subType);
+    }
   } catch (e) {
     console.warn('[RevenueCat] getProducts(subscriptions) fallback:', e);
+    await fetchPerId(REVENUECAT_SUBSCRIPTION_PRODUCT_IDS, subType);
   }
 
   try {
     const coins = await P.getProducts([...REVENUECAT_COIN_PRODUCT_IDS], nonSubType);
-    if (Array.isArray(coins) && coins.length) combined.push(...coins);
+    if (Array.isArray(coins) && coins.length) {
+      pushUnique(coins);
+    } else {
+      await fetchPerId(REVENUECAT_COIN_PRODUCT_IDS, nonSubType);
+    }
   } catch (e) {
     try {
       const coins2 = await P.getProducts([...REVENUECAT_COIN_PRODUCT_IDS]);
-      if (Array.isArray(coins2) && coins2.length) combined.push(...coins2);
+      if (Array.isArray(coins2) && coins2.length) {
+        pushUnique(coins2);
+      } else {
+        await fetchPerId(REVENUECAT_COIN_PRODUCT_IDS);
+      }
     } catch (e2) {
       console.warn('[RevenueCat] getProducts(coins) fallback:', e2);
+      await fetchPerId(REVENUECAT_COIN_PRODUCT_IDS, nonSubType);
+      await fetchPerId(REVENUECAT_COIN_PRODUCT_IDS);
     }
   }
 

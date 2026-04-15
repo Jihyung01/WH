@@ -5,6 +5,7 @@
  */
 export const REVENUECAT_SUBSCRIPTION_PRODUCT_IDS = [
   'wh_premium_monthly',
+  'wh_premium_annually',
   'wh_premium_annualy',
   'wh_premium_yearly',
   'wh_premium_annual',
@@ -73,6 +74,7 @@ export function sortSubscriptionPackages(pkgs: unknown[]): unknown[] {
   const rank = (id: string | null): number => {
     if (id === 'wh_premium_monthly') return 0;
     if (
+      id === 'wh_premium_annually' ||
       id === 'wh_premium_annualy' ||
       id === 'wh_premium_yearly' ||
       id === 'wh_premium_annual'

@@ -92,7 +92,12 @@ export default function PremiumScreen() {
   const annualPackage = useMemo(
     () => subscriptionOfferings.find((pkg) => {
       const id = getStoreProductIdFromPurchaseItem(pkg);
-      return id === 'wh_premium_annualy' || id === 'wh_premium_annual' || id === 'wh_premium_yearly';
+      return (
+        id === 'wh_premium_annually' ||
+        id === 'wh_premium_annualy' ||
+        id === 'wh_premium_annual' ||
+        id === 'wh_premium_yearly'
+      );
     }),
     [subscriptionOfferings],
   );
@@ -145,7 +150,12 @@ export default function PremiumScreen() {
     const monthly = subs.find((p) => getStoreProductIdFromPurchaseItem(p) === 'wh_premium_monthly');
     const annual = subs.find((p) => {
       const id = getStoreProductIdFromPurchaseItem(p);
-      return id === 'wh_premium_annualy' || id === 'wh_premium_annual' || id === 'wh_premium_yearly';
+      return (
+        id === 'wh_premium_annually' ||
+        id === 'wh_premium_annualy' ||
+        id === 'wh_premium_annual' ||
+        id === 'wh_premium_yearly'
+      );
     });
     const pkg = selectedPlan === 'annual'
       ? (annual ?? monthly ?? fallback)

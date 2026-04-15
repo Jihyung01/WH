@@ -29,6 +29,12 @@ function startOfToday() {
   return d;
 }
 
+function startOfYesterday() {
+  const d = startOfToday();
+  d.setDate(d.getDate() - 1);
+  return d;
+}
+
 async function afterInteractions(): Promise<void> {
   await new Promise<void>((resolve) => {
     InteractionManager.runAfterInteractions(() => resolve());
@@ -147,7 +153,12 @@ export async function getTodaySteps(): Promise<number> {
       // Also pass startDate/endDate for getDailyStepCountSamples fallback.
       const total = await new Promise<number>((resolve) => {
         HealthKit.getStepCount(
-          { date: today.toISOString(), startDate: today.toISOString(), endDate: now.toISOString() },
+          {
+            date: now.toISOString(),
+            startDate: today.toISOString(),
+            endDate: now.toISOString(),
+            includeManuallyAdded: true,
+          },
           (err: unknown, res: { value?: number }) => {
             if (err) console.warn('[health] getStepCount error:', err);
             resolve(Math.max(0, Math.floor(res?.value ?? 0)));
@@ -160,15 +171,43 @@ export async function getTodaySteps(): Promise<number> {
       if (typeof HealthKit?.getDailyStepCountSamples === 'function') {
         const samplesTotal = await new Promise<number>((resolve) => {
           HealthKit.getDailyStepCountSamples(
-            { startDate: today.toISOString(), endDate: now.toISOString() },
-            (err: unknown, rows: Array<{ value?: number }> | undefined) => {
+            {
+              // Query from yesterday to avoid timezone-boundary misses,
+              // then re-filter buckets in JS to "today".
+              startDate: startOfYesterday().toISOString(),
+              endDate: now.toISOString(),
+              includeManuallyAdded: true,
+            },
+            (err: unknown, rows: Array<{ value?: number; startDate?: string; endDate?: string }> | undefined) => {
               if (err) console.warn('[health] getDailyStepCountSamples error:', err);
+              const sum = (rows ?? []).reduce((acc, row) => {
+                const rowStart = row?.startDate ? new Date(row.startDate) : null;
+                const inToday = rowStart != null && rowStart >= today && rowStart <= now;
+                if (!inToday) return acc;
+                return acc + Math.max(0, Number(row?.value) || 0);
+              }, 0);
+              resolve(Math.floor(sum));
+            },
+          );
+        });
+        if (samplesTotal > 0) return Math.max(0, samplesTotal);
+
+        // Last fallback: sum samples without date filtering, then trust stepCount value if any.
+        const rawTotal = await new Promise<number>((resolve) => {
+          HealthKit.getDailyStepCountSamples(
+            {
+              startDate: today.toISOString(),
+              endDate: now.toISOString(),
+              includeManuallyAdded: true,
+            },
+            (err: unknown, rows: Array<{ value?: number }> | undefined) => {
+              if (err) console.warn('[health] getDailyStepCountSamples raw fallback error:', err);
               const sum = (rows ?? []).reduce((acc, row) => acc + Math.max(0, Number(row?.value) || 0), 0);
               resolve(Math.floor(sum));
             },
           );
         });
-        return Math.max(0, samplesTotal);
+        return Math.max(0, rawTotal, total);
       }
       return 0;
     }
