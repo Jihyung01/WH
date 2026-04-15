@@ -1,11 +1,8 @@
-import { Platform, InteractionManager } from 'react-native';
+import { Platform, NativeModules, InteractionManager } from 'react-native';
 
-/** Result of requesting Health / Google Fit access (see `nativeMissing` when OTA cannot add native HealthKit). */
 export type HealthAuthResult = {
   granted: boolean;
-  /** iOS: `react-native-health` native module not in this binary — install a full build from TestFlight/App Store, not JS-only update. */
   nativeMissing?: boolean;
-  /** iOS: HealthKit not available on this device. */
   unavailable?: boolean;
 };
 
@@ -23,15 +20,9 @@ const MILESTONES: HealthMilestone[] = [
   { steps: 10000, xp: 50, coins: 30, badge: '만보기' },
 ];
 
-function startOfToday() {
+function startOfToday(): Date {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
-  return d;
-}
-
-function startOfYesterday() {
-  const d = startOfToday();
-  d.setDate(d.getDate() - 1);
   return d;
 }
 
@@ -41,99 +32,98 @@ async function afterInteractions(): Promise<void> {
   });
 }
 
-async function loadHealthKitModule(): Promise<any> {
-  const { NativeModules } = require('react-native');
-  const nativeModule = NativeModules.AppleHealthKit;
-
-  if (__DEV__) {
-    console.log(
-      '[health] NativeModules.AppleHealthKit:',
-      nativeModule ? 'present' : 'MISSING',
-      nativeModule ? Object.keys(nativeModule).slice(0, 5) : [],
-    );
-  }
-
-  const mod = await import('react-native-health');
-  const resolved = (mod as any)?.default ?? (mod as any)?.HealthKit ?? mod;
-
-  if (typeof resolved?.initHealthKit === 'function') return resolved;
-
-  if (nativeModule && typeof nativeModule.initHealthKit === 'function') {
-    return Object.assign({}, nativeModule, {
-      Constants: resolved?.Constants ?? (mod as any)?.Constants ?? {},
-    });
-  }
-
-  return resolved;
+/**
+ * Get the native AppleHealthKit module directly from NativeModules.
+ * react-native-health's index.js does exactly this:
+ *   const { AppleHealthKit } = require('react-native').NativeModules
+ * By going straight to NativeModules we bypass any CJS/ESM interop issues
+ * that dynamic import() might cause.
+ */
+function getAppleHealthKit(): any | null {
+  if (Platform.OS !== 'ios') return null;
+  const native = NativeModules.AppleHealthKit;
+  if (!native || typeof native.initHealthKit !== 'function') return null;
+  return native;
 }
 
-async function loadGoogleFitModule(): Promise<any> {
-  const mod = await import('react-native-google-fit');
-  const resolved = (mod as any)?.default ?? (mod as any)?.GoogleFit ?? mod;
-  if (typeof resolved?.authorize === 'function') return resolved;
-  return resolved;
+let _healthDiagLog: string[] = [];
+
+export function getHealthDiagLog(): string {
+  return _healthDiagLog.join('\n');
+}
+
+function hlog(msg: string): void {
+  const ts = new Date().toLocaleTimeString('ko-KR', { hour12: false });
+  const line = `[${ts}] ${msg}`;
+  _healthDiagLog.push(line);
+  if (_healthDiagLog.length > 30) _healthDiagLog.shift();
 }
 
 export async function requestHealthPermission(): Promise<HealthAuthResult> {
   try {
     if (Platform.OS === 'ios') {
       await afterInteractions();
-      await new Promise((r) => setTimeout(r, 400));
+      await new Promise((r) => setTimeout(r, 300));
 
-      const HealthKit = await loadHealthKitModule();
-      if (typeof HealthKit?.initHealthKit !== 'function') {
-        console.warn('[health] AppleHealthKit native module missing (needs dev/production build with react-native-health).');
+      const HK = getAppleHealthKit();
+      if (!HK) {
+        hlog('ERROR: AppleHealthKit native module MISSING');
         return { granted: false, nativeMissing: true };
       }
+      hlog(`NativeModule OK, keys: ${Object.keys(HK).length}`);
 
       const kitAvailable = await new Promise<boolean>((resolve) => {
-        if (typeof HealthKit.isAvailable !== 'function') {
+        if (typeof HK.isAvailable !== 'function') {
           resolve(true);
           return;
         }
-        HealthKit.isAvailable((err: unknown, ok: boolean) => {
-          if (err) console.warn('[health] isAvailable:', err);
+        HK.isAvailable((err: unknown, ok: boolean) => {
+          if (err) hlog(`isAvailable err: ${err}`);
           resolve(!!ok);
         });
       });
       if (!kitAvailable) {
-        console.warn('[health] HealthKit not available on this device.');
+        hlog('ERROR: HealthKit not available on device');
         return { granted: false, unavailable: true };
       }
+      hlog('HealthKit available=true');
 
-      const granted = await new Promise<boolean>((resolve) => {
-        HealthKit.initHealthKit(
+      await new Promise<void>((resolve) => {
+        HK.initHealthKit(
           {
             permissions: {
-              read: ['Steps', 'StepCount'],
+              read: ['StepCount'],
               write: [],
             },
           },
           (err: unknown) => {
-            if (err) console.warn('[health] initHealthKit err (often benign on iOS):', err);
-            // iOS HealthKit never reveals whether READ permission was actually granted.
-            // initHealthKit succeeding means the request was processed; assume granted
-            // and rely on query results (0 steps = possibly denied).
-            resolve(true);
+            if (err) hlog(`initHealthKit cb err (often benign): ${err}`);
+            else hlog('initHealthKit success');
+            resolve();
           },
         );
       });
 
-      // Give HealthKit a moment to propagate the permission grant before querying.
       await new Promise((r) => setTimeout(r, 500));
-      return { granted };
+      return { granted: true };
     }
 
     if (Platform.OS === 'android') {
-      const GoogleFit = await loadGoogleFitModule();
-      const options = {
-        scopes: ['https://www.googleapis.com/auth/fitness.activity.read'],
-      };
-      const authRes = await GoogleFit.authorize(options);
-      return { granted: !!authRes?.success };
+      try {
+        const mod = await import('react-native-google-fit');
+        const GoogleFit = (mod as any)?.default ?? (mod as any)?.GoogleFit ?? mod;
+        const options = {
+          scopes: ['https://www.googleapis.com/auth/fitness.activity.read'],
+        };
+        const authRes = await GoogleFit.authorize(options);
+        return { granted: !!authRes?.success };
+      } catch {
+        return { granted: false };
+      }
     }
     return { granted: false };
-  } catch {
+  } catch (e) {
+    hlog(`requestHealthPermission exception: ${e}`);
     return { granted: false };
   }
 }
@@ -141,97 +131,128 @@ export async function requestHealthPermission(): Promise<HealthAuthResult> {
 export async function getTodaySteps(): Promise<number> {
   try {
     if (Platform.OS === 'ios') {
-      const HealthKit = await loadHealthKitModule();
-      if (typeof HealthKit?.getStepCount !== 'function') {
-        console.warn('[health] getStepCount is not a function on resolved module');
+      const HK = getAppleHealthKit();
+      if (!HK) {
+        hlog('getTodaySteps: native module missing');
         return 0;
       }
+
       const today = startOfToday();
       const now = new Date();
 
-      // getStepCount uses `date` key (falls back to current date).
-      // Also pass startDate/endDate for getDailyStepCountSamples fallback.
-      const total = await new Promise<number>((resolve) => {
-        HealthKit.getStepCount(
-          {
-            date: now.toISOString(),
-            startDate: today.toISOString(),
-            endDate: now.toISOString(),
-            includeManuallyAdded: true,
-          },
-          (err: unknown, res: { value?: number }) => {
-            if (err) console.warn('[health] getStepCount error:', err);
-            resolve(Math.max(0, Math.floor(res?.value ?? 0)));
-          },
-        );
-      });
-      if (total > 0) return total;
+      hlog(`Query range: ${today.toISOString()} → ${now.toISOString()}`);
 
-      // Some devices return 0 for getStepCount but provide bucketed samples.
-      if (typeof HealthKit?.getDailyStepCountSamples === 'function') {
-        const samplesTotal = await new Promise<number>((resolve) => {
-          HealthKit.getDailyStepCountSamples(
-            {
-              // Query from yesterday to avoid timezone-boundary misses,
-              // then re-filter buckets in JS to "today".
-              startDate: startOfYesterday().toISOString(),
-              endDate: now.toISOString(),
-              includeManuallyAdded: true,
-            },
-            (err: unknown, rows: Array<{ value?: number; startDate?: string; endDate?: string }> | undefined) => {
-              if (err) console.warn('[health] getDailyStepCountSamples error:', err);
-              const sum = (rows ?? []).reduce((acc, row) => {
-                const rowStart = row?.startDate ? new Date(row.startDate) : null;
-                const inToday = rowStart != null && rowStart >= today && rowStart <= now;
-                if (!inToday) return acc;
-                return acc + Math.max(0, Number(row?.value) || 0);
-              }, 0);
-              resolve(Math.floor(sum));
+      // Method 1: getStepCount (sum for a single day)
+      if (typeof HK.getStepCount === 'function') {
+        const total = await new Promise<number>((resolve) => {
+          HK.getStepCount(
+            { date: now.toISOString(), includeManuallyAdded: true },
+            (err: unknown, res: any) => {
+              if (err) {
+                hlog(`getStepCount err: ${JSON.stringify(err)}`);
+                resolve(0);
+                return;
+              }
+              const v = Math.floor(Number(res?.value) || 0);
+              hlog(`getStepCount result: ${v} (raw: ${JSON.stringify(res)})`);
+              resolve(Math.max(0, v));
             },
           );
         });
-        if (samplesTotal > 0) return Math.max(0, samplesTotal);
+        if (total > 0) return total;
+      } else {
+        hlog('getStepCount function not found on native module');
+      }
 
-        // Last fallback: sum samples without date filtering, then trust stepCount value if any.
-        const rawTotal = await new Promise<number>((resolve) => {
-          HealthKit.getDailyStepCountSamples(
+      // Method 2: getDailyStepCountSamples (hourly buckets)
+      if (typeof HK.getDailyStepCountSamples === 'function') {
+        const samples = await new Promise<number>((resolve) => {
+          HK.getDailyStepCountSamples(
             {
               startDate: today.toISOString(),
               endDate: now.toISOString(),
               includeManuallyAdded: true,
             },
-            (err: unknown, rows: Array<{ value?: number }> | undefined) => {
-              if (err) console.warn('[health] getDailyStepCountSamples raw fallback error:', err);
-              const sum = (rows ?? []).reduce((acc, row) => acc + Math.max(0, Number(row?.value) || 0), 0);
+            (err: unknown, rows: any[] | undefined) => {
+              if (err) {
+                hlog(`getDailyStepCountSamples err: ${JSON.stringify(err)}`);
+                resolve(0);
+                return;
+              }
+              const arr = Array.isArray(rows) ? rows : [];
+              const sum = arr.reduce(
+                (acc, row) => acc + Math.max(0, Number(row?.value) || 0),
+                0,
+              );
+              hlog(`getDailyStepCountSamples: ${arr.length} rows, sum=${Math.floor(sum)}`);
               resolve(Math.floor(sum));
             },
           );
         });
-        return Math.max(0, rawTotal, total);
+        if (samples > 0) return samples;
+      } else {
+        hlog('getDailyStepCountSamples function not found');
       }
+
+      // Method 3: getSamples with Walking type
+      if (typeof HK.getSamples === 'function') {
+        const walkingSamples = await new Promise<number>((resolve) => {
+          HK.getSamples(
+            {
+              startDate: today.toISOString(),
+              endDate: now.toISOString(),
+              type: 'Walking',
+            },
+            (err: unknown, rows: any[] | undefined) => {
+              if (err) {
+                hlog(`getSamples Walking err: ${JSON.stringify(err)}`);
+                resolve(0);
+                return;
+              }
+              const arr = Array.isArray(rows) ? rows : [];
+              hlog(`getSamples Walking: ${arr.length} rows`);
+              resolve(arr.length);
+            },
+          );
+        });
+        if (walkingSamples > 0) {
+          hlog(`Walking samples found (${walkingSamples}) but step count is 0 — permission may be read-denied`);
+        }
+      }
+
+      hlog('All step queries returned 0');
       return 0;
     }
 
     if (Platform.OS === 'android') {
-      const GoogleFit = await loadGoogleFitModule();
       try {
-        await GoogleFit.authorize({
-          scopes: ['https://www.googleapis.com/auth/fitness.activity.read'],
+        const mod = await import('react-native-google-fit');
+        const GoogleFit = (mod as any)?.default ?? (mod as any)?.GoogleFit ?? mod;
+        try {
+          await GoogleFit.authorize({
+            scopes: ['https://www.googleapis.com/auth/fitness.activity.read'],
+          });
+        } catch {
+          // ignore
+        }
+        const samples = await GoogleFit.getDailyStepCountSamples({
+          startDate: startOfToday().toISOString(),
+          endDate: new Date().toISOString(),
         });
+        const merged = Array.isArray(samples)
+          ? samples.flatMap((s: any) => (Array.isArray(s?.steps) ? s.steps : []))
+          : [];
+        return merged.reduce(
+          (sum: number, row: any) => sum + (Number(row?.value) || 0),
+          0,
+        );
       } catch {
-        // ignore, query below will return 0 on failure
+        return 0;
       }
-      const samples = await GoogleFit.getDailyStepCountSamples({
-        startDate: startOfToday().toISOString(),
-        endDate: new Date().toISOString(),
-      });
-      const merged = Array.isArray(samples)
-        ? samples.flatMap((s: any) => (Array.isArray(s?.steps) ? s.steps : []))
-        : [];
-      return merged.reduce((sum: number, row: any) => sum + (Number(row?.value) || 0), 0);
     }
     return 0;
-  } catch {
+  } catch (e) {
+    hlog(`getTodaySteps exception: ${e}`);
     return 0;
   }
 }
@@ -240,7 +261,8 @@ export async function getWeeklySteps(): Promise<number[]> {
   const out: number[] = [];
   try {
     if (Platform.OS === 'ios') {
-      const HealthKit = await loadHealthKitModule();
+      const HK = getAppleHealthKit();
+      if (!HK || typeof HK.getStepCount !== 'function') return [0, 0, 0, 0, 0, 0, 0];
       for (let i = 6; i >= 0; i--) {
         const start = new Date();
         start.setDate(start.getDate() - i);
@@ -248,9 +270,10 @@ export async function getWeeklySteps(): Promise<number[]> {
         const end = new Date(start);
         end.setHours(23, 59, 59, 999);
         const steps = await new Promise<number>((resolve) => {
-          HealthKit.getStepCount(
-            { startDate: start.toISOString(), endDate: end.toISOString() },
-            (_err: unknown, res: { value?: number }) => resolve(Math.floor(res?.value ?? 0)),
+          HK.getStepCount(
+            { date: start.toISOString(), includeManuallyAdded: true },
+            (_err: unknown, res: { value?: number }) =>
+              resolve(Math.floor(res?.value ?? 0)),
           );
         });
         out.push(Math.max(0, steps));
@@ -258,7 +281,6 @@ export async function getWeeklySteps(): Promise<number[]> {
       return out;
     }
 
-    // Android에서는 오늘 값 기반 단순 주간 fallback
     const today = await getTodaySteps();
     return [0, 0, 0, 0, 0, 0, today];
   } catch {
@@ -269,4 +291,3 @@ export async function getWeeklySteps(): Promise<number[]> {
 export function getAchievedMilestones(todaySteps: number): HealthMilestone[] {
   return MILESTONES.filter((m) => todaySteps >= m.steps);
 }
-

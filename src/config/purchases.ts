@@ -272,6 +272,13 @@ export async function getOfferings() {
   } catch {
     /* network / optional */
   }
+  try {
+    if (typeof Purchases.invalidateCustomerInfoCache === 'function') {
+      Purchases.invalidateCustomerInfoCache();
+    }
+  } catch {
+    /* optional */
+  }
 
   const fetchOnce = async () => {
     const offerings = await Purchases.getOfferings();
@@ -316,7 +323,10 @@ export async function getOfferings() {
     let result = await fetchOnce();
     if (!result?.availablePackages?.length) {
       for (let i = 0; i < 3 && (!result?.availablePackages?.length); i++) {
-        await new Promise((r) => setTimeout(r, 400 * (i + 1)));
+        await new Promise((r) => setTimeout(r, 800 * (i + 1)));
+        try {
+          await Purchases.syncAttributesAndOfferingsIfNeeded();
+        } catch { /* ignore */ }
         result = await fetchOnce();
       }
     }

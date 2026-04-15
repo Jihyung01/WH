@@ -47,6 +47,7 @@ import {
   requestHealthPermission,
   getTodaySteps,
   getAchievedMilestones,
+  getHealthDiagLog,
   type HealthAuthResult,
 } from '../../src/services/healthService';
 import { claimDailyStepReward } from '../../src/lib/api';
@@ -129,6 +130,7 @@ function ProfileContent() {
   /** iOS: native HealthKit binary missing vs HK unavailable on device */
   const [healthIssue, setHealthIssue] = useState<'nativeMissing' | 'unavailable' | null>(null);
   const [claimingStep, setClaimingStep] = useState<number | null>(null);
+  const [healthDiag, setHealthDiag] = useState('');
 
   const {
     character,
@@ -160,6 +162,7 @@ function ProfileContent() {
       const steps = await getTodaySteps();
       setTodaySteps(steps);
     }
+    setHealthDiag(getHealthDiagLog());
     return r;
   }, []);
 
@@ -474,6 +477,13 @@ function ProfileContent() {
               </Pressable>
             ))}
           </View>
+          {healthDiag.length > 0 && (
+            <View style={styles.stepsHintBlock}>
+              <Text style={[styles.stepsHint, { fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', fontSize: 10 }]}>
+                {healthDiag}
+              </Text>
+            </View>
+          )}
           {!healthReady && (
             <View style={styles.stepsHintBlock}>
               <Text style={styles.stepsHint}>
