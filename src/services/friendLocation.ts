@@ -9,6 +9,7 @@ import {
 import { useNotificationStore } from '../stores/notificationStore';
 
 const UPDATE_INTERVAL_MS = 30_000; // foreground backup while app is active
+const MAX_ACCEPTABLE_ACCURACY_M = 150;
 
 let intervalId: ReturnType<typeof setInterval> | null = null;
 let isRunning = false;
@@ -26,29 +27,33 @@ export interface FriendLocation {
 
 async function uploadLocation() {
   try {
-    // Android can return stale lastKnown for long periods.
-    // Prefer a fresh reading first, then fall back.
+    // Both iOS/Android can surface stale lastKnown right after app wake.
+    // Prefer a fresh GPS read first, then fall back.
     let location = null as Location.LocationObject | null;
-    if (Platform.OS === 'android') {
-      try {
-        location = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
-      } catch {
-        location = null;
-      }
-      if (!location) {
+    try {
+      location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
+    } catch {
+      location = null;
+    }
+    if (!location) {
+      if (Platform.OS === 'android') {
         location = await Location.getLastKnownPositionAsync({ maxAge: 90_000 });
-      }
-    } else {
-      location = await Location.getLastKnownPositionAsync({ maxAge: 60_000 });
-      if (!location) {
-        location = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
+      } else {
+        location = await Location.getLastKnownPositionAsync({ maxAge: 60_000 });
       }
     }
+    if (!location && Platform.OS !== 'android') {
+      location = await Location.getLastKnownPositionAsync({ maxAge: 60_000 });
+    }
     if (!location) return;
+
+    const accuracy = Number(location.coords.accuracy ?? Infinity);
+    if (Number.isFinite(accuracy) && accuracy > MAX_ACCEPTABLE_ACCURACY_M) {
+      // Skip coarse points to prevent district-level jumps (e.g., Jungja <-> Seohyeon).
+      return;
+    }
 
     const { error } = await supabase.rpc('update_my_location', {
       p_lat: location.coords.latitude,

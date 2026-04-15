@@ -127,17 +127,19 @@ export const backgroundLocationService = {
    * Start background location updates.
    * Requires Location.requestBackgroundPermissionsAsync() to have been granted.
    */
-  async start(): Promise<boolean> {
+  async start(options?: { friendLiveSharing?: boolean }): Promise<boolean> {
     const { status } = await Location.getBackgroundPermissionsAsync();
     if (status !== 'granted') return false;
 
     const isRunning = await TaskManager.isTaskRegisteredAsync(BG_LOCATION_TASK);
     if (isRunning) return true;
 
+    const liveMode = !!options?.friendLiveSharing;
+
     await Location.startLocationUpdatesAsync(BG_LOCATION_TASK, {
-      accuracy: Location.Accuracy.Balanced,
-      distanceInterval: 40,
-      deferredUpdatesInterval: 45000,
+      accuracy: liveMode ? Location.Accuracy.High : Location.Accuracy.Balanced,
+      distanceInterval: liveMode ? 10 : 40,
+      deferredUpdatesInterval: liveMode ? 15000 : 45000,
       showsBackgroundLocationIndicator: true,
       foregroundService: {
         notificationTitle: 'WhereHere',
@@ -201,5 +203,5 @@ export async function syncContinuousLocationTask(options: {
   const { status } = await Location.getBackgroundPermissionsAsync();
   if (status !== 'granted') return;
 
-  await backgroundLocationService.start();
+  await backgroundLocationService.start({ friendLiveSharing: wantFriend });
 }
