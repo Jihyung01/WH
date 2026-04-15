@@ -194,8 +194,8 @@ async function fetchDirectStoreProducts(PurchasesMod: typeof Purchases): Promise
   const P = PurchasesMod as any;
   const combined: unknown[] = [];
 
-  const subType = P?.PRODUCT_CATEGORY?.SUBSCRIPTION ?? 'SUBSCRIPTION';
-  const nonSubType = P?.PRODUCT_CATEGORY?.NON_SUBSCRIPTION ?? 'NON_SUBSCRIPTION';
+  const subType = P?.PURCHASE_TYPE?.SUBS ?? 'subs';
+  const nonSubType = P?.PURCHASE_TYPE?.INAPP ?? 'inapp';
 
   try {
     const subs = await P.getProducts([...REVENUECAT_SUBSCRIPTION_PRODUCT_IDS], subType);

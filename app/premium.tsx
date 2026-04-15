@@ -73,6 +73,7 @@ export default function PremiumScreen() {
 
   const [selectedPlan, setSelectedPlan] = useState<PlanType>('annual');
   const [restoring, setRestoring] = useState(false);
+  const [loadRetries, setLoadRetries] = useState(0);
 
   useEffect(() => {
     checkStatus();
@@ -113,18 +114,29 @@ export default function PremiumScreen() {
       sortSubscriptionPackages(
         usePremiumStore.getState().offerings.filter(isSubscriptionPurchaseItem),
       );
+
     let subs = readSubs();
+
     if (!subs.length) {
-      await usePremiumStore.getState().loadOfferings();
-      subs = readSubs();
+      const MAX_RETRIES = 3;
+      for (let i = 0; i < MAX_RETRIES && !subs.length; i++) {
+        setLoadRetries(i + 1);
+        await usePremiumStore.getState().loadOfferings();
+        await new Promise((r) => setTimeout(r, 800 * (i + 1)));
+        subs = readSubs();
+      }
+      setLoadRetries(0);
     }
 
     if (!subs.length) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       Alert.alert(
-        '안내',
-        '구독 상품을 스토어에서 불러오지 못했어요.\n\n'
-          + '위에 보이는 요금은 안내용이며, 결제는 스토어에 구독 상품이 준비된 뒤에 가능합니다.\n\n'
-          + '네트워크와 앱스토어 인앱 구입 상태를 확인한 뒤 다시 시도해 주세요.',
+        '잠시만요',
+        '구독 상품을 준비하고 있습니다. 잠시 후 다시 시도해 주세요.',
+        [
+          { text: '다시 시도', onPress: () => { loadOfferings(); } },
+          { text: '확인', style: 'cancel' },
+        ],
       );
       return;
     }
@@ -149,7 +161,7 @@ export default function PremiumScreen() {
     } else if (result.error && result.error !== 'cancelled' && result.error !== 'not_configured') {
       Alert.alert('오류', '구매 처리 중 문제가 발생했습니다.');
     }
-  }, [selectedPlan, purchase]);
+  }, [selectedPlan, purchase, loadOfferings]);
 
   const handleRestore = useCallback(async () => {
     setRestoring(true);
@@ -267,14 +279,11 @@ export default function PremiumScreen() {
               style={[
                 styles.pricingCard,
                 selectedPlan === 'monthly' && styles.pricingCardSelected,
-                !monthlyAvailable && styles.pricingCardDisabled,
               ]}
               onPress={() => {
-                if (!monthlyAvailable) return;
                 setSelectedPlan('monthly');
                 Haptics.selectionAsync();
               }}
-              disabled={!monthlyAvailable}
             >
               {selectedPlan === 'monthly' && (
                 <View style={styles.selectedDot}>
@@ -291,14 +300,11 @@ export default function PremiumScreen() {
               style={[
                 styles.pricingCard,
                 selectedPlan === 'annual' && styles.pricingCardSelected,
-                !annualAvailable && styles.pricingCardDisabled,
               ]}
               onPress={() => {
-                if (!annualAvailable) return;
                 setSelectedPlan('annual');
                 Haptics.selectionAsync();
               }}
-              disabled={!annualAvailable}
             >
               <View style={styles.discountBadge}>
                 <Text style={styles.discountText}>32% 할인</Text>
@@ -322,13 +328,20 @@ export default function PremiumScreen() {
           <Pressable
             style={[
               styles.purchaseButton,
-              isLoading && styles.purchaseButtonDisabled,
+              (isLoading || loadRetries > 0) && styles.purchaseButtonDisabled,
             ]}
             onPress={handlePurchase}
-            disabled={isLoading}
+            disabled={isLoading || loadRetries > 0}
           >
-            {isLoading ? (
-              <ActivityIndicator size="small" color="#FFF" />
+            {isLoading || loadRetries > 0 ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <ActivityIndicator size="small" color="#FFF" />
+                {loadRetries > 0 && (
+                  <Text style={[styles.purchaseButtonText, { fontSize: FONT_SIZE.sm }]}>
+                    상품 불러오는 중...
+                  </Text>
+                )}
+              </View>
             ) : (
               <Text style={styles.purchaseButtonText}>
                 {hasOfferings ? '프리미엄 시작하기' : '구독 불러오기'}

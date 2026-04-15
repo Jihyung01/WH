@@ -141,8 +141,8 @@ export default function ShopScreen() {
       Alert.alert(
         '안내',
         '코인 결제에 필요한 스토어 상품 목록을 불러오지 못했어요.\n\n'
-          + '화면 가격은 안내용이고, 실제 결제는 앱스토어에 코인 인앱 구입이 승인되어 목록에 올라온 뒤에 됩니다.\n\n'
-          + 'TestFlight·샌드박스와 스토어 릴리스에서는 동작이 다를 수 있어요. 잠시 후 다시 시도해 주세요.\n\n'
+          + '화면 가격은 안내용이며, 결제 가능한 상품이 스토어에 준비된 뒤 실제 결제가 진행됩니다.\n\n'
+          + '네트워크/앱스토어 계정 상태를 확인한 뒤 잠시 후 다시 시도해 주세요.\n\n'
           + `[진단] configured=${String(dbg.configured)}, offering=${dbg.lastOfferingId ?? 'none'}, `
           + `currentPkgs=${dbg.lastOfferingsCurrentCount}, mergedPkgs=${dbg.lastMergedPackagesCount}, `
           + `directProducts=${dbg.lastDirectProductsCount}, envKey=${String(dbg.hasEnvKey)}, `

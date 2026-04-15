@@ -36,13 +36,36 @@ async function afterInteractions(): Promise<void> {
 }
 
 async function loadHealthKitModule(): Promise<any> {
+  const { NativeModules } = require('react-native');
+  const nativeModule = NativeModules.AppleHealthKit;
+
+  if (__DEV__) {
+    console.log(
+      '[health] NativeModules.AppleHealthKit:',
+      nativeModule ? 'present' : 'MISSING',
+      nativeModule ? Object.keys(nativeModule).slice(0, 5) : [],
+    );
+  }
+
   const mod = await import('react-native-health');
-  return (mod as any)?.default ?? mod;
+  const resolved = (mod as any)?.default ?? (mod as any)?.HealthKit ?? mod;
+
+  if (typeof resolved?.initHealthKit === 'function') return resolved;
+
+  if (nativeModule && typeof nativeModule.initHealthKit === 'function') {
+    return Object.assign({}, nativeModule, {
+      Constants: resolved?.Constants ?? (mod as any)?.Constants ?? {},
+    });
+  }
+
+  return resolved;
 }
 
 async function loadGoogleFitModule(): Promise<any> {
   const mod = await import('react-native-google-fit');
-  return (mod as any)?.default ?? mod;
+  const resolved = (mod as any)?.default ?? (mod as any)?.GoogleFit ?? mod;
+  if (typeof resolved?.authorize === 'function') return resolved;
+  return resolved;
 }
 
 export async function requestHealthPermission(): Promise<HealthAuthResult> {
