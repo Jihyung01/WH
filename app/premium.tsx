@@ -23,6 +23,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 import { usePremiumStore } from '../src/stores/premiumStore';
 import {
+  getStoreProductIdFromPurchaseItem,
   isSubscriptionPurchaseItem,
   sortSubscriptionPackages,
 } from '../src/config/revenuecatProductIds';
@@ -51,6 +52,17 @@ const APPLE_MANAGE_URL = 'https://apps.apple.com/account/subscriptions';
 const GOOGLE_MANAGE_URL =
   'https://play.google.com/store/account/subscriptions?package=com.wherehere.app';
 
+function getPriceLabelFromPurchaseItem(item: unknown): string | null {
+  if (!item || typeof item !== 'object') return null;
+  const rec = item as Record<string, unknown>;
+  const nested = rec.product as Record<string, unknown> | undefined;
+  const nestedPrice = nested?.priceString;
+  if (typeof nestedPrice === 'string' && nestedPrice.length > 0) return nestedPrice;
+  const directPrice = rec.priceString;
+  if (typeof directPrice === 'string' && directPrice.length > 0) return directPrice;
+  return null;
+}
+
 export default function PremiumScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -72,6 +84,29 @@ export default function PremiumScreen() {
     [offerings],
   );
   const hasOfferings = subscriptionOfferings.length > 0;
+  const monthlyPackage = useMemo(
+    () => subscriptionOfferings.find((pkg) => getStoreProductIdFromPurchaseItem(pkg) === 'wh_premium_monthly'),
+    [subscriptionOfferings],
+  );
+  const annualPackage = useMemo(
+    () => subscriptionOfferings.find((pkg) => {
+      const id = getStoreProductIdFromPurchaseItem(pkg);
+      return id === 'wh_premium_annualy' || id === 'wh_premium_annual' || id === 'wh_premium_yearly';
+    }),
+    [subscriptionOfferings],
+  );
+  const monthlyAvailable = !!monthlyPackage;
+  const annualAvailable = !!annualPackage;
+  const monthlyPriceLabel = getPriceLabelFromPurchaseItem(monthlyPackage) ?? '₩4,900';
+  const annualPriceLabel = getPriceLabelFromPurchaseItem(annualPackage) ?? '₩39,900';
+
+  useEffect(() => {
+    if (selectedPlan === 'monthly' && !monthlyAvailable && annualAvailable) {
+      setSelectedPlan('annual');
+    } else if (selectedPlan === 'annual' && !annualAvailable && monthlyAvailable) {
+      setSelectedPlan('monthly');
+    }
+  }, [selectedPlan, monthlyAvailable, annualAvailable]);
 
   const handlePurchase = useCallback(async () => {
     const readSubs = () =>
@@ -94,10 +129,15 @@ export default function PremiumScreen() {
       return;
     }
 
-    const pkg =
-      selectedPlan === 'annual'
-        ? subs[1] ?? subs[0]
-        : subs[0];
+    const fallback = subs[0];
+    const monthly = subs.find((p) => getStoreProductIdFromPurchaseItem(p) === 'wh_premium_monthly');
+    const annual = subs.find((p) => {
+      const id = getStoreProductIdFromPurchaseItem(p);
+      return id === 'wh_premium_annualy' || id === 'wh_premium_annual' || id === 'wh_premium_yearly';
+    });
+    const pkg = selectedPlan === 'annual'
+      ? (annual ?? monthly ?? fallback)
+      : (monthly ?? annual ?? fallback);
     if (!pkg) return;
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -227,8 +267,14 @@ export default function PremiumScreen() {
               style={[
                 styles.pricingCard,
                 selectedPlan === 'monthly' && styles.pricingCardSelected,
+                !monthlyAvailable && styles.pricingCardDisabled,
               ]}
-              onPress={() => { setSelectedPlan('monthly'); Haptics.selectionAsync(); }}
+              onPress={() => {
+                if (!monthlyAvailable) return;
+                setSelectedPlan('monthly');
+                Haptics.selectionAsync();
+              }}
+              disabled={!monthlyAvailable}
             >
               {selectedPlan === 'monthly' && (
                 <View style={styles.selectedDot}>
@@ -236,16 +282,23 @@ export default function PremiumScreen() {
                 </View>
               )}
               <Text style={styles.pricingLabel}>월간</Text>
-              <Text style={styles.pricingPrice}>₩4,900</Text>
+              <Text style={styles.pricingPrice}>{monthlyPriceLabel}</Text>
               <Text style={styles.pricingPeriod}>/ 월</Text>
+              {!monthlyAvailable && <Text style={styles.pricingUnavailable}>현재 준비 중</Text>}
             </Pressable>
 
             <Pressable
               style={[
                 styles.pricingCard,
                 selectedPlan === 'annual' && styles.pricingCardSelected,
+                !annualAvailable && styles.pricingCardDisabled,
               ]}
-              onPress={() => { setSelectedPlan('annual'); Haptics.selectionAsync(); }}
+              onPress={() => {
+                if (!annualAvailable) return;
+                setSelectedPlan('annual');
+                Haptics.selectionAsync();
+              }}
+              disabled={!annualAvailable}
             >
               <View style={styles.discountBadge}>
                 <Text style={styles.discountText}>32% 할인</Text>
@@ -256,9 +309,10 @@ export default function PremiumScreen() {
                 </View>
               )}
               <Text style={styles.pricingLabel}>연간</Text>
-              <Text style={styles.pricingPrice}>₩39,900</Text>
+              <Text style={styles.pricingPrice}>{annualPriceLabel}</Text>
               <Text style={styles.pricingPeriod}>/ 년</Text>
               <Text style={styles.pricingMonthly}>월 ₩3,325</Text>
+              {!annualAvailable && <Text style={styles.pricingUnavailable}>현재 준비 중</Text>}
             </Pressable>
           </View>
         </Animated.View>
@@ -266,9 +320,12 @@ export default function PremiumScreen() {
         {/* Purchase Button */}
         <Animated.View entering={FadeInUp.duration(500).delay(700)}>
           <Pressable
-            style={[styles.purchaseButton, isLoading && styles.purchaseButtonDisabled]}
+            style={[
+              styles.purchaseButton,
+              (isLoading || !hasOfferings) && styles.purchaseButtonDisabled,
+            ]}
             onPress={handlePurchase}
-            disabled={isLoading}
+            disabled={isLoading || !hasOfferings}
           >
             {isLoading ? (
               <ActivityIndicator size="small" color="#FFF" />
@@ -299,7 +356,9 @@ export default function PremiumScreen() {
         <Animated.View entering={FadeInDown.duration(400).delay(900)}>
           <View style={styles.legalSection}>
             <Text style={styles.legalText}>
-              {'• 결제는 iTunes/Google Play 계정으로 청구됩니다.\n'}
+              {Platform.OS === 'ios'
+                ? '• 결제는 Apple App Store 계정으로 청구됩니다.\n'
+                : '• 결제는 Google Play 계정으로 청구됩니다.\n'}
               {'• 구독은 현재 기간 종료 최소 24시간 전에 해지하지 않으면 자동으로 갱신됩니다.\n'}
               {'• 갱신 요금은 현재 기간 종료 24시간 이내에 청구됩니다.\n'}
               {'• 구독은 구매 후 계정 설정에서 관리 및 해지할 수 있습니다.'}
@@ -371,12 +430,20 @@ const styles = StyleSheet.create({
     padding: SPACING.xl, alignItems: 'center', borderWidth: 2, borderColor: COLORS.border,
     position: 'relative', overflow: 'visible',
   },
+  pricingCardDisabled: {
+    opacity: 0.45,
+  },
   pricingCardSelected: { borderColor: BRAND.primary, backgroundColor: `${BRAND.primary}08`, ...SHADOWS.glow },
   selectedDot: { position: 'absolute', top: SPACING.md, right: SPACING.md },
   pricingLabel: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.semibold, color: COLORS.textSecondary, marginBottom: SPACING.sm },
   pricingPrice: { fontSize: FONT_SIZE.xxl, fontWeight: FONT_WEIGHT.extrabold, color: COLORS.textPrimary },
   pricingPeriod: { fontSize: FONT_SIZE.sm, color: COLORS.textMuted, marginTop: 2 },
   pricingMonthly: { fontSize: FONT_SIZE.xs, color: BRAND.primary, fontWeight: FONT_WEIGHT.medium, marginTop: SPACING.sm },
+  pricingUnavailable: {
+    marginTop: SPACING.xs,
+    fontSize: FONT_SIZE.xs,
+    color: COLORS.textMuted,
+  },
   discountBadge: {
     position: 'absolute', top: -10, right: -4,
     backgroundColor: BRAND.coral, paddingHorizontal: SPACING.sm, paddingVertical: 3,

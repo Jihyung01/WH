@@ -5,6 +5,7 @@
  */
 export const REVENUECAT_SUBSCRIPTION_PRODUCT_IDS = [
   'wh_premium_monthly',
+  'wh_premium_annualy',
   'wh_premium_yearly',
   'wh_premium_annual',
 ] as const;
@@ -71,7 +72,11 @@ export function isCoinPurchaseItem(pkg: unknown): boolean {
 export function sortSubscriptionPackages(pkgs: unknown[]): unknown[] {
   const rank = (id: string | null): number => {
     if (id === 'wh_premium_monthly') return 0;
-    if (id === 'wh_premium_yearly' || id === 'wh_premium_annual') return 1;
+    if (
+      id === 'wh_premium_annualy' ||
+      id === 'wh_premium_yearly' ||
+      id === 'wh_premium_annual'
+    ) return 1;
     return 99;
   };
   return [...pkgs].sort(

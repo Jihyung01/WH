@@ -175,7 +175,15 @@ export const usePremiumStore = create<PremiumState>()(
 
           if (isPremium) {
             try {
-              await verifyAndActivatePremium('wh_premium_monthly', undefined, Platform.OS);
+              const activeProductId =
+                customerInfo?.entitlements?.active?.premium?.productIdentifier;
+              await verifyAndActivatePremium(
+                typeof activeProductId === 'string' && activeProductId.length > 0
+                  ? activeProductId
+                  : 'wh_premium_monthly',
+                undefined,
+                Platform.OS,
+              );
             } catch {
               // Edge Function 실패해도 RevenueCat 복원은 유효
             }
