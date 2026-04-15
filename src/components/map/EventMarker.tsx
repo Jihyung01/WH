@@ -84,19 +84,21 @@ function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps
       tracksViewChanges={false}
     >
       <View style={[styles.container, { opacity: markerOpacity }]}>
-        <Animated.View
-          pointerEvents="none"
-          style={[
-            styles.pulseRing,
-            { borderColor: markerColor },
-            pulseStyle,
-          ]}
-        />
+        <View style={styles.markerBody}>
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.pulseRing,
+              { borderColor: markerColor },
+              pulseStyle,
+            ]}
+          />
 
-        <View style={[styles.bubble, { backgroundColor: markerColor }]}>
-          <Text style={styles.icon}>
-            {isExpired ? '✓' : config.icon}
-          </Text>
+          <View style={[styles.bubble, { backgroundColor: markerColor }]}>
+            <Text style={styles.icon}>
+              {isExpired ? '✓' : config.icon}
+            </Text>
+          </View>
         </View>
 
         <View style={[styles.arrow, { borderTopColor: markerColor }]} />
@@ -116,13 +118,17 @@ function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
-    width: 60,
-    minHeight: 72,
+    width: 64,
     paddingBottom: 4,
+  },
+  markerBody: {
+    width: 56,
+    height: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   pulseRing: {
     position: 'absolute',
-    top: -6,
     width: 52,
     height: 52,
     borderRadius: 26,
