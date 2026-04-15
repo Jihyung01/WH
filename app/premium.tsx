@@ -322,16 +322,16 @@ export default function PremiumScreen() {
           <Pressable
             style={[
               styles.purchaseButton,
-              (isLoading || !hasOfferings) && styles.purchaseButtonDisabled,
+              isLoading && styles.purchaseButtonDisabled,
             ]}
             onPress={handlePurchase}
-            disabled={isLoading || !hasOfferings}
+            disabled={isLoading}
           >
             {isLoading ? (
               <ActivityIndicator size="small" color="#FFF" />
             ) : (
               <Text style={styles.purchaseButtonText}>
-                {hasOfferings ? '프리미엄 시작하기' : '준비 중입니다'}
+                {hasOfferings ? '프리미엄 시작하기' : '구독 불러오기'}
               </Text>
             )}
           </Pressable>
