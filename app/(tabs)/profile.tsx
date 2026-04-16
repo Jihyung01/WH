@@ -48,6 +48,10 @@ import {
   getTodaySteps,
   getAchievedMilestones,
   getHealthDiagLog,
+  getStepsSectionHidden,
+  setStepsSectionHidden,
+  openGoogleFitPlayStore,
+  isGoogleFitAppLikelyInstalled,
   type HealthAuthResult,
 } from '../../src/services/healthService';
 import { claimDailyStepReward } from '../../src/lib/api';
@@ -131,6 +135,9 @@ function ProfileContent() {
   const [healthIssue, setHealthIssue] = useState<'nativeMissing' | 'unavailable' | null>(null);
   const [claimingStep, setClaimingStep] = useState<number | null>(null);
   const [healthDiag, setHealthDiag] = useState('');
+  /** Android: Linking probe for Google Fit package (may be false even when installed). */
+  const [androidFitProbe, setAndroidFitProbe] = useState<boolean | null>(null);
+  const [hideStepsSection, setHideStepsSection] = useState(false);
 
   const {
     character,
@@ -152,12 +159,19 @@ function ProfileContent() {
     fetchLeaderboard();
   }, []);
 
+  useEffect(() => {
+    void getStepsSectionHidden().then(setHideStepsSection);
+  }, []);
+
   const refreshHealthSteps = useCallback(async (): Promise<HealthAuthResult> => {
     const r = await requestHealthPermission();
     setHealthReady(r.granted);
     setHealthIssue(
       r.nativeMissing ? 'nativeMissing' : r.unavailable ? 'unavailable' : null,
     );
+    if (Platform.OS === 'android') {
+      setAndroidFitProbe(await isGoogleFitAppLikelyInstalled());
+    }
     if (r.granted) {
       const steps = await getTodaySteps();
       setTodaySteps(steps);
@@ -444,6 +458,7 @@ function ProfileContent() {
 
       {/* Activity Stats */}
       <Animated.View entering={FadeInDown.delay(100)} style={styles.section}>
+        {!hideStepsSection ? (
         <View style={styles.stepsCard}>
           <View style={styles.stepsHeader}>
             <Text style={styles.stepsTitle}>오늘의 걸음 수</Text>
@@ -477,23 +492,68 @@ function ProfileContent() {
               </Pressable>
             ))}
           </View>
-          {healthDiag.length > 0 && (
+          {__DEV__ && healthDiag.length > 0 && (
             <View style={styles.stepsHintBlock}>
               <Text style={[styles.stepsHint, { fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', fontSize: 10 }]}>
                 {healthDiag}
               </Text>
             </View>
           )}
-          {!healthReady && (
+          {!healthReady && Platform.OS === 'android' && (
+            <View style={styles.stepsHintBlock}>
+              <Text style={styles.stepsHint}>
+                Google Fit 연동이 필요합니다.{'\n'}
+                Google Fit 앱이 설치되어 있는지 확인해 주세요.
+              </Text>
+              {androidFitProbe === false ? (
+                <Text style={[styles.stepsHint, { marginTop: 6 }]}>
+                  Google Fit 앱을 먼저 설치해 주세요.
+                </Text>
+              ) : null}
+              <View style={styles.stepsHintActions}>
+                <Pressable
+                  style={styles.stepsHintBtn}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    void openGoogleFitPlayStore();
+                  }}
+                >
+                  <Text style={styles.stepsHintBtnText}>Google Fit 설치하기</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.stepsHintBtn, styles.stepsHintBtnSecondary]}
+                  onPress={() => {
+                    void (async () => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      await refreshHealthSteps();
+                    })();
+                  }}
+                >
+                  <Text style={[styles.stepsHintBtnText, styles.stepsHintBtnTextSecondary]}>연동 다시 시도</Text>
+                </Pressable>
+              </View>
+              <Pressable
+                style={[styles.stepsHintBtn, styles.stepsHintBtnSkip, { marginTop: SPACING.sm }]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  void (async () => {
+                    await setStepsSectionHidden(true);
+                    setHideStepsSection(true);
+                  })();
+                }}
+              >
+                <Text style={[styles.stepsHintBtnText, styles.stepsHintBtnTextSecondary]}>건너뛰기</Text>
+              </Pressable>
+            </View>
+          )}
+          {!healthReady && Platform.OS === 'ios' && (
             <View style={styles.stepsHintBlock}>
               <Text style={styles.stepsHint}>
                 {healthIssue === 'nativeMissing'
                   ? '이 설치본에는 건강(HealthKit) 연동이 들어 있지 않을 수 있어요. 코드 업데이트(OTA)만으로는 걸음 연동이 생기지 않을 수 있습니다. App Store·TestFlight에서 최신 전체 빌드를 설치해 주세요.'
                   : healthIssue === 'unavailable'
                     ? '이 기기에서는 건강(HealthKit)을 사용할 수 없어요.'
-                    : Platform.OS === 'ios'
-                      ? '걸음 수는「건강」앱 데이터를 읽습니다. 권한은 보통 설정 → 개인 정보 보호 및 보안 → 건강 → 데이터 접근 및 기기 → WhereHere 에서 켭니다.「설정 → WhereHere」에만 들어가면 건강 메뉴가 없을 수 있어요.'
-                      : 'Google Fit 연동 권한을 허용하면 자동 집계됩니다.'}
+                    : '걸음 수는「건강」앱 데이터를 읽습니다. 권한은 보통 설정 → 개인 정보 보호 및 보안 → 건강 → 데이터 접근 및 기기 → WhereHere 에서 켭니다.「설정 → WhereHere」에만 들어가면 건강 메뉴가 없을 수 있어요.'}
               </Text>
               <View style={styles.stepsHintActions}>
                 <Pressable
@@ -525,18 +585,14 @@ function ProfileContent() {
                         Alert.alert('안내', '이 기기에서는 건강(HealthKit)을 사용할 수 없습니다.');
                         return;
                       }
-                      if (Platform.OS === 'ios') {
-                        Alert.alert(
-                          '설정에서 걸음 허용',
-                          '이미 한 번 거절하면 시스템 팝업이 다시 안 뜰 수 있어요.\n\n설정 → 개인 정보 보호 및 보안 → 건강 → 데이터 접근 및 기기 → WhereHere → 걸음',
-                          [
-                            { text: '닫기', style: 'cancel' },
-                            { text: '앱 설정 열기', onPress: () => void Linking.openSettings() },
-                          ],
-                        );
-                      } else {
-                        Linking.openSettings();
-                      }
+                      Alert.alert(
+                        '설정에서 걸음 허용',
+                        '이미 한 번 거절하면 시스템 팝업이 다시 안 뜰 수 있어요.\n\n설정 → 개인 정보 보호 및 보안 → 건강 → 데이터 접근 및 기기 → WhereHere → 걸음',
+                        [
+                          { text: '닫기', style: 'cancel' },
+                          { text: '앱 설정 열기', onPress: () => void Linking.openSettings() },
+                        ],
+                      );
                     })();
                   }}
                 >
@@ -561,9 +617,22 @@ function ProfileContent() {
                   <Text style={[styles.stepsHintBtnText, styles.stepsHintBtnTextSecondary]}>안내</Text>
                 </Pressable>
               </View>
+              <Pressable
+                style={[styles.stepsHintBtn, styles.stepsHintBtnSkip, { marginTop: SPACING.sm }]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  void (async () => {
+                    await setStepsSectionHidden(true);
+                    setHideStepsSection(true);
+                  })();
+                }}
+              >
+                <Text style={[styles.stepsHintBtnText, styles.stepsHintBtnTextSecondary]}>건너뛰기</Text>
+              </Pressable>
             </View>
           )}
         </View>
+        ) : null}
 
         <View style={styles.statsGrid2x2}>
           <StatCard emoji="🏁" value={`${stats?.events_completed ?? 0}개`} label="총 탐험" />
@@ -942,6 +1011,11 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     borderWidth: 1,
     borderColor: COLORS.border,
+  },
+  stepsHintBtnSkip: {
+    alignSelf: 'center',
+    backgroundColor: 'transparent',
+    paddingVertical: SPACING.xs,
   },
   stepsHintBtnText: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.semibold, color: '#fff' },
   stepsHintBtnTextSecondary: { color: COLORS.textPrimary },

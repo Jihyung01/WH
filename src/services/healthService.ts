@@ -3,13 +3,68 @@ import {
   NativeModules,
   InteractionManager,
   PermissionsAndroid,
+  Linking,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type HealthAuthResult = {
   granted: boolean;
   nativeMissing?: boolean;
   unavailable?: boolean;
+  /** Android: Google Fit / Google Sign-In flow did not complete successfully */
+  androidAuthFailed?: boolean;
 };
+
+export const GOOGLE_FIT_PACKAGE_ID = 'com.google.android.apps.fitness';
+
+const GOOGLE_FIT_PLAY_STORE_WEB = `https://play.google.com/store/apps/details?id=${GOOGLE_FIT_PACKAGE_ID}`;
+const GOOGLE_FIT_PLAY_STORE_MARKET = `market://details?id=${GOOGLE_FIT_PACKAGE_ID}`;
+
+const STORAGE_HIDE_STEPS_SECTION = 'wherehere.health.hideStepsSection';
+
+/** Persisted: user chose to hide the pedometer card (profile). */
+export async function getStepsSectionHidden(): Promise<boolean> {
+  try {
+    const v = await AsyncStorage.getItem(STORAGE_HIDE_STEPS_SECTION);
+    return v === '1';
+  } catch {
+    return false;
+  }
+}
+
+export async function setStepsSectionHidden(hidden: boolean): Promise<void> {
+  try {
+    if (hidden) await AsyncStorage.setItem(STORAGE_HIDE_STEPS_SECTION, '1');
+    else await AsyncStorage.removeItem(STORAGE_HIDE_STEPS_SECTION);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Open Google Fit on Play Store (market:// when available). */
+export async function openGoogleFitPlayStore(): Promise<void> {
+  try {
+    const can = await Linking.canOpenURL(GOOGLE_FIT_PLAY_STORE_MARKET);
+    await Linking.openURL(can ? GOOGLE_FIT_PLAY_STORE_MARKET : GOOGLE_FIT_PLAY_STORE_WEB);
+  } catch {
+    await Linking.openURL(GOOGLE_FIT_PLAY_STORE_WEB);
+  }
+}
+
+/**
+ * Best-effort hint: whether an Intent targeting the Google Fit package may resolve.
+ * On Android 11+ this can return false even when the app is installed unless the app
+ * manifest declares package visibility (queries for the package). Treat false as "unknown", not definitive.
+ */
+export async function isGoogleFitAppLikelyInstalled(): Promise<boolean> {
+  if (Platform.OS !== 'android') return true;
+  try {
+    const intentUrl = `intent://#Intent;package=${GOOGLE_FIT_PACKAGE_ID};end`;
+    return await Linking.canOpenURL(intentUrl);
+  } catch {
+    return true;
+  }
+}
 
 export interface HealthMilestone {
   steps: 1000 | 3000 | 5000 | 10000;
@@ -54,14 +109,48 @@ function getAppleHealthKit(): any | null {
 let _healthDiagLog: string[] = [];
 
 export function getHealthDiagLog(): string {
+  if (!__DEV__) return '';
   return _healthDiagLog.join('\n');
 }
 
 function hlog(msg: string): void {
+  if (!__DEV__) return;
   const ts = new Date().toLocaleTimeString('ko-KR', { hour12: false });
   const line = `[${ts}] ${msg}`;
   _healthDiagLog.push(line);
   if (_healthDiagLog.length > 30) _healthDiagLog.shift();
+}
+
+function resetHealthDiagLog(): void {
+  _healthDiagLog = [];
+}
+
+type GoogleFitAuthorizeResult = { success?: boolean; message?: string };
+
+async function loadGoogleFitModule(): Promise<{
+  GoogleFit: {
+    authorize: (opts: { scopes: string[] }) => Promise<GoogleFitAuthorizeResult>;
+    getDailyStepCountSamples: (opts: {
+      startDate: string;
+      endDate: string;
+    }) => Promise<unknown>;
+  };
+  activityReadScope: string;
+}> {
+  const mod = (await import('react-native-google-fit')) as {
+    default: {
+      authorize: (opts: { scopes: string[] }) => Promise<GoogleFitAuthorizeResult>;
+      getDailyStepCountSamples: (opts: {
+        startDate: string;
+        endDate: string;
+      }) => Promise<unknown>;
+    };
+    Scopes: { FITNESS_ACTIVITY_READ: string };
+  };
+  const activityReadScope =
+    mod.Scopes?.FITNESS_ACTIVITY_READ ??
+    'https://www.googleapis.com/auth/fitness.activity.read';
+  return { GoogleFit: mod.default, activityReadScope };
 }
 
 async function ensureAndroidActivityPermission(): Promise<boolean> {
@@ -85,6 +174,7 @@ async function ensureAndroidActivityPermission(): Promise<boolean> {
 }
 
 export async function requestHealthPermission(): Promise<HealthAuthResult> {
+  resetHealthDiagLog();
   try {
     if (Platform.OS === 'ios') {
       await afterInteractions();
@@ -137,17 +227,19 @@ export async function requestHealthPermission(): Promise<HealthAuthResult> {
       try {
         const permissionOk = await ensureAndroidActivityPermission();
         if (!permissionOk) return { granted: false };
-        const mod = await import('react-native-google-fit');
-        const GoogleFit = (mod as any)?.default ?? (mod as any)?.GoogleFit ?? mod;
+        const { GoogleFit, activityReadScope } = await loadGoogleFitModule();
         const options = {
-          scopes: ['https://www.googleapis.com/auth/fitness.activity.read'],
+          scopes: [activityReadScope],
         };
         const authRes = await GoogleFit.authorize(options);
         hlog(`GoogleFit authorize: ${JSON.stringify(authRes)}`);
-        return { granted: !!authRes?.success };
+        if (authRes?.success) {
+          return { granted: true };
+        }
+        return { granted: false, androidAuthFailed: true };
       } catch (e) {
         hlog(`GoogleFit authorize exception: ${String(e)}`);
-        return { granted: false };
+        return { granted: false, androidAuthFailed: true };
       }
     }
     return { granted: false };
@@ -260,11 +352,10 @@ export async function getTodaySteps(): Promise<number> {
           hlog('Android step query blocked: ACTIVITY_RECOGNITION denied');
           return 0;
         }
-        const mod = await import('react-native-google-fit');
-        const GoogleFit = (mod as any)?.default ?? (mod as any)?.GoogleFit ?? mod;
+        const { GoogleFit, activityReadScope } = await loadGoogleFitModule();
         try {
           const authRes = await GoogleFit.authorize({
-            scopes: ['https://www.googleapis.com/auth/fitness.activity.read'],
+            scopes: [activityReadScope],
           });
           hlog(`GoogleFit authorize (query): ${JSON.stringify(authRes)}`);
         } catch (e) {

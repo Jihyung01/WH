@@ -1,5 +1,11 @@
-import React, { memo, useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { memo, useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Platform,
+  InteractionManager,
+} from 'react-native';
 import { Marker } from 'react-native-maps';
 import Animated, {
   useSharedValue,
@@ -39,6 +45,33 @@ function getMarkerConfig(category: string) {
   return MARKER_CONFIG[category] ?? { color: COLORS.primary, icon: '📍', label: '이벤트' };
 }
 
+const IS_ANDROID = Platform.OS === 'android';
+
+/** Android MapView often under-measures custom Marker children; explicit box + one tracksViewChanges pass fixes clipping. */
+const MARKER_LAYOUT = IS_ANDROID
+  ? {
+      containerWidth: 72,
+      minHeight: 78,
+      markerBody: 60,
+      bubble: 44,
+      pulseRing: 56,
+      iconSize: 20,
+      paddingBottom: 10,
+      arrowTop: 9,
+      arrowSide: 7,
+    }
+  : {
+      containerWidth: 64,
+      minHeight: 72,
+      markerBody: 56,
+      bubble: 40,
+      pulseRing: 52,
+      iconSize: 18,
+      paddingBottom: 4,
+      arrowTop: 8,
+      arrowSide: 6,
+    };
+
 function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps) {
   const config = getMarkerConfig(event.category);
   const conditionalLabel =
@@ -76,32 +109,96 @@ function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps
   const markerColor = isExpired ? '#555B6E' : conditionalLabel ? '#7C3AED' : config.color;
   const markerOpacity = isExpired ? 0.5 : isInRange ? 1 : 0.7;
 
+  const containerMinHeight =
+    MARKER_LAYOUT.minHeight +
+    (conditionalLabel && !isExpired ? (IS_ANDROID ? 22 : 18) : 0);
+
+  const [tracksViewChanges, setTracksViewChanges] = useState(IS_ANDROID);
+
+  useEffect(() => {
+    if (!IS_ANDROID) return;
+    let cancelled = false;
+    InteractionManager.runAfterInteractions(() => {
+      if (!cancelled) setTracksViewChanges(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [event.id]);
+
   return (
     <Marker
       identifier={`event-${event.id}`}
       coordinate={coordinate}
       onPress={() => onPress(event)}
-      tracksViewChanges={false}
+      tracksViewChanges={tracksViewChanges}
     >
-      <View style={[styles.container, { opacity: markerOpacity }]}>
-        <View style={styles.markerBody}>
+      <View
+        style={[
+          styles.container,
+          {
+            opacity: markerOpacity,
+            width: MARKER_LAYOUT.containerWidth,
+            minHeight: containerMinHeight,
+            paddingBottom: MARKER_LAYOUT.paddingBottom,
+          },
+        ]}
+        collapsable={false}
+      >
+        <View
+          style={[
+            styles.markerBody,
+            { width: MARKER_LAYOUT.markerBody, height: MARKER_LAYOUT.markerBody },
+          ]}
+        >
           <Animated.View
             pointerEvents="none"
             style={[
               styles.pulseRing,
-              { borderColor: markerColor },
+              {
+                width: MARKER_LAYOUT.pulseRing,
+                height: MARKER_LAYOUT.pulseRing,
+                borderRadius: MARKER_LAYOUT.pulseRing / 2,
+                borderColor: markerColor,
+              },
               pulseStyle,
             ]}
           />
 
-          <View style={[styles.bubble, { backgroundColor: markerColor }]}>
-            <Text style={styles.icon}>
+          <View
+            style={[
+              styles.bubble,
+              {
+                backgroundColor: markerColor,
+                width: MARKER_LAYOUT.bubble,
+                height: MARKER_LAYOUT.bubble,
+                borderRadius: MARKER_LAYOUT.bubble / 2,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.icon,
+                { fontSize: MARKER_LAYOUT.iconSize },
+                IS_ANDROID && styles.iconAndroid,
+              ]}
+            >
               {isExpired ? '✓' : config.icon}
             </Text>
           </View>
         </View>
 
-        <View style={[styles.arrow, { borderTopColor: markerColor }]} />
+        <View
+          style={[
+            styles.arrow,
+            {
+              borderTopColor: markerColor,
+              borderLeftWidth: MARKER_LAYOUT.arrowSide,
+              borderRightWidth: MARKER_LAYOUT.arrowSide,
+              borderTopWidth: MARKER_LAYOUT.arrowTop,
+            },
+          ]}
+        />
 
         {conditionalLabel && !isExpired ? (
           <View style={styles.tagWrap}>
@@ -118,26 +215,17 @@ function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
-    width: 64,
-    paddingBottom: 4,
+    overflow: 'visible',
   },
   markerBody: {
-    width: 56,
-    height: 56,
     alignItems: 'center',
     justifyContent: 'center',
   },
   pulseRing: {
     position: 'absolute',
-    width: 52,
-    height: 52,
-    borderRadius: 26,
     borderWidth: 3,
   },
   bubble: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
@@ -149,14 +237,15 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   icon: {
-    fontSize: 18,
+    textAlign: 'center',
+  },
+  iconAndroid: {
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
   arrow: {
     width: 0,
     height: 0,
-    borderLeftWidth: 6,
-    borderRightWidth: 6,
-    borderTopWidth: 8,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
     marginTop: -1,
@@ -174,6 +263,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#F5F3FF',
     textAlign: 'center',
+    ...(IS_ANDROID ? { includeFontPadding: false } : {}),
   },
 });
 

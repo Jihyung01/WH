@@ -1,4 +1,5 @@
 export { EventMarker } from './EventMarker';
+export { MapClusterMarker } from './MapClusterMarker';
 export { UserLocationMarker } from './UserLocationMarker';
 export { EventBottomSheet } from './EventBottomSheet';
 export { GpsBanner } from './GpsBanner';

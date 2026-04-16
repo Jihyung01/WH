@@ -1,9 +1,17 @@
-import React, { memo, useMemo } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { memo, useMemo, useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Platform,
+  InteractionManager,
+} from 'react-native';
 import { Marker } from 'react-native-maps';
 import { COLORS, BRAND } from '../../config/theme';
 import type { FriendLocation } from '../../services/friendLocation';
 import { CharacterAvatar } from '../character/CharacterAvatar';
+
+const IS_ANDROID = Platform.OS === 'android';
 
 interface Props {
   friend: FriendLocation;
@@ -11,7 +19,6 @@ interface Props {
 }
 
 function FriendMarkerInner({ friend, onPress }: Props) {
-  const MarkerComponent = Marker as unknown as React.ComponentType<Record<string, unknown>>;
   const latitude = Number(friend.latitude);
   const longitude = Number(friend.longitude);
   const characterType = friend.character_type ?? 'explorer';
@@ -29,13 +36,52 @@ function FriendMarkerInner({ friend, onPress }: Props) {
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
 
   return (
+    <FriendMarkerContent
+      coordinate={coordinate}
+      friend={friend}
+      onPress={onPress}
+    />
+  );
+}
+
+function FriendMarkerContent({
+  coordinate,
+  friend,
+  onPress,
+}: {
+  coordinate: { latitude: number; longitude: number };
+  friend: FriendLocation;
+  onPress?: () => void;
+}): React.ReactElement {
+  const MarkerComponent = Marker as unknown as React.ComponentType<Record<string, unknown>>;
+  const characterType = friend.character_type ?? 'explorer';
+  const characterLevel = friend.level ?? 1;
+  const isRecent = useMemo(() => {
+    const ms = Date.now() - new Date(friend.last_seen_at).getTime();
+    return Number.isFinite(ms) && ms >= 0 && ms < 5 * 60 * 1000;
+  }, [friend.last_seen_at]);
+
+  const [tracksViewChanges, setTracksViewChanges] = useState(IS_ANDROID);
+
+  useEffect(() => {
+    if (!IS_ANDROID) return;
+    let cancelled = false;
+    InteractionManager.runAfterInteractions(() => {
+      if (!cancelled) setTracksViewChanges(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [friend.user_id]);
+
+  return (
     <MarkerComponent
       coordinate={coordinate}
       identifier={`friend-${friend.user_id}`}
       cluster={false}
       zIndex={2000}
       onPress={onPress}
-      tracksViewChanges={false}
+      tracksViewChanges={tracksViewChanges}
     >
       <View style={styles.container} collapsable={false}>
         <View style={[styles.avatar, isRecent && styles.avatarRecent]}>
@@ -78,6 +124,10 @@ export default memo(FriendMarkerInner, (prev, next) => {
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
+    overflow: 'visible',
+    minWidth: IS_ANDROID ? 88 : 82,
+    minHeight: IS_ANDROID ? 56 : 52,
+    paddingBottom: IS_ANDROID ? 4 : 2,
   },
   avatar: {
     width: 36,
@@ -107,6 +157,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
     textAlign: 'center',
+    ...(IS_ANDROID ? { includeFontPadding: false } : {}),
   },
   onlineDot: {
     position: 'absolute',

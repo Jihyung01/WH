@@ -27,6 +27,7 @@ import {
   EventBottomSheet,
   FriendMarker,
   CharacterBubble,
+  MapClusterMarker,
 } from '../../src/components/map';
 import {
   ensureFriendLocationPublishingIfNeeded,
@@ -419,6 +420,18 @@ export default function MapScreen() {
           minPoints={3}
           extent={256}
           animationEnabled={false}
+          renderCluster={(cluster) => (
+            <MapClusterMarker
+              key={`cluster-${cluster.id}`}
+              id={cluster.id}
+              geometry={cluster.geometry}
+              properties={cluster.properties}
+              onPress={cluster.onPress}
+              clusterColor={cluster.clusterColor}
+              clusterTextColor={cluster.clusterTextColor}
+              clusterFontFamily={cluster.clusterFontFamily}
+            />
+          )}
         >
           {/* User location blue dot */}
           {isFocused && currentPosition && (
