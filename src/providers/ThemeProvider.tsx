@@ -28,7 +28,7 @@ export const useThemeStore = create<ThemeStoreState>((set) => ({
   },
 }));
 
-interface ThemeContextValue {
+export interface ThemeContextValue {
   colors: ThemeColors;
   mode: ColorMode;
   isDark: boolean;

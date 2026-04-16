@@ -15,7 +15,7 @@ function json(body: unknown, status = 200) {
 }
 
 const DAILY_LIMIT_PREMIUM = 20;
-const DAILY_LIMIT_FREE = 3;
+const DAILY_LIMIT_FREE = 5;
 
 const PERSONA: Record<string, string> = {
   explorer: `너는 "도담"이야. 따뜻한 숲의 정령이야.

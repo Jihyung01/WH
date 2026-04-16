@@ -1,326 +1,164 @@
-# 📍 WhereHere
+# WhereHere — Antigravity Agent Setup
 
-> 여기, 지금, 탐험을 시작하세요
+이 번들은 Antigravity(그리고 AGENTS.md 호환 도구인 Cursor, Claude Code 등)에서 WhereHere 프로젝트를 **일관되고 안전하게** 작업시키기 위한 규약 파일 세트입니다.
 
-Location-based exploration and check-in app for discovering hidden gems in Seoul.
+## 📦 번들 구성
 
-## ✨ Features
-
-### 🔐 Authentication & Onboarding
-- Beautiful animated login with Kakao OAuth
-- 3-step character creation wizard
-- 4 unique starter companions (도담, 나래, 하람, 별찌)
-- Smooth animations and haptic feedback
-
-### 🗺️ Exploration
-- Interactive map with nearby events
-- Real-time location tracking
-- District-based discovery
-- Check-in verification with GPS
-
-### 🎯 Missions & Rewards
-- Location-based challenges
-- Photo missions and quizzes
-- XP and coin rewards
-- Badge collection system
-
-### 👤 Character System
-- Customizable appearance
-- Level progression
-- Stat system (exploration, charm, stamina, luck)
-- Equipment and cosmetics
-
-### 🏪 Shop & Inventory
-- In-app purchases
-- Premium subscription
-- Item management
-- Coupon system
-
-## 🚀 Quick Start
-
-### Prerequisites
-- Node.js 18+
-- Expo CLI
-- iOS Simulator or Android Emulator
-- Supabase account
-- Kakao Developers account
-
-### Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/your-org/wherehere-app.git
-cd wherehere-app
-
-# Install dependencies
-npm install
-
-# Copy environment variables
-cp .env.example .env
-
-# Edit .env with your credentials
-# - EXPO_PUBLIC_SUPABASE_URL
-# - EXPO_PUBLIC_SUPABASE_ANON_KEY
-# - EXPO_PUBLIC_API_URL
-
-# Start development server
-npm start
+```
+wherehere-agent-setup/
+├── AGENTS.md                              # 루트에 복사 (핵심 규약)
+└── .antigravity/
+    ├── skills/                            # 상황별 자동 로드되는 전문 지식
+    │   ├── supabase-rpc/SKILL.md
+    │   ├── supabase-migrations/SKILL.md
+    │   ├── ai-edge-functions/SKILL.md
+    │   ├── kakao-integration/SKILL.md
+    │   ├── zustand-stores/SKILL.md
+    │   └── expo-ota-safety/SKILL.md
+    └── workflows/                         # /로 호출하는 매크로
+        ├── retry.md                       # /retry
+        ├── audit.md                       # /audit <scope>
+        └── fix-ota.md                     # /fix-ota <bug>
 ```
 
-### Running the App
+## 🚀 설치 방법
+
+### 1. 압축 해제 / 파일 복사
+WhereHere 프로젝트 루트에서:
 
 ```bash
-# iOS
-npm run ios
+# AGENTS.md를 프로젝트 루트에
+cp wherehere-agent-setup/AGENTS.md /path/to/wherehere-app/
 
-# Android
-npm run android
-
-# Web (limited functionality)
-npm run web
+# .antigravity 폴더를 프로젝트 루트에
+cp -r wherehere-agent-setup/.antigravity /path/to/wherehere-app/
 ```
 
-## 📱 App Structure
+또는 Windows (PowerShell):
+```powershell
+Copy-Item wherehere-agent-setup\AGENTS.md C:\path\to\wherehere-app\
+Copy-Item -Recurse wherehere-agent-setup\.antigravity C:\path\to\wherehere-app\
+```
+
+### 2. 블루프린트 파일 배치
+`WHEREHERE_PROJECT_BLUEPRINT.md`를 프로젝트 루트에 두세요. AGENTS.md가 이 파일을 참조합니다.
+
+### 3. 최종 구조 확인
+프로젝트 루트가 이렇게 보여야 합니다:
 
 ```
 wherehere-app/
-├── app/                    # Expo Router screens
-│   ├── (auth)/            # Authentication flow
-│   │   ├── welcome.tsx    # Welcome screen
-│   │   ├── login.tsx      # Kakao login
-│   │   └── onboarding.tsx # Character creation
-│   ├── (tabs)/            # Main app tabs
-│   │   ├── map.tsx        # Map view
-│   │   ├── explore.tsx    # Event discovery
-│   │   ├── missions.tsx   # Mission list
-│   │   ├── inventory.tsx  # Items & badges
-│   │   └── profile.tsx    # User profile
-│   ├── event/             # Event screens
-│   ├── mission/           # Mission screens
-│   ├── character/         # Character screens
-│   ├── shop/              # Shop screens
-│   └── settings/          # Settings screens
+├── AGENTS.md                          # ← 새로 추가
+├── WHEREHERE_PROJECT_BLUEPRINT.md     # ← 이미 있음 (또는 추가)
+├── .antigravity/                      # ← 새로 추가
+│   ├── skills/...
+│   └── workflows/...
+├── app/
 ├── src/
-│   ├── components/        # Reusable components
-│   ├── config/            # Configuration
-│   ├── hooks/             # Custom hooks
-│   ├── services/          # API services
-│   ├── stores/            # Zustand stores
-│   ├── types/             # TypeScript types
-│   └── utils/             # Utility functions
-├── docs/                  # Documentation
-└── assets/                # Images, fonts, etc.
+├── supabase/
+├── package.json
+├── app.json
+├── app.config.js
+├── eas.json
+└── tsconfig.json
 ```
 
-## 📚 Documentation
+### 4. Antigravity 재시작
+설치 후 Antigravity IDE를 재시작해야 Rules/Skills/Workflows가 인식됩니다.
 
-Comprehensive documentation is available in the [`docs/`](./docs) folder:
+## 🎯 사용법
 
-- **[Authentication Flow](./docs/AUTH_FLOW.md)** - Complete auth system documentation
-- **[Setup Guide](./docs/AUTH_SETUP.md)** - Environment setup and configuration
-- **[Testing Guide](./docs/AUTH_TESTING.md)** - Testing procedures and checklists
-- **[Quick Reference](./docs/AUTH_QUICK_REFERENCE.md)** - Code snippets and patterns
+### AGENTS.md
+- **자동 로드**. 아무것도 할 필요 없음. 모든 에이전트가 작업 시작 시 읽음.
+- 새 규칙이 필요하면 이 파일을 편집 (300-600줄 유지 권장)
 
-## 🛠️ Tech Stack
+### Skills
+- **자동 로드**. 에이전트가 작업 맥락에서 관련 skill을 스스로 판단하여 로드.
+- 예: Supabase RPC 관련 질문 → `supabase-rpc` skill 자동 로드
+- 예: 카카오 로그인 버그 → `kakao-integration` skill 자동 로드
+- 수동 참조도 가능. 프롬프트에 "supabase-rpc skill 참조해서..." 라고 명시.
 
-### Frontend
-- **Framework**: React Native 0.81
-- **Runtime**: Expo SDK 54
-- **Router**: Expo Router 6
-- **State Management**: Zustand 5
-- **Animations**: react-native-reanimated 4
-- **Maps**: react-native-maps
-- **UI**: Custom design system
+### Workflows (슬래시 명령)
+Antigravity 에이전트 채팅창에서 `/` 입력 시 나타남.
 
-### Backend
-- **Auth**: Supabase Auth
-- **Database**: PostgreSQL (via Supabase)
-- **API**: FastAPI (Python)
-- **Storage**: Supabase Storage
-- **Hosting**: Railway
-
-### Services
-- **OAuth**: Kakao Login
-- **Maps**: Google Maps (Android) / Apple Maps (iOS)
-- **Push Notifications**: Expo Notifications
-- **Analytics**: TBD
-
-## 🎨 Design System
-
-### Colors
-```typescript
-primary: '#6C5CE7'        // Purple
-background: '#0A0E1A'     // Dark blue
-kakaoYellow: '#FEE500'    // Kakao brand
-success: '#00D68F'        // Green
-error: '#FF6B6B'          // Red
+```
+/retry                    # 중단된 작업 재개
+/audit 탐험 일지 기능      # 읽기 전용 감사
+/fix-ota 탐험 일지 버튼    # OTA 안전 범위에서 버그 수정
 ```
 
-### Typography
-- **Headings**: Bold, 24-32px
-- **Body**: Regular, 15-17px
-- **Captions**: Medium, 13px
+## 🧠 설계 의도
 
-### Spacing
-- xs: 4px, sm: 8px, md: 12px, lg: 16px, xl: 24px
+### 왜 AGENTS.md를 따로 두나?
+<!-- AGENTS.md는 여러 AI 도구(Antigravity, Cursor, Claude Code)가 공통으로 읽는 cross-tool 규약 표준입니다. 한 번 작성하면 도구를 바꿔도 규칙 유지. -->
+여러 AI 도구에서 공통 규약을 쓰기 위함. Cursor로 가도, Claude Code로 가도 동일한 규칙 적용됨.
 
-## 🧪 Testing
+### 왜 Skills를 쪼개 놓았나?
+에이전트의 **컨텍스트 윈도우를 아끼기 위함**. 블루프린트(844줄)를 매번 전부 로드하면:
+- 응답 속도 저하
+- IDE freeze 증가
+- 관련없는 지식에 산만해져서 품질 저하
 
+Skills는 **Progressive Disclosure**: 작업 관련 skill만 그때그때 로드됩니다. 예를 들어 UI 컴포넌트 수정 시 `supabase-migrations` skill은 로드되지 않음.
+
+### 왜 Workflows를 만들었나?
+반복되는 작업 패턴을 **한 글자 명령**(`/audit`, `/retry`, `/fix-ota`)으로 축약. 매번 "읽기 전용으로 감사해줘, 증거는 파일:라인 붙이고..." 같은 긴 프롬프트 재작성 방지.
+
+## 🔄 유지보수
+
+### 새 함정 발견 시
+실제 버그가 재현되면 `AGENTS.md` 섹션 3에 추가:
+
+```markdown
+### 3.X 새 함정 이름
+- **증상**: ...
+- **조건**: ...
+- **해결**: ...
+- **파일**: ...
+```
+
+### 새 기능 영역이 생기면
+관련 Skill을 만들어서 `.antigravity/skills/<name>/SKILL.md` 생성. YAML frontmatter의 `description`을 명확히 작성해야 에이전트가 언제 로드할지 판단함.
+
+### 새 반복 작업 발견 시
+Workflow로 저장. `.antigravity/workflows/<name>.md`.
+
+## ⚠️ 주의사항
+
+### Git Remote 추가 권장
+현재 WhereHere는 **Git remote가 없어서** 이 규약 파일들도 로컬에만 존재. 데이터 손실 방지를 위해:
 ```bash
-# Type check
-npx tsc --noEmit
-
-# Lint
-npx eslint .
-
-# Run tests (when implemented)
-npm test
-
-# E2E tests (when implemented)
-npm run test:e2e
+# GitHub에 private repo 만들고 연결
+git remote add origin <private-repo-url>
+git push -u origin main
 ```
 
-See [Testing Guide](./docs/AUTH_TESTING.md) for detailed test cases.
+### Antigravity 버전 확인
+AGENTS.md 지원은 **Antigravity v1.20.3 이상**. 구버전이면 Settings에서 업데이트.
 
-## 🚢 Deployment
+### Skill 디렉토리 위치
+`.antigravity/skills/` — 프로젝트 로컬 skill. Antigravity는 이 경로를 자동 인식.
+`~/.antigravity/skills/` — 전역 skill (모든 프로젝트). WhereHere 특화 skill은 **프로젝트 로컬**에 두는 것이 맞음.
 
-### Development Build
+## 🆘 문제 해결
 
-```bash
-# iOS
-npx expo prebuild
-npx expo run:ios
+### "Antigravity가 AGENTS.md를 읽지 않는 것 같다"
+1. 파일이 프로젝트 루트에 있는지 확인 (하위 폴더 아님)
+2. Antigravity 재시작
+3. 파일 인코딩이 UTF-8인지 확인 (Windows에서 UTF-16 저장되는 경우 있음)
+4. 새 대화 시작 (기존 대화는 이전 컨텍스트 유지)
 
-# Android
-npx expo prebuild
-npx expo run:android
-```
+### "Workflow가 슬래시 명령으로 안 뜬다"
+1. `.antigravity/workflows/*.md` 경로 확인
+2. frontmatter(`---` 블록)의 `description` 필드 누락 여부
+3. Antigravity 재시작
 
-### Production Build
-
-```bash
-# Using EAS Build
-eas build --platform ios --profile production
-eas build --platform android --profile production
-
-# Submit to stores
-eas submit --platform ios
-eas submit --platform android
-```
-
-See [Setup Guide](./docs/AUTH_SETUP.md#production-deployment) for deployment details.
-
-## 🔒 Security
-
-- OAuth 2.0 with Kakao
-- JWT tokens via Supabase
-- Secure storage with AsyncStorage
-- HTTPS for all API calls
-- Rate limiting on backend
-- Input validation and sanitization
-
-## 📊 Performance
-
-- 60fps animations with Reanimated
-- Optimized map rendering
-- Lazy loading for images
-- Efficient state management
-- Bundle size optimization
-
-## ♿ Accessibility
-
-- Screen reader support
-- Keyboard navigation
-- High contrast mode
-- Touch target sizes (44x44 minimum)
-- WCAG AA compliance
-
-## 🌍 Localization
-
-Currently supporting:
-- 🇰🇷 Korean (primary)
-
-Planned:
-- 🇺🇸 English
-- 🇯🇵 Japanese
-
-## 🤝 Contributing
-
-We welcome contributions! Please follow these steps:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-### Coding Standards
-- Use TypeScript for all new code
-- Follow existing code style
-- Write meaningful commit messages
-- Add tests for new features
-- Update documentation as needed
-
-## 📝 License
-
-Copyright © 2026 WhereHere. All rights reserved.
-
-## 👥 Team
-
-- **Product**: [Your Name]
-- **Design**: [Designer Name]
-- **Backend**: [Backend Team]
-- **Frontend**: [Frontend Team]
-
-## 📧 Contact
-
-- **Email**: support@wherehere.com
-- **Website**: https://wherehere.com
-- **Instagram**: @wherehere_official
-
-## 🙏 Acknowledgments
-
-- [Expo](https://expo.dev) - React Native framework
-- [Supabase](https://supabase.com) - Backend infrastructure
-- [Kakao](https://developers.kakao.com) - OAuth provider
-- [React Native Community](https://reactnative.dev) - Amazing ecosystem
-
-## 📅 Roadmap
-
-### v1.0 (Current)
-- ✅ Authentication & Onboarding
-- ✅ Map & Location
-- ✅ Events & Check-ins
-- ✅ Missions & Rewards
-- ✅ Character System
-- ✅ Shop & Inventory
-
-### v1.1 (Planned)
-- [ ] Social features (friends, chat)
-- [ ] Leaderboards
-- [ ] Event creation by users
-- [ ] AR features
-- [ ] Apple Sign In
-- [ ] Google Sign In
-
-### v2.0 (Future)
-- [ ] Multi-city support
-- [ ] International expansion
-- [ ] Advanced analytics
-- [ ] AI-powered recommendations
-- [ ] NFT integration
-
-## 🐛 Known Issues
-
-See [GitHub Issues](https://github.com/your-org/wherehere-app/issues) for current bugs and feature requests.
-
-## 📈 Changelog
-
-See [CHANGELOG.md](./CHANGELOG.md) for version history.
+### "Skill이 자동 로드되지 않는 것 같다"
+1. `description` 필드가 구체적인지 확인 — "언제 로드될지" 에이전트가 판단함
+2. 프롬프트에 관련 키워드가 있는지 (예: "RPC", "마이그레이션")
+3. 수동 참조: "supabase-rpc skill을 참조해서..."
 
 ---
 
-Made with ❤️ in Seoul, Korea
-
-**Version**: 1.0.0  
-**Last Updated**: March 26, 2026
+> 이 번들은 2026-04-16 기준 WhereHere 코드베이스(블루프린트 v1.2.0)에 맞춰 작성됨.
+> 코드베이스가 크게 변경되면 번들도 업데이트 필요.

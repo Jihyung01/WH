@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -38,11 +38,13 @@ import {
   xpForLevel,
 } from '../../src/stores/characterStore';
 import { CharacterAvatar } from '../../src/components/character/CharacterAvatar';
+import { useTheme } from '../../src/providers/ThemeProvider';
 import { useProfileStore } from '../../src/stores/profileStore';
 import { useAuthStore } from '../../src/stores/authStore';
 import { CharacterClass } from '../../src/types/enums';
 import { formatNumber } from '../../src/utils/format';
-import { COLORS, SPACING, FONT_SIZE, FONT_WEIGHT, BORDER_RADIUS, SHADOWS } from '../../src/config/theme';
+import { COLORS as DEFAULT_COLORS, SPACING, FONT_SIZE, FONT_WEIGHT, BORDER_RADIUS, SHADOWS } from '../../src/config/theme';
+const COLORS = DEFAULT_COLORS;
 import {
   requestHealthPermission,
   getTodaySteps,
@@ -84,6 +86,8 @@ const PROFILE_TABS: { key: ProfileTab; label: string; icon: string }[] = [
 const IOS_APP_STORE_WHEREHERE = 'https://apps.apple.com/app/id6761450806';
 
 export default function ProfileTabContainer() {
+  const { colors } = useTheme();
+  const styles = React.useMemo(() => getStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<ProfileTab>('profile');
 
@@ -107,7 +111,7 @@ export default function ProfileTabContainer() {
               <Ionicons
                 name={(active ? tab.icon : `${tab.icon}-outline`) as any}
                 size={18}
-                color={active ? COLORS.primary : COLORS.textMuted}
+                color={active ? colors.primary : colors.textMuted}
               />
               <Text style={[styles.segmentLabel, active && styles.segmentLabelActive]}>
                 {tab.label}
@@ -150,6 +154,8 @@ function ProfileContent() {
   } = useCharacterStore();
   const { stats, leaderboard, visitedLocations, myRank, fetchStats, fetchLeaderboard, fetchVisitedLocations } = useProfileStore();
   const { signOut } = useAuthStore();
+  const { colors } = useTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
 
   useEffect(() => {
     fetchCharacter();
@@ -289,8 +295,8 @@ function ProfileContent() {
             await refreshHealthSteps();
             setRefreshing(false);
           }}
-          tintColor={COLORS.primary}
-          colors={[COLORS.primary]}
+          tintColor={colors.primary}
+          colors={[colors.primary]}
         />
       }
     >
@@ -305,11 +311,11 @@ function ProfileContent() {
               router.push('/settings');
             }}
           >
-            <Ionicons name="settings-outline" size={20} color={COLORS.textPrimary} />
+            <Ionicons name="settings-outline" size={20} color={colors.textPrimary} />
           </Pressable>
         </View>
         <View style={styles.hubGrid}>
-          <HubTile
+          <HubTile styles={styles}
             emoji="🤝"
             label="소셜"
             desc="친구·크루·위치"
@@ -318,7 +324,7 @@ function ProfileContent() {
               router.push('/(tabs)/social');
             }}
           />
-          <HubTile
+          <HubTile styles={styles}
             emoji="🌸"
             label="시즌 패스"
             desc="보상 트랙"
@@ -327,7 +333,7 @@ function ProfileContent() {
               router.push('/season');
             }}
           />
-          <HubTile
+          <HubTile styles={styles}
             emoji="📔"
             label="탐험 일지"
             desc="AI 일지·공유"
@@ -336,7 +342,7 @@ function ProfileContent() {
               router.push('/journal');
             }}
           />
-          <HubTile
+          <HubTile styles={styles}
             emoji="⭐"
             label="프리미엄"
             desc="구독·혜택"
@@ -345,7 +351,7 @@ function ProfileContent() {
               router.push('/premium');
             }}
           />
-          <HubTile
+          <HubTile styles={styles}
             emoji="💬"
             label="캐릭터 채팅"
             desc="AI 대화"
@@ -354,7 +360,7 @@ function ProfileContent() {
               router.push('/(tabs)/character');
             }}
           />
-          <HubTile
+          <HubTile styles={styles}
             emoji="✨"
             label="이벤트 제안"
             desc="UGC 생성"
@@ -403,7 +409,7 @@ function ProfileContent() {
       {character && (
         <>
       {/* Hero */}
-      <LinearGradient colors={[gradient[0] + '30', COLORS.background]} style={[styles.heroSection, { paddingTop: SPACING.lg }]}>
+      <LinearGradient colors={[gradient[0] + '30', colors.background]} style={[styles.heroSection, { paddingTop: SPACING.lg }]}>
         <View style={styles.heroHeader}>
           <View style={{ width: 40 }} />
           <View style={{ width: 40 }} />
@@ -421,7 +427,7 @@ function ProfileContent() {
               mood={mood}
               onPress={handleCharacterTap}
               borderColor={gradient[0]}
-              backgroundColor={COLORS.surface}
+              backgroundColor={colors.surface}
             />
           </View>
           <View style={[styles.levelBadge, { backgroundColor: gradient[0] }]}>
@@ -450,7 +456,7 @@ function ProfileContent() {
 
         {nextEvo && (
           <View style={styles.evoPreview}>
-            <Ionicons name="sparkles" size={14} color={COLORS.primaryLight} />
+            <Ionicons name="sparkles" size={14} color={colors.primaryLight} />
             <Text style={styles.evoText}>다음 진화까지 {nextEvo - character.level}레벨!</Text>
           </View>
         )}
@@ -635,10 +641,10 @@ function ProfileContent() {
         ) : null}
 
         <View style={styles.statsGrid2x2}>
-          <StatCard emoji="🏁" value={`${stats?.events_completed ?? 0}개`} label="총 탐험" />
-          <StatCard emoji="🔥" value={`${stats?.login_streak ?? 0}일`} label="연속 기록" />
-          <StatCard emoji="🏅" value={`${stats?.badges_count ?? 0}개`} label="수집 배지" />
-          <StatCard emoji="📍" value={`${stats?.districts_visited?.length ?? 0}곳`} label="방문 지역" />
+          <StatCard styles={styles} emoji="🏁" value={`${stats?.events_completed ?? 0}개`} label="총 탐험" />
+          <StatCard styles={styles} emoji="🔥" value={`${stats?.login_streak ?? 0}일`} label="연속 기록" />
+          <StatCard styles={styles} emoji="🏅" value={`${stats?.badges_count ?? 0}개`} label="수집 배지" />
+          <StatCard styles={styles} emoji="📍" value={`${stats?.districts_visited?.length ?? 0}곳`} label="방문 지역" />
         </View>
       </Animated.View>
 
@@ -676,24 +682,53 @@ function ProfileContent() {
         </View>
         <Pressable style={styles.miniMapCard}>
           <View style={styles.miniMap}>
-            {visitedLocations.slice(0, 30).map((loc, i) => {
-              const nx = ((loc.lng - 126.93) / 0.1) * 100;
-              const ny = ((37.59 - loc.lat) / 0.06) * 100;
-              const opacity = 0.4 + Math.min(0.6, (30 - i) / 30);
-              return (
-                <View
-                  key={loc.event_id}
-                  style={[styles.mapDot, {
-                    left: `${Math.min(95, Math.max(5, nx))}%`,
-                    top: `${Math.min(90, Math.max(5, ny))}%`,
-                    opacity,
-                    backgroundColor: gradient[0],
-                  }]}
-                />
-              );
-            })}
+            {visitedLocations.length === 0 ? (
+              <View style={styles.miniMapEmpty}>
+                <Ionicons name="map-outline" size={32} color={colors.textMuted} />
+                <Text style={styles.miniMapEmptyText}>방문 기록이 없습니다</Text>
+              </View>
+            ) : (() => {
+              const locations = visitedLocations.slice(0, 30);
+              const lats = locations.map(l => l.lat);
+              const lngs = locations.map(l => l.lng);
+              const minLat = Math.min(...lats);
+              const maxLat = Math.max(...lats);
+              const minLng = Math.min(...lngs);
+              const maxLng = Math.max(...lngs);
+              
+              const latRange = maxLat - minLat || 0.001; // Avoid divide by zero
+              const lngRange = maxLng - minLng || 0.001;
+              
+              // Pad the bounding box by 20% to avoid dots on edges
+              const padLat = latRange * 0.2;
+              const padLng = lngRange * 0.2;
+              
+              const calcMinLat = minLat - padLat;
+              const calcMaxLat = maxLat + padLat;
+              const calcMinLng = minLng - padLng;
+              const calcMaxLng = maxLng + padLng;
+              const calcLatRange = calcMaxLat - calcMinLat;
+              const calcLngRange = calcMaxLng - calcMinLng;
+
+              return locations.map((loc, i) => {
+                const nx = ((loc.lng - calcMinLng) / calcLngRange) * 100;
+                const ny = ((calcMaxLat - loc.lat) / calcLatRange) * 100;
+                const opacity = 0.4 + Math.min(0.6, (30 - i) / 30);
+                return (
+                  <View
+                    key={loc.event_id}
+                    style={[styles.mapDot, {
+                      left: `${Math.max(0, Math.min(100, nx))}%`,
+                      top: `${Math.max(0, Math.min(100, ny))}%`,
+                      opacity,
+                      backgroundColor: gradient[0],
+                    }]}
+                  />
+                );
+              });
+            })()}
             <View style={styles.miniMapOverlay}>
-              <Ionicons name="map-outline" size={20} color={COLORS.textMuted} />
+              <Ionicons name="map-outline" size={20} color={colors.textMuted} />
               <Text style={styles.miniMapText}>{visitedLocations.length}곳 방문</Text>
             </View>
           </View>
@@ -739,12 +774,12 @@ function ProfileContent() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>설정</Text>
         <View style={styles.settingsGroup}>
-          <SettingsRow icon="notifications-outline" label="알림 설정" onPress={() => router.push('/settings')} />
-          <SettingsRow icon="location-outline" label="위치 권한 관리" onPress={() => router.push('/settings')} />
-          <SettingsRow icon="information-circle-outline" label="앱 버전" value="1.0.0" />
+          <SettingsRow styles={styles} colors={colors} icon="notifications-outline" label="알림 설정" onPress={() => router.push('/settings')} />
+          <SettingsRow styles={styles} colors={colors} icon="location-outline" label="위치 권한 관리" onPress={() => router.push('/settings')} />
+          <SettingsRow styles={styles} colors={colors} icon="information-circle-outline" label="앱 버전" value="1.0.0" />
         </View>
         <Pressable style={styles.logoutBtn} onPress={handleSignOut}>
-          <Ionicons name="log-out-outline" size={18} color={COLORS.error} />
+          <Ionicons name="log-out-outline" size={18} color={colors.error} />
           <Text style={styles.logoutText}>로그아웃</Text>
         </Pressable>
       </View>
@@ -754,17 +789,7 @@ function ProfileContent() {
   );
 }
 
-function HubTile({
-  emoji,
-  label,
-  desc,
-  onPress,
-}: {
-  emoji: string;
-  label: string;
-  desc: string;
-  onPress: () => void;
-}) {
+function HubTile({ styles, emoji, label, desc, onPress }: { styles: any; emoji: string; label: string; desc: string; onPress: () => void; }) {
   return (
     <Pressable style={({ pressed }) => [styles.hubTile, pressed && styles.hubTilePressed]} onPress={onPress}>
       <Text style={styles.hubTileEmoji}>{emoji}</Text>
@@ -773,8 +798,7 @@ function HubTile({
     </Pressable>
   );
 }
-
-function StatCard({ emoji, value, label }: { emoji: string; value: string; label: string }) {
+function StatCard({ styles, emoji, value, label }: { styles: any; emoji: string; value: string; label: string }) {
   return (
     <View style={styles.stat2x2Card}>
       <Text style={styles.stat2x2Emoji}>{emoji}</Text>
@@ -784,30 +808,29 @@ function StatCard({ emoji, value, label }: { emoji: string; value: string; label
   );
 }
 
-function SettingsRow({ icon, label, value, onPress }: {
-  icon: string; label: string; value?: string; onPress?: () => void;
-}) {
+function SettingsRow({ styles, colors, icon, label, value, onPress }: { styles: any; colors: any; icon: string; label: string; value?: string; onPress?: () => void; }) {
   return (
     <Pressable style={styles.settingsRow} onPress={onPress} disabled={!onPress}>
-      <Ionicons name={icon as any} size={18} color={COLORS.textSecondary} />
+      <Ionicons name={icon as any} size={18} color={colors.textSecondary} />
       <Text style={styles.settingsLabel}>{label}</Text>
       <View style={styles.settingsRight}>
         {value && <Text style={styles.settingsValue}>{value}</Text>}
-        {onPress && <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />}
+        {onPress && <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />}
       </View>
     </Pressable>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+function getStyles(colors: typeof COLORS) {
+  return StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
   segmentBar: {
     flexDirection: 'row',
     paddingHorizontal: SPACING.lg,
     paddingBottom: SPACING.sm,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.surfaceHighlight,
+    borderBottomColor: colors.surfaceHighlight,
     gap: SPACING.sm,
   },
   segmentItem: {
@@ -818,24 +841,24 @@ const styles = StyleSheet.create({
     gap: SPACING.xs,
     paddingVertical: SPACING.sm,
     borderRadius: BORDER_RADIUS.md,
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: colors.surfaceLight,
   },
   segmentItemActive: {
-    backgroundColor: COLORS.primary + '20',
+    backgroundColor: colors.primary + '20',
     borderWidth: 1,
-    borderColor: COLORS.primary + '40',
+    borderColor: colors.primary + '40',
   },
   segmentLabel: {
     fontSize: FONT_SIZE.sm,
     fontWeight: FONT_WEIGHT.semibold,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
   },
   segmentLabelActive: {
-    color: COLORS.primary,
+    color: colors.primary,
   },
-  loadingContainer: { flex: 1, backgroundColor: COLORS.background, alignItems: 'center', justifyContent: 'center' },
+  loadingContainer: { flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' },
   loadingEmoji: { fontSize: 64, marginBottom: SPACING.lg },
-  loadingText: { fontSize: FONT_SIZE.md, color: COLORS.textSecondary },
+  loadingText: { fontSize: FONT_SIZE.md, color: colors.textSecondary },
 
   hubSectionTop: {
     paddingHorizontal: SPACING.xl,
@@ -851,7 +874,7 @@ const styles = StyleSheet.create({
   screenTitle: {
     fontSize: FONT_SIZE.xl,
     fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   characterBanner: {
     flexDirection: 'row',
@@ -860,34 +883,34 @@ const styles = StyleSheet.create({
     gap: SPACING.md,
     paddingVertical: SPACING.lg,
     marginHorizontal: SPACING.xl,
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: colors.surfaceLight,
     borderRadius: BORDER_RADIUS.md,
     marginBottom: SPACING.md,
   },
-  characterBannerText: { fontSize: FONT_SIZE.sm, color: COLORS.textSecondary },
+  characterBannerText: { fontSize: FONT_SIZE.sm, color: colors.textSecondary },
   noCharacterCard: {
     marginHorizontal: SPACING.xl,
     marginBottom: SPACING.xl,
     padding: SPACING.xl,
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: colors.surfaceLight,
     borderRadius: BORDER_RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.surfaceHighlight,
+    borderColor: colors.surfaceHighlight,
   },
   noCharacterTitle: {
     fontSize: FONT_SIZE.lg,
     fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginBottom: SPACING.sm,
   },
   noCharacterDesc: {
     fontSize: FONT_SIZE.sm,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     marginBottom: SPACING.lg,
     lineHeight: 20,
   },
   primaryCta: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     paddingVertical: SPACING.md,
     borderRadius: BORDER_RADIUS.md,
     alignItems: 'center',
@@ -904,7 +927,7 @@ const styles = StyleSheet.create({
   },
   secondaryCtaText: {
     fontSize: FONT_SIZE.sm,
-    color: COLORS.primaryLight,
+    color: colors.primaryLight,
     fontWeight: FONT_WEIGHT.semibold,
   },
 
@@ -921,7 +944,7 @@ const styles = StyleSheet.create({
   avatarContainer: { marginBottom: SPACING.md, position: 'relative' },
   avatarCircle: {
     width: 100, height: 100, borderRadius: 50,
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: colors.surfaceLight,
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 3, ...SHADOWS.lg,
   },
@@ -930,30 +953,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.sm, paddingVertical: 2,
     borderRadius: BORDER_RADIUS.full,
   },
-  levelBadgeText: { fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.bold, color: COLORS.textPrimary },
-  username: { fontSize: FONT_SIZE.xxl, fontWeight: FONT_WEIGHT.bold, color: COLORS.textPrimary, marginBottom: 2 },
+  levelBadgeText: { fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
+  username: { fontSize: FONT_SIZE.xxl, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary, marginBottom: 2 },
   titleText: { fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.semibold, marginBottom: SPACING.lg },
 
   xpBar: { width: '100%', paddingHorizontal: SPACING.xl },
   xpBarHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: SPACING.sm },
-  xpLabel: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.semibold, color: COLORS.textSecondary },
-  xpNumbers: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.bold, color: COLORS.textPrimary },
-  xpBarTrack: { height: 8, borderRadius: 4, backgroundColor: COLORS.surfaceHighlight, overflow: 'hidden' },
+  xpLabel: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.semibold, color: colors.textSecondary },
+  xpNumbers: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
+  xpBarTrack: { height: 8, borderRadius: 4, backgroundColor: colors.surfaceHighlight, overflow: 'hidden' },
   xpBarFill: { height: '100%', borderRadius: 4 },
   evoPreview: {
     flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: SPACING.md,
-    backgroundColor: COLORS.surfaceLight, paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, borderRadius: BORDER_RADIUS.sm,
+    backgroundColor: colors.surfaceLight, paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, borderRadius: BORDER_RADIUS.sm,
   },
-  evoText: { fontSize: FONT_SIZE.xs, color: COLORS.primaryLight, fontWeight: FONT_WEIGHT.medium },
+  evoText: { fontSize: FONT_SIZE.xs, color: colors.primaryLight, fontWeight: FONT_WEIGHT.medium },
 
   section: { paddingHorizontal: SPACING.xl, marginTop: SPACING.xxl },
   stepsCard: {
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: colors.surfaceLight,
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.lg,
     marginBottom: SPACING.lg,
     borderWidth: 1,
-    borderColor: COLORS.surfaceHighlight,
+    borderColor: colors.surfaceHighlight,
   },
   stepsHeader: {
     flexDirection: 'row',
@@ -961,17 +984,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: SPACING.sm,
   },
-  stepsTitle: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.semibold, color: COLORS.textSecondary },
-  stepsValue: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.bold, color: COLORS.textPrimary },
+  stepsTitle: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.semibold, color: colors.textSecondary },
+  stepsValue: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
   stepsTrack: {
     height: 8,
-    backgroundColor: COLORS.surfaceHighlight,
+    backgroundColor: colors.surfaceHighlight,
     borderRadius: 999,
     overflow: 'hidden',
   },
   stepsFill: {
     height: '100%',
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: 999,
   },
   stepsMilestones: {
@@ -984,17 +1007,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.sm,
     paddingVertical: 6,
     borderRadius: BORDER_RADIUS.full,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
   },
   stepChipActive: {
-    backgroundColor: `${COLORS.primary}22`,
-    borderColor: `${COLORS.primary}66`,
+    backgroundColor: `${colors.primary}22`,
+    borderColor: `${colors.primary}66`,
   },
-  stepChipText: { fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.semibold, color: COLORS.textSecondary },
+  stepChipText: { fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.semibold, color: colors.textSecondary },
   stepsHintBlock: { marginTop: SPACING.sm },
-  stepsHint: { fontSize: FONT_SIZE.xs, color: COLORS.textMuted, lineHeight: 18 },
+  stepsHint: { fontSize: FONT_SIZE.xs, color: colors.textMuted, lineHeight: 18 },
   stepsHintActions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1005,12 +1028,12 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.md,
     borderRadius: BORDER_RADIUS.md,
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
   },
   stepsHintBtnSecondary: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
   },
   stepsHintBtnSkip: {
     alignSelf: 'center',
@@ -1018,17 +1041,17 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.xs,
   },
   stepsHintBtnText: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.semibold, color: '#fff' },
-  stepsHintBtnTextSecondary: { color: COLORS.textPrimary },
+  stepsHintBtnTextSecondary: { color: colors.textPrimary },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: SPACING.lg },
-  sectionTitle: { fontSize: FONT_SIZE.lg, fontWeight: FONT_WEIGHT.bold, color: COLORS.textPrimary, marginBottom: SPACING.lg },
+  sectionTitle: { fontSize: FONT_SIZE.lg, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary, marginBottom: SPACING.lg },
   sectionBadge: {
-    fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.semibold, color: COLORS.primaryLight,
-    backgroundColor: COLORS.primary + '20', paddingHorizontal: SPACING.sm, paddingVertical: 2, borderRadius: BORDER_RADIUS.sm,
+    fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.semibold, color: colors.primaryLight,
+    backgroundColor: colors.primary + '20', paddingHorizontal: SPACING.sm, paddingVertical: 2, borderRadius: BORDER_RADIUS.sm,
   },
 
   hubSubtitle: {
     fontSize: FONT_SIZE.sm,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     marginTop: -SPACING.md,
     marginBottom: SPACING.lg,
   },
@@ -1039,87 +1062,99 @@ const styles = StyleSheet.create({
   },
   hubTile: {
     width: '47%',
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: colors.surfaceLight,
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
     borderWidth: 1,
-    borderColor: COLORS.surfaceHighlight,
+    borderColor: colors.surfaceHighlight,
   },
   hubTilePressed: { opacity: 0.85 },
   hubTileEmoji: { fontSize: 22, marginBottom: 4 },
-  hubTileLabel: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.bold, color: COLORS.textPrimary },
-  hubTileDesc: { fontSize: FONT_SIZE.xs, color: COLORS.textMuted, marginTop: 2 },
+  hubTileLabel: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
+  hubTileDesc: { fontSize: FONT_SIZE.xs, color: colors.textMuted, marginTop: 2 },
 
   statsGrid2x2: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.md, paddingHorizontal: SPACING.xl, marginTop: SPACING.lg },
   stat2x2Card: {
-    width: '47%', backgroundColor: COLORS.surfaceLight, borderRadius: BORDER_RADIUS.md,
+    width: '47%', backgroundColor: colors.surfaceLight, borderRadius: BORDER_RADIUS.md,
     padding: SPACING.lg, alignItems: 'center', gap: 4,
   },
   stat2x2Emoji: { fontSize: 24 },
-  stat2x2Value: { fontSize: FONT_SIZE.xl, fontWeight: FONT_WEIGHT.bold, color: COLORS.textPrimary },
-  stat2x2Label: { fontSize: FONT_SIZE.xs, color: COLORS.textMuted },
+  stat2x2Value: { fontSize: FONT_SIZE.xl, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
+  stat2x2Label: { fontSize: FONT_SIZE.xs, color: colors.textMuted },
 
   statsBarList: { gap: SPACING.md },
   statRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
   statIcon: { fontSize: 18, width: 24 },
-  statLabel: { fontSize: FONT_SIZE.sm, color: COLORS.textSecondary, width: 48 },
-  statBarTrack: { flex: 1, height: 8, borderRadius: 4, backgroundColor: COLORS.surfaceHighlight, overflow: 'hidden' },
+  statLabel: { fontSize: FONT_SIZE.sm, color: colors.textSecondary, width: 48 },
+  statBarTrack: { flex: 1, height: 8, borderRadius: 4, backgroundColor: colors.surfaceHighlight, overflow: 'hidden' },
   statBarFill: { height: '100%', borderRadius: 4 },
-  statValue: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.bold, color: COLORS.textPrimary, width: 28, textAlign: 'right' },
+  statValue: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary, width: 28, textAlign: 'right' },
 
   miniMapCard: {
-    backgroundColor: COLORS.surfaceLight, borderRadius: BORDER_RADIUS.md,
+    backgroundColor: colors.surfaceLight, borderRadius: BORDER_RADIUS.md,
     overflow: 'hidden', height: 160,
   },
   miniMap: { flex: 1, position: 'relative' },
+  miniMapEmpty: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+  },
+  miniMapEmptyText: {
+    marginTop: SPACING.sm,
+    fontSize: FONT_SIZE.sm,
+    color: colors.textMuted,
+  },
   mapDot: { position: 'absolute', width: 8, height: 8, borderRadius: 4 },
   miniMapOverlay: {
     position: 'absolute', bottom: SPACING.md, right: SPACING.md,
     flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: 'rgba(10,14,26,0.7)', paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, borderRadius: BORDER_RADIUS.sm,
   },
-  miniMapText: { fontSize: FONT_SIZE.xs, color: COLORS.textSecondary },
+  miniMapText: { fontSize: FONT_SIZE.xs, color: colors.textSecondary },
 
   myRankCard: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: COLORS.primary + '20', borderRadius: BORDER_RADIUS.md,
-    padding: SPACING.lg, marginBottom: SPACING.lg, borderWidth: 1, borderColor: COLORS.primary + '40',
+    backgroundColor: colors.primary + '20', borderRadius: BORDER_RADIUS.md,
+    padding: SPACING.lg, marginBottom: SPACING.lg, borderWidth: 1, borderColor: colors.primary + '40',
   },
-  myRankLabel: { fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.semibold, color: COLORS.textSecondary },
-  myRankValue: { fontSize: FONT_SIZE.xxl, fontWeight: FONT_WEIGHT.extrabold, color: COLORS.primary },
+  myRankLabel: { fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.semibold, color: colors.textSecondary },
+  myRankValue: { fontSize: FONT_SIZE.xxl, fontWeight: FONT_WEIGHT.extrabold, color: colors.primary },
   lbRow: {
     flexDirection: 'row', alignItems: 'center', gap: SPACING.md,
     paddingVertical: SPACING.md, paddingHorizontal: SPACING.sm,
-    borderBottomWidth: 1, borderBottomColor: COLORS.surfaceHighlight,
+    borderBottomWidth: 1, borderBottomColor: colors.surfaceHighlight,
   },
-  lbRank: { width: 28, fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.bold, color: COLORS.textSecondary, textAlign: 'center' },
+  lbRank: { width: 28, fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.bold, color: colors.textSecondary, textAlign: 'center' },
   lbRankTop: { fontSize: FONT_SIZE.lg },
   lbAvatar: {
     width: 32, height: 32, borderRadius: 16,
-    backgroundColor: COLORS.surfaceHighlight,
+    backgroundColor: colors.surfaceHighlight,
     alignItems: 'center', justifyContent: 'center',
   },
-  lbAvatarText: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.bold, color: COLORS.primaryLight },
+  lbAvatarText: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.bold, color: colors.primaryLight },
   lbInfo: { flex: 1 },
-  lbName: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.semibold, color: COLORS.textPrimary },
-  lbXp: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.bold, color: COLORS.warning },
+  lbName: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.semibold, color: colors.textPrimary },
+  lbXp: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.bold, color: colors.warning },
 
   settingsGroup: {
-    backgroundColor: COLORS.surfaceLight, borderRadius: BORDER_RADIUS.md,
+    backgroundColor: colors.surfaceLight, borderRadius: BORDER_RADIUS.md,
     marginBottom: SPACING.md, overflow: 'hidden',
   },
   settingsRow: {
     flexDirection: 'row', alignItems: 'center', gap: SPACING.md,
     paddingVertical: SPACING.lg, paddingHorizontal: SPACING.lg,
-    borderBottomWidth: 1, borderBottomColor: COLORS.surfaceHighlight,
+    borderBottomWidth: 1, borderBottomColor: colors.surfaceHighlight,
   },
-  settingsLabel: { flex: 1, fontSize: FONT_SIZE.md, color: COLORS.textPrimary },
+  settingsLabel: { flex: 1, fontSize: FONT_SIZE.md, color: colors.textPrimary },
   settingsRight: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
-  settingsValue: { fontSize: FONT_SIZE.sm, color: COLORS.textMuted },
+  settingsValue: { fontSize: FONT_SIZE.sm, color: colors.textMuted },
   logoutBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.sm,
     paddingVertical: SPACING.lg, borderRadius: BORDER_RADIUS.md,
-    backgroundColor: COLORS.surfaceLight, marginTop: SPACING.md,
+    backgroundColor: colors.surfaceLight, marginTop: SPACING.md,
   },
-  logoutText: { fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.semibold, color: COLORS.error },
-});
+  logoutText: { fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.semibold, color: colors.error },
+  });
+}
