@@ -436,6 +436,10 @@ export default function MapScreen() {
     }
   }, [currentPosition, isFocused]);
 
+  const handleMarkPress = useCallback(() => {
+    holdMarkRefetchUntilRef.current = Date.now() + MARK_CALLOUT_HOLD_MS;
+  }, []);
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* ── Map with Clustering ── */}
@@ -506,9 +510,7 @@ export default function MapScreen() {
               <MarkMarker
                 key={`mark-${mark.id}`}
                 mark={mark}
-                onPress={() => {
-                  holdMarkRefetchUntilRef.current = Date.now() + MARK_CALLOUT_HOLD_MS;
-                }}
+                onPress={handleMarkPress}
               />
             ))}
         </ClusteredMapView>
