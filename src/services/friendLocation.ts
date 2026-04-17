@@ -10,6 +10,8 @@ import { useNotificationStore } from '../stores/notificationStore';
 
 const UPDATE_INTERVAL_MS = 30_000; // foreground backup while app is active
 const MAX_ACCEPTABLE_ACCURACY_M = 500;
+const FRIEND_LOCATION_CACHE_PREFIX = '@friend_locations_cache:';
+const CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 let intervalId: ReturnType<typeof setInterval> | null = null;
 let isRunning = false;
@@ -23,6 +25,37 @@ export interface FriendLocation {
   last_seen_at: string;
   character_type: string | null;
   level: number | null;
+}
+
+function getCacheKey(viewerUserId: string): string {
+  return `${FRIEND_LOCATION_CACHE_PREFIX}${viewerUserId}`;
+}
+
+async function readCachedFriendLocations(viewerUserId: string): Promise<FriendLocation[]> {
+  try {
+    const raw = await AsyncStorage.getItem(getCacheKey(viewerUserId));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as { savedAt: number; locations: FriendLocation[] } | null;
+    if (!parsed || !Array.isArray(parsed.locations) || typeof parsed.savedAt !== 'number') return [];
+    if (Date.now() - parsed.savedAt > CACHE_MAX_AGE_MS) return [];
+    return parsed.locations;
+  } catch {
+    return [];
+  }
+}
+
+async function writeCachedFriendLocations(
+  viewerUserId: string,
+  locations: FriendLocation[],
+): Promise<void> {
+  try {
+    await AsyncStorage.setItem(
+      getCacheKey(viewerUserId),
+      JSON.stringify({ savedAt: Date.now(), locations }),
+    );
+  } catch {
+    /* ignore */
+  }
 }
 
 async function uploadLocation() {
@@ -134,9 +167,17 @@ export async function getFriendLocationsSafe(userId?: string): Promise<FriendLoc
   });
   if (error) {
     console.warn('Failed to get friend locations:', error);
-    return null;
+    const cached = await readCachedFriendLocations(resolvedUserId);
+    return cached.length > 0 ? cached : null;
   }
-  return (data ?? []) as FriendLocation[];
+  const latest = (data ?? []) as FriendLocation[];
+  if (latest.length > 0) {
+    await writeCachedFriendLocations(resolvedUserId, latest);
+    return latest;
+  }
+  // Server can temporarily return empty due network/realtime lag; keep last known cached markers.
+  const cached = await readCachedFriendLocations(resolvedUserId);
+  return cached.length > 0 ? cached : [];
 }
 
 export async function getFriendLocations(): Promise<FriendLocation[]> {
