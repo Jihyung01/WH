@@ -41,6 +41,7 @@ import {
   getLocationSharingStatus,
   getFriendLocationsSafe,
   subscribeToFriendLocations,
+  ensureFriendLocationPublishingIfNeeded,
 } from '../../src/services/friendLocation';
 import type { FriendLocation } from '../../src/services/friendLocation';
 import { reverseGeocodeToDistrict } from '../../src/utils/reverseGeocodeDistrict';
@@ -1096,6 +1097,11 @@ export default function SocialScreen() {
     loadFriends();
     loadCrew();
   }, [loadFriends, loadCrew]);
+
+  useEffect(() => {
+    if (!viewerId) return;
+    void ensureFriendLocationPublishingIfNeeded();
+  }, [viewerId]);
 
   const friendIdsKey =
     friendsData?.friends

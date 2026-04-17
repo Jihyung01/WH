@@ -9,7 +9,7 @@ import {
 import { useNotificationStore } from '../stores/notificationStore';
 
 const UPDATE_INTERVAL_MS = 30_000; // foreground backup while app is active
-const MAX_ACCEPTABLE_ACCURACY_M = 150;
+const MAX_ACCEPTABLE_ACCURACY_M = 500;
 
 let intervalId: ReturnType<typeof setInterval> | null = null;
 let isRunning = false;
@@ -51,8 +51,9 @@ async function uploadLocation() {
 
     const accuracy = Number(location.coords.accuracy ?? Infinity);
     if (Number.isFinite(accuracy) && accuracy > MAX_ACCEPTABLE_ACCURACY_M) {
-      // Skip coarse points to prevent district-level jumps (e.g., Jungja <-> Seohyeon).
-      return;
+      // Keep publishing even with coarse points so "공유 중 · 최근 위치 없음" 상태에 갇히지 않는다.
+      // (Foreground fallback; background permission is handled separately.)
+      console.warn('[friendLocation] coarse GPS point, uploading anyway:', accuracy);
     }
 
     const { error } = await supabase.rpc('update_my_location', {
@@ -80,10 +81,9 @@ export async function startLocationSharing(): Promise<boolean> {
   const fg = await Location.requestForegroundPermissionsAsync();
   if (fg.status !== 'granted') return false;
 
-  // Live sharing is defined as "works even when app is in background/closed".
-  // Require background permission so users do not assume full realtime while getting foreground-only updates.
+  // Background permission improves continuity, but foreground sharing should still work without it.
   const bg = await Location.requestBackgroundPermissionsAsync();
-  if (bg.status !== 'granted') return false;
+  const hasBackground = bg.status === 'granted';
 
   const { error } = await supabase.rpc('toggle_location_sharing', { p_enabled: true });
   if (error) {
@@ -92,7 +92,9 @@ export async function startLocationSharing(): Promise<boolean> {
   }
 
   await AsyncStorage.setItem(FRIEND_LIVE_SHARING_STORAGE_KEY, 'true');
-  await notifySyncContinuousTask();
+  if (hasBackground) {
+    await notifySyncContinuousTask();
+  }
   await uploadLocation();
 
   intervalId = setInterval(uploadLocation, UPDATE_INTERVAL_MS);

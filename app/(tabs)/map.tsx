@@ -35,7 +35,8 @@ import {
   subscribeToFriendLocations,
 } from '../../src/services/friendLocation';
 import type { FriendLocation } from '../../src/services/friendLocation';
-import { getFriends, getStreakInfo } from '../../src/lib/api';
+import { getFriends, getStreakInfo, getUserCommunityFeed } from '../../src/lib/api';
+import type { CommunityFeedItem } from '../../src/lib/api';
 import DailyRewardModal from '../../src/components/rewards/DailyRewardModal';
 import { getMapStyle } from '../../src/components/map/mapStyle';
 import { registerGeofences } from '../../src/services/geofencing';
@@ -51,7 +52,7 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 let regionChangeTimer: ReturnType<typeof setTimeout> | null = null;
 
 const FRIEND_LOCATIONS_POLL_MS = Platform.OS === 'android' ? 7_000 : 15_000;
-const FRIEND_LOCATION_STALE_KEEP_MS = 12 * 60 * 60 * 1000; // keep missing friends for up to 12h to avoid flicker
+const FRIEND_LOCATION_STALE_KEEP_MS = 72 * 60 * 60 * 1000; // keep missing friends for up to 72h to avoid flicker/disappear
 const MAP_BOOT_TIMEOUT_MS = 6000;
 
 function mergeFriendLocations(
@@ -130,6 +131,9 @@ export default function MapScreen() {
   const [mapReady, setMapReady] = useState(false);
   const [dailyRewardModalVisible, setDailyRewardModalVisible] = useState(false);
   const [friendLocations, setFriendLocations] = useState<FriendLocation[]>([]);
+  const [selectedFriendId, setSelectedFriendId] = useState<string | null>(null);
+  const [selectedFriendFeed, setSelectedFriendFeed] = useState<CommunityFeedItem[]>([]);
+  const [loadingFriendFeed, setLoadingFriendFeed] = useState(false);
   const [initialRegion, setInitialRegion] = useState<Region | null>(null);
   const userHeading = useLocationStore((s) => s.heading);
   const bgLocationEnabled = useNotificationStore((s) => s.backgroundLocationEnabled);
@@ -309,12 +313,36 @@ export default function MapScreen() {
   }, [visibleEvents, currentPosition, isFocused]);
 
   /** Stable element list so GPS / unrelated renders do not rebuild ClusteredMapView children for friends. */
+  const onFriendMarkerPress = useCallback(
+    (friend: FriendLocation) => {
+      if (!isFocused) return;
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      setSelectedFriendId(friend.user_id);
+      setLoadingFriendFeed(true);
+      void (async () => {
+        try {
+          const feed = await getUserCommunityFeed(friend.user_id, 2);
+          setSelectedFriendFeed(feed);
+        } catch {
+          setSelectedFriendFeed([]);
+        } finally {
+          setLoadingFriendFeed(false);
+        }
+      })();
+    },
+    [isFocused],
+  );
+
   const friendMarkerNodes = useMemo(
     () =>
       friendLocations.map((friend) => (
-        <FriendMarker key={friend.user_id} friend={friend} />
+        <FriendMarker
+          key={friend.user_id}
+          friend={friend}
+          onPress={() => onFriendMarkerPress(friend)}
+        />
       )),
-    [friendLocations],
+    [friendLocations, onFriendMarkerPress],
   );
 
   // ── Region change handler (debounced 300ms) ──
@@ -344,6 +372,7 @@ export default function MapScreen() {
       if (!isFocused) return;
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       selectEvent(event.id);
+      setSelectedFriendId(null);
       setFollowingUser(false);
       mapRef.current?.animateToRegion(
         {
@@ -556,6 +585,71 @@ export default function MapScreen() {
         />
       </AnimatedPressable>
 
+      {/* ── Friend mini card (tap marker) ── */}
+      {isFocused && selectedFriendId ? (
+        (() => {
+          const friend = friendLocations.find((f) => f.user_id === selectedFriendId) ?? null;
+          if (!friend) return null;
+          const cardBottom = recenterBottom + 58;
+          return (
+            <View
+              style={[
+                styles.friendMiniCard,
+                { bottom: cardBottom, backgroundColor: colors.surface + 'F0', borderColor: colors.border },
+              ]}
+            >
+              <View style={styles.friendMiniHeader}>
+                <Text style={[styles.friendMiniName, { color: colors.textPrimary }]} numberOfLines={1}>
+                  {friend.username}
+                </Text>
+                <Pressable
+                  onPress={() => setSelectedFriendId(null)}
+                  accessibilityLabel="친구 카드 닫기"
+                  accessibilityRole="button"
+                >
+                  <Ionicons name="close" size={18} color={colors.textMuted} />
+                </Pressable>
+              </View>
+              <Text style={[styles.friendMiniMeta, { color: colors.textSecondary }]} numberOfLines={1}>
+                마지막 공유: {new Date(friend.last_seen_at).toLocaleString('ko-KR')}
+              </Text>
+              {loadingFriendFeed ? (
+                <Text style={[styles.friendMiniFeedLine, { color: colors.textMuted }]}>피드를 불러오는 중...</Text>
+              ) : selectedFriendFeed.length === 0 ? (
+                <Text style={[styles.friendMiniFeedLine, { color: colors.textMuted }]}>최근 공개 피드가 없어요.</Text>
+              ) : (
+                selectedFriendFeed.map((item, idx) => (
+                  <Text
+                    key={item.id}
+                    style={[styles.friendMiniFeedLine, { color: colors.textPrimary }]}
+                    numberOfLines={1}
+                  >
+                    {idx + 1}. {item.event_title ?? '사진 피드'} · ❤ {item.like_count}
+                  </Text>
+                ))
+              )}
+              <View style={styles.friendMiniActions}>
+                <Pressable
+                  style={[styles.friendMiniBtn, { backgroundColor: BRAND.primary }]}
+                  onPress={() => router.push(`/user/${friend.user_id}` as any)}
+                >
+                  <Text style={styles.friendMiniBtnText}>프로필</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.friendMiniBtn, { backgroundColor: colors.surfaceLight }]}
+                  onPress={() => {
+                    setSelectedFriendId(null);
+                    router.push('/(tabs)/social');
+                  }}
+                >
+                  <Text style={[styles.friendMiniBtnText, { color: colors.textPrimary }]}>소셜</Text>
+                </Pressable>
+              </View>
+            </View>
+          );
+        })()
+      ) : null}
+
       {/* ── Bottom Sheet ── */}
       {isFocused && (
         <EventBottomSheet
@@ -651,5 +745,49 @@ const styles = StyleSheet.create({
   },
   recenterBtnAndroid: {
     elevation: 8,
+  },
+  friendMiniCard: {
+    position: 'absolute',
+    left: SPACING.lg,
+    right: SPACING.lg,
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: SPACING.md,
+    ...SHADOWS.md,
+  },
+  friendMiniHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 2,
+  },
+  friendMiniName: {
+    fontSize: 15,
+    fontWeight: FONT_WEIGHT.bold,
+    flex: 1,
+    marginRight: SPACING.sm,
+  },
+  friendMiniMeta: {
+    fontSize: 11,
+    marginBottom: 6,
+  },
+  friendMiniFeedLine: {
+    fontSize: 12,
+    marginBottom: 2,
+  },
+  friendMiniActions: {
+    marginTop: 8,
+    flexDirection: 'row',
+    gap: SPACING.sm,
+  },
+  friendMiniBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+  },
+  friendMiniBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: FONT_WEIGHT.semibold,
   },
 });
