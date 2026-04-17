@@ -28,6 +28,9 @@ import {
   type AppleMusicFeedAttachment,
 } from '../../src/lib/api';
 import { FeedAppleMusicCard } from '../../src/components/music/FeedAppleMusicCard';
+import { MarkCard } from '../../src/components/mark';
+import { useMarkStore } from '../../src/stores/markStore';
+import type { Mark } from '../../src/types/models';
 import { shareKakaoFeedCard } from '../../src/services/kakaoShare';
 import { useTheme } from '../../src/providers/ThemeProvider';
 import { FONT_SIZE, FONT_WEIGHT, SPACING, BORDER_RADIUS, BRAND } from '../../src/config/theme';
@@ -441,6 +444,24 @@ export default function ExploreScreen() {
   const [commentTarget, setCommentTarget] = useState<string | null>(null);
   const commentModalVisible = commentTarget !== null;
 
+  /** Mark (흔적) feed — 최근 작성한 내 흔적 (Phase 1) */
+  const myTodayMarks = useMarkStore((s) => s.myTodayMarks);
+  const nearbyMarks = useMarkStore((s) => s.nearbyMarks);
+  const loadMyTodayMarks = useMarkStore((s) => s.loadMyTodayMarks);
+
+  const markFeed = useMemo<Mark[]>(() => {
+    const byId = new Map<string, Mark>();
+    for (const m of myTodayMarks) byId.set(m.id, m);
+    for (const m of nearbyMarks) byId.set(m.id, m);
+    return Array.from(byId.values())
+      .sort((a, b) => {
+        const ta = Date.parse(a.created_at) || 0;
+        const tb = Date.parse(b.created_at) || 0;
+        return tb - ta;
+      })
+      .slice(0, 10);
+  }, [myTodayMarks, nearbyMarks]);
+
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
@@ -460,7 +481,8 @@ export default function ExploreScreen() {
   useFocusEffect(
     useCallback(() => {
       void load(false);
-    }, [load]),
+      void loadMyTodayMarks();
+    }, [load, loadMyTodayMarks]),
   );
 
   const onRefresh = useCallback(() => {
@@ -571,6 +593,30 @@ export default function ExploreScreen() {
     [colors, openEvent, handleToggleLike, handleOpenComments, handleShare, onPressAuthor],
   );
 
+  const marksHeader = useMemo(() => {
+    if (markFeed.length === 0) return null;
+    return (
+      <View style={styles.marksSection}>
+        <View style={styles.marksHeaderRow}>
+          <Text style={[styles.marksHeaderTitle, { color: colors.textPrimary }]}>
+            흔적
+          </Text>
+          <Text style={[styles.marksHeaderSub, { color: colors.textMuted }]}>
+            이 순간 여기
+          </Text>
+        </View>
+        {markFeed.map((mark) => (
+          <MarkCard
+            key={`feed-mark-${mark.id}`}
+            mark={mark}
+            onPressAuthor={onPressAuthor}
+          />
+        ))}
+        <View style={[styles.marksDivider, { backgroundColor: colors.border }]} />
+      </View>
+    );
+  }, [markFeed, colors.textPrimary, colors.textMuted, colors.border, onPressAuthor]);
+
   return (
     <View style={[styles.root, { backgroundColor: colors.background, paddingTop: insets.top }]}>
       <View style={[styles.header, { borderBottomColor: colors.border, backgroundColor: colors.background }]}>
@@ -607,6 +653,7 @@ export default function ExploreScreen() {
           data={items}
           keyExtractor={(it) => it.id}
           renderItem={renderItem}
+          ListHeaderComponent={marksHeader}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[
             styles.listContent,
@@ -648,6 +695,28 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingTop: 0,
+  },
+  marksSection: {
+    paddingTop: SPACING.sm,
+  },
+  marksHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: SPACING.sm,
+    paddingHorizontal: SPACING.lg,
+    paddingBottom: SPACING.xs,
+  },
+  marksHeaderTitle: {
+    fontSize: FONT_SIZE.lg,
+    fontWeight: FONT_WEIGHT.bold,
+  },
+  marksHeaderSub: {
+    fontSize: FONT_SIZE.xs,
+  },
+  marksDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginHorizontal: SPACING.lg,
+    marginTop: SPACING.md,
   },
   post: {
     borderBottomWidth: StyleSheet.hairlineWidth,
