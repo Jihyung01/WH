@@ -440,6 +440,12 @@ export default function MapScreen() {
     holdMarkRefetchUntilRef.current = Date.now() + MARK_CALLOUT_HOLD_MS;
   }, []);
 
+  const handleMarkCalloutPress = useCallback((_: Mark) => {
+    holdMarkRefetchUntilRef.current = Date.now() + MARK_CALLOUT_HOLD_MS;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push('/(tabs)/explore');
+  }, [router]);
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* ── Map with Clustering ── */}
@@ -511,6 +517,7 @@ export default function MapScreen() {
                 key={`mark-${mark.id}`}
                 mark={mark}
                 onPress={handleMarkPress}
+                onCalloutPress={handleMarkCalloutPress}
               />
             ))}
         </ClusteredMapView>

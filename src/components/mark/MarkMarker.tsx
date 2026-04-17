@@ -18,6 +18,7 @@ import { formatRelativeDate } from '../../utils/format';
 interface Props {
   mark: Mark;
   onPress?: (mark: Mark) => void;
+  onCalloutPress?: (mark: Mark) => void;
 }
 
 const IS_ANDROID = Platform.OS === 'android';
@@ -32,7 +33,7 @@ function computeOpacity(createdAt: string): number {
   return 0.5;
 }
 
-function MarkMarkerComponent({ mark, onPress }: Props) {
+function MarkMarkerComponent({ mark, onPress, onCalloutPress }: Props) {
   const { colors } = useTheme();
   const coordinate = useMemo(
     () => ({ latitude: mark.location.lat, longitude: mark.location.lng }),
@@ -78,7 +79,7 @@ function MarkMarkerComponent({ mark, onPress }: Props) {
         </View>
       </View>
 
-      <Callout tooltip onPress={() => onPress?.(mark)}>
+      <Callout tooltip onPress={() => onCalloutPress?.(mark)}>
         <View style={[styles.callout, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           {mark.photo_url ? (
             <Image
