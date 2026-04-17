@@ -144,6 +144,7 @@ export default function MapScreen() {
 
   /** Mark (흔적) 관련 상태 */
   const createMarkSheetRef = useRef<CreateMarkSheetHandle>(null);
+  const lastMarkFetchCenterRef = useRef<{ latitude: number; longitude: number } | null>(null);
   const nearbyMarks = useMarkStore((s) => s.nearbyMarks);
   const loadNearbyMarks = useMarkStore((s) => s.loadNearbyMarks);
 
@@ -166,11 +167,22 @@ export default function MapScreen() {
         longitudeDelta: 0.008,
       });
       fetchNearbyEvents(seed);
+      lastMarkFetchCenterRef.current = {
+        latitude: seed.latitude,
+        longitude: seed.longitude,
+      };
       void loadNearbyMarks(seed.latitude, seed.longitude);
       void fetchWeather(seed.latitude, seed.longitude);
       startTracking();
     })();
   }, [isFocused, fetchWeather]);
+
+  useEffect(() => {
+    return () => {
+      if (regionChangeTimer) clearTimeout(regionChangeTimer);
+      if (markRegionChangeTimer) clearTimeout(markRegionChangeTimer);
+    };
+  }, []);
 
   useEffect(() => {
     if (!isFocused || !currentPosition) return;
@@ -351,7 +363,14 @@ export default function MapScreen() {
 
       if (markRegionChangeTimer) clearTimeout(markRegionChangeTimer);
       markRegionChangeTimer = setTimeout(() => {
-        void loadNearbyMarks(region.latitude, region.longitude);
+        const center = { latitude: region.latitude, longitude: region.longitude };
+        if (
+          !lastMarkFetchCenterRef.current ||
+          getDistance(center, lastMarkFetchCenterRef.current) > MAP_REFETCH_DISTANCE_M
+        ) {
+          lastMarkFetchCenterRef.current = center;
+          void loadNearbyMarks(region.latitude, region.longitude);
+        }
       }, 300);
     },
     [lastFetchCenter, isFocused, loadNearbyMarks],
@@ -634,8 +653,16 @@ export default function MapScreen() {
         district={mapCharacter?.favorite_district ?? null}
         onCreated={(result) => {
           if (currentPosition) {
+            lastMarkFetchCenterRef.current = {
+              latitude: currentPosition.latitude,
+              longitude: currentPosition.longitude,
+            };
             void loadNearbyMarks(currentPosition.latitude, currentPosition.longitude);
           } else if (result.mark) {
+            lastMarkFetchCenterRef.current = {
+              latitude: result.mark.location.lat,
+              longitude: result.mark.location.lng,
+            };
             void loadNearbyMarks(result.mark.location.lat, result.mark.location.lng);
           }
         }}

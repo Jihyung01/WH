@@ -28,7 +28,7 @@ import {
   type AppleMusicFeedAttachment,
 } from '../../src/lib/api';
 import { FeedAppleMusicCard } from '../../src/components/music/FeedAppleMusicCard';
-import { MarkCard } from '../../src/components/mark';
+import { MarkCard, MarkShareCard } from '../../src/components/mark';
 import { useMarkStore } from '../../src/stores/markStore';
 import type { Mark } from '../../src/types/models';
 import { shareKakaoFeedCard } from '../../src/services/kakaoShare';
@@ -443,6 +443,7 @@ export default function ExploreScreen() {
 
   const [commentTarget, setCommentTarget] = useState<string | null>(null);
   const commentModalVisible = commentTarget !== null;
+  const [shareMark, setShareMark] = useState<Mark | null>(null);
 
   /** Mark (흔적) feed — 최근 작성한 내 흔적 (Phase 1) */
   const myTodayMarks = useMarkStore((s) => s.myTodayMarks);
@@ -610,6 +611,7 @@ export default function ExploreScreen() {
             key={`feed-mark-${mark.id}`}
             mark={mark}
             onPressAuthor={onPressAuthor}
+            onPressShare={setShareMark}
           />
         ))}
         <View style={[styles.marksDivider, { backgroundColor: colors.border }]} />
@@ -673,6 +675,23 @@ export default function ExploreScreen() {
         onClose={() => setCommentTarget(null)}
         onCommentAdded={handleCommentAdded}
       />
+      <Modal
+        visible={shareMark !== null}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setShareMark(null)}
+      >
+        <View style={styles.markShareOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setShareMark(null)} />
+          {shareMark ? (
+            <MarkShareCard
+              mark={shareMark}
+              onClose={() => setShareMark(null)}
+              downloadUrl="wherehere.app"
+            />
+          ) : null}
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -717,6 +736,13 @@ const styles = StyleSheet.create({
     height: StyleSheet.hairlineWidth,
     marginHorizontal: SPACING.lg,
     marginTop: SPACING.md,
+  },
+  markShareOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.lg,
   },
   post: {
     borderBottomWidth: StyleSheet.hairlineWidth,
