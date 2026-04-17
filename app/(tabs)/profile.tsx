@@ -741,6 +741,16 @@ function ProfileContent() {
         <View style={styles.settingsGroup}>
           <SettingsRow icon="notifications-outline" label="알림 설정" onPress={() => router.push('/settings')} />
           <SettingsRow icon="location-outline" label="위치 권한 관리" onPress={() => router.push('/settings')} />
+          <SettingsRow
+            icon="sparkles-outline"
+            label="성격 유형 (MBTI)"
+            onPress={() =>
+              router.push({
+                pathname: '/(auth)/mbti-select',
+                params: { from: 'settings' },
+              } as any)
+            }
+          />
           <SettingsRow icon="information-circle-outline" label="앱 버전" value="1.0.0" />
         </View>
         <Pressable style={styles.logoutBtn} onPress={handleSignOut}>
