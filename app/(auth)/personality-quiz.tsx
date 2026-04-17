@@ -57,14 +57,16 @@ export default function PersonalityQuizScreen() {
 
   const goRecommended = useCallback(() => {
     if (!result) return;
+    // personality-quiz → mbti-select → onboarding 순서.
+    // 추천 캐릭터 타입은 onboarding까지 이어서 전달된다.
     router.replace({
-      pathname: '/(auth)/onboarding',
+      pathname: '/(auth)/mbti-select',
       params: { recommended: result.recommended_character_type },
     } as Href);
   }, [result, router]);
 
   const goOther = useCallback(() => {
-    router.replace('/(auth)/onboarding' as Href);
+    router.replace('/(auth)/mbti-select' as Href);
   }, [router]);
 
   const bgGradient: [string, string] = useMemo(() => {

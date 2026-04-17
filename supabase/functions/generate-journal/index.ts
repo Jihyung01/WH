@@ -43,10 +43,11 @@ function buildJournalPrompt(
   level: number,
   places: string[],
   xpEarned: number,
+  mbti: string | null,
 ): string {
-  const personality = CHARACTER_TONE[characterType] ?? CHARACTER_TONE.dodam;
+  const personality = CHARACTER_TONE[characterType] ?? CHARACTER_TONE.explorer;
 
-  return `당신은 WhereHere 앱의 탐험 캐릭터 "${characterName}" (${personality.name})입니다.
+  const base = `당신은 WhereHere 앱의 탐험 캐릭터 "${characterName}" (${personality.name})입니다.
 오늘 하루의 탐험 일지를 작성하세요.
 
 ## 캐릭터 정보
@@ -66,16 +67,20 @@ ${places.map((p, i) => `${i + 1}. ${p}`).join("\n")}
 3. 방문한 장소를 구체적으로 언급
 4. 마지막 문장은 내일의 탐험에 대한 기대감/떡밥
 5. 순수 텍스트만 출력 (JSON이나 마크다운 없이)`;
+
+  // MBTI 수정자는 기본 규칙을 덮지 않고 뒤에 "얹는 편향"으로 붙인다.
+  return base + buildMBTIPromptAddendum(mbti);
 }
 
 function buildNoEventPrompt(
   characterName: string,
   characterType: string,
   level: number,
+  mbti: string | null,
 ): string {
-  const personality = CHARACTER_TONE[characterType] ?? CHARACTER_TONE.dodam;
+  const personality = CHARACTER_TONE[characterType] ?? CHARACTER_TONE.explorer;
 
-  return `당신은 WhereHere 앱의 탐험 캐릭터 "${characterName}" (${personality.name})입니다.
+  const base = `당신은 WhereHere 앱의 탐험 캐릭터 "${characterName}" (${personality.name})입니다.
 오늘은 탐험을 하지 않은 날의 일지를 작성하세요.
 
 ## 캐릭터 정보
@@ -89,6 +94,8 @@ function buildNoEventPrompt(
 3. 오늘 쉬어가는 것도 괜찮다는 따뜻한 응원
 4. 마지막 문장은 내일 탐험을 떠나고 싶게 만드는 동기 부여
 5. 순수 텍스트만 출력 (JSON이나 마크다운 없이)`;
+
+  return base + buildMBTIPromptAddendum(mbti);
 }
 
 async function callClaude(apiKey: string, prompt: string): Promise<string | null> {
