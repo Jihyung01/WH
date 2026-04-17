@@ -44,6 +44,8 @@ interface MapState {
   setFilters: (filters: Partial<MapState['activeFilters']>) => void;
   resetFilters: () => void;
   fetchNearbyEvents: (center: GeoPoint, radiusKm?: number) => Promise<void>;
+  /** 날씨 스토어 갱신 후 버퍼 이벤트에 가시성 필터 재적용 */
+  applyWeatherToBufferedEvents: () => void;
 }
 
 const defaultFilters = {

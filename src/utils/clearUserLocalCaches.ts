@@ -9,6 +9,7 @@ import { useProfileStore } from '../stores/profileStore';
 import { useMapStore } from '../stores/mapStore';
 import { useCharacterStore } from '../stores/characterStore';
 import { usePremiumStore } from '../stores/premiumStore';
+import { useMarkStore } from '../stores/markStore';
 
 /**
  * Wipes user-scoped persisted UI/cache data on this device.
@@ -43,6 +44,7 @@ export async function clearUserLocalCaches(): Promise<void> {
     useMapStore,
     useCharacterStore,
     usePremiumStore,
+    useMarkStore,
   ] as const;
 
   for (const store of persisted) {
@@ -51,5 +53,11 @@ export async function clearUserLocalCaches(): Promise<void> {
     } catch (e) {
       console.warn('[clearUserLocalCaches] rehydrate:', e);
     }
+  }
+
+  try {
+    useMarkStore.getState().clearAll();
+  } catch (e) {
+    console.warn('[clearUserLocalCaches] markStore.clearAll:', e);
   }
 }
