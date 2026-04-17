@@ -1,5 +1,9 @@
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  buildMBTIPromptAddendum,
+  fetchUserMBTI,
+} from "../_shared/mbti-prompt.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -69,11 +73,16 @@ async function callClaude(
   apiKey: string,
   title: string,
   district: string,
+  mbti: string | null,
 ): Promise<QuizData> {
-  const prompt = `Create a fun trivia quiz question about this location in Korea.
+  // MBTI 수정자는 질문의 각도/주제 선택에 영향을 주지만,
+  // JSON 포맷은 반드시 유지되어야 한다.
+  const basePrompt = `Create a fun trivia quiz question about this location in Korea.
 Place: ${title}, ${district}
 The question should be interesting and educational.
-Write in Korean.
+Write in Korean.`;
+
+  const formatInstruction = `
 
 Respond in this exact JSON format only, no other text:
 {
@@ -82,6 +91,8 @@ Respond in this exact JSON format only, no other text:
   "correct_index": 0,
   "explanation": "해설"
 }`;
+
+  const prompt = basePrompt + buildMBTIPromptAddendum(mbti) + formatInstruction;
 
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -146,10 +157,14 @@ Deno.serve(async (req) => {
       return json(fallbackQuiz(event.title, event.district ?? "서울"));
     }
 
+    // 사용자 MBTI (개인화용). 실패하거나 미설정이면 null.
+    const mbti = await fetchUserMBTI(supabase, user.id);
+
     const quiz = await callClaude(
       claudeKey,
       event.title,
       event.district ?? "서울",
+      mbti,
     );
 
     return json(quiz);

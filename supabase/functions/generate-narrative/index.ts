@@ -1,5 +1,9 @@
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  buildMBTIPromptAddendum,
+  fetchUserMBTI,
+} from "../_shared/mbti-prompt.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -26,8 +30,9 @@ function buildPrompt(
   address: string,
   category: string,
   district: string,
+  mbti: string | null,
 ): string {
-  return `You are a storyteller for WhereHere, a location-based exploration app in Korea.
+  const base = `You are a storyteller for WhereHere, a location-based exploration app in Korea.
 Create an engaging, mysterious narrative for this location:
 - Place: ${title} (${address})
 - Category: ${CATEGORY_KO[category] ?? category}
@@ -35,6 +40,9 @@ Create an engaging, mysterious narrative for this location:
 
 Write in Korean. Keep it 2-3 sentences. Make it feel like the start of an adventure.
 Tone: mysterious, inviting, slightly magical. Reference real local features when possible.`;
+
+  // MBTI가 있으면 서사의 톤/포커스를 개인화한다. 사용자에게 MBTI 언급 금지.
+  return base + buildMBTIPromptAddendum(mbti);
 }
 
 async function callClaude(apiKey: string, prompt: string): Promise<string | null> {
@@ -96,12 +104,18 @@ Deno.serve(async (req) => {
       return json({ error: "이벤트를 찾을 수 없습니다." }, 404);
     }
 
-    // ── 2. 캐시 확인 ────────────────────────────────────────────────
-    if (event.narrative) {
+    // ── 2. 사용자 MBTI 조회 (개인화용, 실패해도 계속 진행) ────────────
+    const mbti = await fetchUserMBTI(supabase, user.id);
+
+    // ── 3. 캐시 확인 (MBTI 비사용자만 공유 캐시 사용) ─────────────────
+    // MBTI가 설정된 사용자는 매번 개인화된 서사를 생성한다.
+    // 공유 events.narrative 캐시에는 MBTI 개인화 결과를 저장하지 않는다
+    // (다른 사용자에게 잘못된 톤이 노출되는 것을 방지).
+    if (!mbti && event.narrative) {
       return json({ narrative: event.narrative, cached: true });
     }
 
-    // ── 3. Claude API 호출 ──────────────────────────────────────────
+    // ── 4. Claude API 호출 ──────────────────────────────────────────
     const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
     if (!apiKey) {
       console.error("ANTHROPIC_API_KEY not set");
@@ -113,21 +127,28 @@ Deno.serve(async (req) => {
       event.address ?? "",
       event.category,
       event.district ?? "서울",
+      mbti,
     );
 
     const narrative = await callClaude(apiKey, prompt);
 
     if (!narrative) {
+      // MBTI 개인화 생성에 실패한 경우 공유 캐시로 폴백
+      if (event.narrative) {
+        return json({ narrative: event.narrative, cached: true });
+      }
       return json({ error: "서사를 생성하지 못했습니다. 잠시 후 다시 시도해주세요." }, 500);
     }
 
-    // ── 4. DB에 캐싱 ────────────────────────────────────────────────
-    await supabase
-      .from("events")
-      .update({ narrative })
-      .eq("id", event_id);
+    // ── 5. DB 캐싱 (MBTI 비사용자만 공유 캐시에 저장) ─────────────────
+    if (!mbti) {
+      await supabase
+        .from("events")
+        .update({ narrative })
+        .eq("id", event_id);
+    }
 
-    // ── 5. 반환 ─────────────────────────────────────────────────────
+    // ── 6. 반환 ─────────────────────────────────────────────────────
     return json({ narrative, cached: false });
   } catch (err) {
     console.error("generate-narrative error:", err);

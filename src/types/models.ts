@@ -28,6 +28,13 @@ export interface ExplorerTypePayload {
   recommended_character_type: 'explorer' | 'foodie' | 'artist' | 'socialite';
 }
 
+/** MBTI 16종 코드 (E/I · N/S · T/F · J/P). profiles.mbti에 저장된다. */
+export type MBTICode =
+  | 'ISTJ' | 'ISFJ' | 'INFJ' | 'INTJ'
+  | 'ISTP' | 'ISFP' | 'INFP' | 'INTP'
+  | 'ESTP' | 'ESFP' | 'ENFP' | 'ENTP'
+  | 'ESTJ' | 'ESFJ' | 'ENFJ' | 'ENTJ';
+
 export interface Profile {
   id: string;
   username: string | null;
@@ -44,6 +51,8 @@ export interface Profile {
   community_terms_version?: string | null;
   community_terms_accepted_at?: string | null;
   explorer_type?: ExplorerTypePayload | null;
+  /** 선택적 MBTI 코드 (AI 개인화용). NULL 허용. */
+  mbti?: MBTICode | null;
 }
 
 export interface Character {
@@ -363,3 +372,70 @@ export interface EquippedEffects {
   streak_shield: boolean;
   coin_bonus: number;
 }
+
+// ──────────────────────────── Marks (흔적) ────────────────────────────
+
+export type MarkVisibility = 'public' | 'friends' | 'private';
+
+/**
+ * Apple Music 카탈로그 첨부 (marks.music_json).
+ * community_submissions.music_json과 완전히 동일한 포맷.
+ */
+export interface MarkMusicAttachment {
+  apple_song_id: string;
+  title: string;
+  artist: string;
+  artwork_url: string | null;
+  preview_url: string | null;
+  apple_music_url: string | null;
+}
+
+/**
+ * 흔적 1건 — 지도 위의 경량 낙서.
+ * `get_nearby_marks` RPC는 작성자 JOIN 필드(username/character_emoji/character_class)까지 포함.
+ * `get_my_marks` / `create_mark` 응답에서는 JOIN 필드가 생략될 수 있다.
+ */
+export interface Mark {
+  id: string;
+  user_id: string;
+  content: string;
+  photo_url: string;
+  /** RPC는 lat/lng를 분리 반환 — 클라이언트에서는 이 구조로 정규화해 사용 */
+  location: { lat: number; lng: number };
+  district: string | null;
+  music_json: MarkMusicAttachment | null;
+  emoji_icon: string;
+  visibility: MarkVisibility;
+  expires_at: string | null;
+  created_at: string;
+
+  // ── JOIN 필드 (get_nearby_marks 한정) ──
+  username?: string | null;
+  character_emoji?: string | null;
+  character_class?: string | null;
+}
+
+export interface CreateMarkParams {
+  content: string;
+  photo_url: string;
+  lat: number;
+  lng: number;
+  district?: string;
+  music_json?: MarkMusicAttachment | null;
+  visibility?: MarkVisibility;
+  expires_at?: string | null;
+  emoji_icon?: string;
+}
+
+export interface CreateMarkResult {
+  mark: Mark;
+  /** 지급 후 총 누적 XP (profiles.total_xp) */
+  xp: number;
+  /** 현재 레벨 (profiles.level) */
+  level: number;
+  /** 오늘 작성한 흔적 개수 (방금 생성분 포함) */
+  today_mark_count: number;
+  /** 오늘 3개 이상이면 true — 일지 자동생성 트리거 힌트 */
+  should_generate_journal: boolean;
+}
+

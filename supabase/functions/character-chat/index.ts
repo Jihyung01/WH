@@ -1,5 +1,6 @@
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { buildMBTIPromptAddendum } from "../_shared/mbti-prompt.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -41,13 +42,14 @@ function buildSystemPrompt(
   level: number,
   recentPlaces: string[],
   area: string,
+  mbti: string | null,
 ): string {
   const persona = PERSONA[characterType] ?? PERSONA["explorer"];
   const placesContext = recentPlaces.length > 0
     ? `사용자가 최근 방문한 장소: ${recentPlaces.join(", ")}`
     : "사용자가 아직 장소를 방문하지 않았어.";
 
-  return `${persona}
+  const base = `${persona}
 
 너의 이름: ${characterName}
 사용자 레벨: ${level}
@@ -60,6 +62,10 @@ ${placesContext}
 3. 3문장 이내로 짧게 대답해.
 4. 탐험/동네/장소와 관련 없는 질문은 자연스럽게 탐험 주제로 돌려.
 5. 사용자의 레벨과 최근 활동을 참고해서 맞춤 답변을 해.`;
+
+  // MBTI 수정자는 "얹는 편향"이므로 기본 규칙 뒤에 덧붙인다.
+  // MBTI가 없으면 빈 문자열이 반환되어 프롬프트에 영향이 없다.
+  return base + buildMBTIPromptAddendum(mbti);
 }
 
 Deno.serve(async (req) => {
@@ -90,16 +96,21 @@ Deno.serve(async (req) => {
       return json({ error: "메시지가 필요합니다." }, 400);
     }
 
-    // ── 1. 프리미엄 확인 ─────────────────────────────────────────────
+    // ── 1. 프리미엄 + MBTI 확인 ──────────────────────────────────────
+    // MBTI는 AI 프롬프트 개인화에만 사용되며, 사용자에게 노출되지 않는다.
     let isPremium = false;
+    let mbti: string | null = null;
     const { data: profile } = await supabase
       .from("profiles")
-      .select("is_premium")
+      .select("is_premium, mbti")
       .eq("id", user.id)
       .maybeSingle();
 
     if (profile && typeof profile.is_premium === "boolean") {
       isPremium = profile.is_premium;
+    }
+    if (profile && typeof profile.mbti === "string") {
+      mbti = profile.mbti;
     }
 
     const dailyLimit = isPremium ? DAILY_LIMIT_PREMIUM : DAILY_LIMIT_FREE;
@@ -179,6 +190,7 @@ Deno.serve(async (req) => {
       character.level,
       recentPlaces,
       area ?? "",
+      mbti,
     );
 
     const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
