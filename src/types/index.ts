@@ -32,6 +32,11 @@ export type {
   TitleCheckResult,
   PersonalityResult,
   EquippedEffects,
+  Mark,
+  MarkVisibility,
+  MarkMusicAttachment,
+  CreateMarkParams,
+  CreateMarkResult,
 } from './models';
 
 export type {
