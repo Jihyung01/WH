@@ -63,6 +63,7 @@ const FRIEND_LOCATION_STALE_KEEP_MS = 12 * 60 * 60 * 1000; // keep missing frien
 const MAP_BOOT_TIMEOUT_MS = 6000;
 const MARK_REFETCH_DEBOUNCE_MS = 2200;
 const MARK_REFETCH_DISTANCE_M = 650;
+const MARK_CALLOUT_HOLD_MS = 8000;
 
 function mergeFriendLocations(
   prev: FriendLocation[],
@@ -141,16 +142,15 @@ export default function MapScreen() {
   const [dailyRewardModalVisible, setDailyRewardModalVisible] = useState(false);
   const [friendLocations, setFriendLocations] = useState<FriendLocation[]>([]);
   const [initialRegion, setInitialRegion] = useState<Region | null>(null);
-  const [selectedMark, setSelectedMark] = useState<Mark | null>(null);
   const userHeading = useLocationStore((s) => s.heading);
   const bgLocationEnabled = useNotificationStore((s) => s.backgroundLocationEnabled);
 
   /** Mark (흔적) 관련 상태 */
   const createMarkSheetRef = useRef<CreateMarkSheetHandle>(null);
   const lastMarkFetchCenterRef = useRef<{ latitude: number; longitude: number } | null>(null);
+  const holdMarkRefetchUntilRef = useRef(0);
   const nearbyMarks = useMarkStore((s) => s.nearbyMarks);
   const loadNearbyMarks = useMarkStore((s) => s.loadNearbyMarks);
-  const selectedMarkTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Initialise location tracking ──
   useEffect(() => {
@@ -185,7 +185,6 @@ export default function MapScreen() {
     return () => {
       if (regionChangeTimer) clearTimeout(regionChangeTimer);
       if (markRegionChangeTimer) clearTimeout(markRegionChangeTimer);
-      if (selectedMarkTimerRef.current) clearTimeout(selectedMarkTimerRef.current);
     };
   }, []);
 
@@ -368,6 +367,7 @@ export default function MapScreen() {
 
       if (markRegionChangeTimer) clearTimeout(markRegionChangeTimer);
       markRegionChangeTimer = setTimeout(() => {
+        if (Date.now() < holdMarkRefetchUntilRef.current) return;
         const center = { latitude: region.latitude, longitude: region.longitude };
         if (
           !lastMarkFetchCenterRef.current ||
@@ -506,12 +506,8 @@ export default function MapScreen() {
               <MarkMarker
                 key={`mark-${mark.id}`}
                 mark={mark}
-                onPress={(pressedMark) => {
-                  setSelectedMark(pressedMark);
-                  if (selectedMarkTimerRef.current) clearTimeout(selectedMarkTimerRef.current);
-                  selectedMarkTimerRef.current = setTimeout(() => {
-                    setSelectedMark((prev) => (prev?.id === pressedMark.id ? null : prev));
-                  }, 8000);
+                onPress={() => {
+                  holdMarkRefetchUntilRef.current = Date.now() + MARK_CALLOUT_HOLD_MS;
                 }}
               />
             ))}
@@ -631,39 +627,6 @@ export default function MapScreen() {
       >
         <Ionicons name="create" size={24} color="#FFFFFF" />
       </Pressable>
-
-      {/* ── Mark mini card (tap marker) ── */}
-      {isFocused && selectedMark ? (
-        <View
-          style={[
-            styles.markMiniCard,
-            { bottom: recenterBottom + 56 + 62, backgroundColor: colors.surface + 'F4', borderColor: colors.border },
-          ]}
-        >
-          <View style={styles.markMiniHeader}>
-            <Text style={[styles.markMiniEmoji, { color: colors.textPrimary }]}>
-              {selectedMark.emoji_icon || '📍'}
-            </Text>
-            <Pressable
-              onPress={() => {
-                setSelectedMark(null);
-                if (selectedMarkTimerRef.current) clearTimeout(selectedMarkTimerRef.current);
-                selectedMarkTimerRef.current = null;
-              }}
-              accessibilityLabel="흔적 카드 닫기"
-              accessibilityRole="button"
-            >
-              <Ionicons name="close" size={18} color={colors.textMuted} />
-            </Pressable>
-          </View>
-          <Text style={[styles.markMiniContent, { color: colors.textPrimary }]} numberOfLines={2}>
-            {selectedMark.content}
-          </Text>
-          <Text style={[styles.markMiniMeta, { color: colors.textSecondary }]} numberOfLines={1}>
-            @{selectedMark.username ?? '익명'} · {new Date(selectedMark.created_at).toLocaleString('ko-KR')}
-          </Text>
-        </View>
-      ) : null}
 
       {/* ── Bottom Sheet ── */}
       {isFocused && (
@@ -799,33 +762,5 @@ const styles = StyleSheet.create({
   },
   markFabAndroid: {
     elevation: 10,
-  },
-  markMiniCard: {
-    position: 'absolute',
-    right: SPACING.lg,
-    width: 240,
-    borderRadius: 14,
-    borderWidth: 1,
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.sm,
-    ...SHADOWS.md,
-  },
-  markMiniHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  markMiniEmoji: {
-    fontSize: 18,
-  },
-  markMiniContent: {
-    fontSize: 13,
-    fontWeight: FONT_WEIGHT.semibold,
-    lineHeight: 18,
-  },
-  markMiniMeta: {
-    marginTop: 6,
-    fontSize: 11,
   },
 });
