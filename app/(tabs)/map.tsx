@@ -30,6 +30,13 @@ import {
   MapClusterMarker,
 } from '../../src/components/map';
 import {
+  CreateMarkSheet,
+  MarkMarker,
+  type CreateMarkSheetHandle,
+} from '../../src/components/mark';
+import { useMarkStore } from '../../src/stores/markStore';
+import type { Mark } from '../../src/types/models';
+import {
   ensureFriendLocationPublishingIfNeeded,
   getFriendLocationsSafe,
   subscribeToFriendLocations,
@@ -49,6 +56,7 @@ import { CharacterAvatar } from '../../src/components/character/CharacterAvatar'
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 let regionChangeTimer: ReturnType<typeof setTimeout> | null = null;
+let markRegionChangeTimer: ReturnType<typeof setTimeout> | null = null;
 
 const FRIEND_LOCATIONS_POLL_MS = Platform.OS === 'android' ? 7_000 : 15_000;
 const FRIEND_LOCATION_STALE_KEEP_MS = 12 * 60 * 60 * 1000; // keep missing friends for up to 12h to avoid flicker
@@ -134,6 +142,11 @@ export default function MapScreen() {
   const userHeading = useLocationStore((s) => s.heading);
   const bgLocationEnabled = useNotificationStore((s) => s.backgroundLocationEnabled);
 
+  /** Mark (흔적) 관련 상태 */
+  const createMarkSheetRef = useRef<CreateMarkSheetHandle>(null);
+  const nearbyMarks = useMarkStore((s) => s.nearbyMarks);
+  const loadNearbyMarks = useMarkStore((s) => s.loadNearbyMarks);
+
   // ── Initialise location tracking ──
   useEffect(() => {
     if (!isFocused) return;
@@ -153,6 +166,7 @@ export default function MapScreen() {
         longitudeDelta: 0.008,
       });
       fetchNearbyEvents(seed);
+      void loadNearbyMarks(seed.latitude, seed.longitude);
       void fetchWeather(seed.latitude, seed.longitude);
       startTracking();
     })();
@@ -334,8 +348,13 @@ export default function MapScreen() {
           fetchNearbyEvents(center);
         }
       }, 300);
+
+      if (markRegionChangeTimer) clearTimeout(markRegionChangeTimer);
+      markRegionChangeTimer = setTimeout(() => {
+        void loadNearbyMarks(region.latitude, region.longitude);
+      }, 300);
     },
-    [lastFetchCenter, isFocused],
+    [lastFetchCenter, isFocused, loadNearbyMarks],
   );
 
   // ── Marker press ──
@@ -456,6 +475,15 @@ export default function MapScreen() {
 
           {/* Friend location markers */}
           {isFocused && friendMarkerNodes}
+
+          {/* Mark (흔적) markers */}
+          {isFocused &&
+            nearbyMarks.map((mark: Mark) => (
+              <MarkMarker
+                key={`mark-${mark.id}`}
+                mark={mark}
+              />
+            ))}
         </ClusteredMapView>
       )}
 
@@ -556,6 +584,23 @@ export default function MapScreen() {
         />
       </AnimatedPressable>
 
+      {/* ── FAB: 흔적 남기기 ── */}
+      <Pressable
+        style={[
+          styles.markFab,
+          { bottom: recenterBottom + 56, backgroundColor: BRAND.primary },
+          Platform.OS === 'android' && styles.markFabAndroid,
+        ]}
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          createMarkSheetRef.current?.open();
+        }}
+        accessibilityLabel="흔적 남기기"
+        accessibilityRole="button"
+      >
+        <Ionicons name="create" size={24} color="#FFFFFF" />
+      </Pressable>
+
       {/* ── Bottom Sheet ── */}
       {isFocused && (
         <EventBottomSheet
@@ -576,6 +621,24 @@ export default function MapScreen() {
       <DailyRewardModal
         visible={dailyRewardModalVisible}
         onClose={() => setDailyRewardModalVisible(false)}
+      />
+
+      {/* ── 흔적 남기기 BottomSheet ── */}
+      <CreateMarkSheet
+        ref={createMarkSheetRef}
+        coords={
+          currentPosition
+            ? { latitude: currentPosition.latitude, longitude: currentPosition.longitude }
+            : null
+        }
+        district={mapCharacter?.favorite_district ?? null}
+        onCreated={(result) => {
+          if (currentPosition) {
+            void loadNearbyMarks(currentPosition.latitude, currentPosition.longitude);
+          } else if (result.mark) {
+            void loadNearbyMarks(result.mark.location.lat, result.mark.location.lng);
+          }
+        }}
       />
     </View>
   );
@@ -651,5 +714,18 @@ const styles = StyleSheet.create({
   },
   recenterBtnAndroid: {
     elevation: 8,
+  },
+  markFab: {
+    position: 'absolute',
+    right: SPACING.lg,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...SHADOWS.lg,
+  },
+  markFabAndroid: {
+    elevation: 10,
   },
 });
