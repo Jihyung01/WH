@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Modal,
   Image,
+  Alert,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -272,8 +273,12 @@ export default function JournalScreen() {
         });
         await loadDayJournal(selectedDate);
         await loadAllJournals();
-      } catch {
-        // silent — UI는 빈 상태로 돌아감
+      } catch (err) {
+        const message =
+          err instanceof Error && err.message.trim().length > 0
+            ? err.message
+            : '탐험 일지를 생성하지 못했어요. 잠시 후 다시 시도해주세요.';
+        Alert.alert('일지 생성 실패', message);
       } finally {
         setIsGenerating(false);
       }
