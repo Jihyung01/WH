@@ -443,7 +443,8 @@ Deno.serve(async (req) => {
     if (useTimeline) {
       // ── 타임라인 모드 ─────────────────────────────────────────────
       const prompt = buildTimelinePrompt(marks, checkinCount, districtsVisited);
-      const raw = await callClaude(apiKey, prompt, 600);
+      // max_tokens: 500 (기존 값 유지 — 사양상 변경 시 승인 필요)
+      const raw = await callClaude(apiKey, prompt, 500);
 
       if (!raw) {
         return json(
