@@ -28,6 +28,13 @@ export interface ExplorerTypePayload {
   recommended_character_type: 'explorer' | 'foodie' | 'artist' | 'socialite';
 }
 
+/** MBTI 16종 코드 (E/I · N/S · T/F · J/P). profiles.mbti에 저장된다. */
+export type MBTICode =
+  | 'ISTJ' | 'ISFJ' | 'INFJ' | 'INTJ'
+  | 'ISTP' | 'ISFP' | 'INFP' | 'INTP'
+  | 'ESTP' | 'ESFP' | 'ENFP' | 'ENTP'
+  | 'ESTJ' | 'ESFJ' | 'ENFJ' | 'ENTJ';
+
 export interface Profile {
   id: string;
   username: string | null;
@@ -44,6 +51,8 @@ export interface Profile {
   community_terms_version?: string | null;
   community_terms_accepted_at?: string | null;
   explorer_type?: ExplorerTypePayload | null;
+  /** 선택적 MBTI 코드 (AI 개인화용). NULL 허용. */
+  mbti?: MBTICode | null;
 }
 
 export interface Character {
@@ -429,3 +438,4 @@ export interface CreateMarkResult {
   /** 오늘 3개 이상이면 true — 일지 자동생성 트리거 힌트 */
   should_generate_journal: boolean;
 }
+
