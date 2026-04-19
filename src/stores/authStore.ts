@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Platform } from 'react-native';
+import { Platform, AppState, type AppStateStatus } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { supabase, SUPABASE_URL } from '../config/supabase';
@@ -109,13 +109,18 @@ async function ensureProfileRow(user: User): Promise<void> {
  * Linking 이벤트보다 먼저 끝나는 경우가 있어, openAuthSessionAsync 결과와 별도로 호출한다.
  */
 async function applySessionFromOAuthRedirectUrl(url: string): Promise<Session | null> {
-  if (!url.startsWith('wherehere:')) return null;
+  const trimmed = url.trim();
+  const colon = trimmed.indexOf(':');
+  if (colon <= 0) return null;
+  if (trimmed.slice(0, colon).toLowerCase() !== 'wherehere') return null;
 
   const looksLikeOAuth =
-    url.includes('auth/callback') || /[?&#].*(?:code|access_token)=/.test(url);
+    trimmed.includes('auth/callback') ||
+    /\bcode=/.test(trimmed) ||
+    /\baccess_token=/.test(trimmed);
   if (!looksLikeOAuth) return null;
 
-  const params = extractParamsFromUrl(url);
+  const params = extractParamsFromUrl(trimmed);
   if (params.error) {
     const raw = params.error_description ?? '';
     let desc = raw;
@@ -142,7 +147,9 @@ async function applySessionFromOAuthRedirectUrl(url: string): Promise<Session | 
     return data.session ?? null;
   }
 
-  return null;
+  throw new Error(
+    '로그인 응답에 인증 코드가 없습니다. Supabase Authentication → URL 설정에 wherehere://auth/callback 이 등록되어 있는지 확인해주세요.',
+  );
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -231,10 +238,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (error) throw error;
       if (!data.url) throw new Error('OAuth URL을 받지 못했습니다.');
 
-      let oauthHandled = false;
-      const commitOAuthSession = (session: Session) => {
+      const oauth = { handled: false, flowError: null as Error | null };
+
+      const commitOAuthSession = (session: Session): void => {
         void ensureProfileRow(session.user);
-        oauthHandled = true;
+        oauth.flowError = null;
+        oauth.handled = true;
         set({
           session,
           user: session.user,
@@ -243,52 +252,80 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         void useModerationStore.getState().refreshBlockedUsers();
       };
 
-      const tryConsumeOAuthUrl = async (url: string | undefined | null) => {
-        if (!url || oauthHandled) return;
+      const tryConsumeOAuthUrl = async (url: string | undefined | null): Promise<void> => {
+        const u = url?.trim();
+        if (!u || oauth.handled) return;
+        oauth.flowError = null;
         try {
-          const session = await applySessionFromOAuthRedirectUrl(url);
+          const session = await applySessionFromOAuthRedirectUrl(u);
           if (session) commitOAuthSession(session);
         } catch (e) {
-          console.warn('[AUTH] OAuth URL consume error:', e);
-          throw e;
+          if (!oauth.handled) {
+            oauth.flowError = e instanceof Error ? e : new Error(String(e));
+          }
         }
       };
 
       const linkingSub = Linking.addEventListener('url', ({ url }) => {
-        void (async () => {
-          try {
-            await tryConsumeOAuthUrl(url);
-          } catch {
-            /* errors surfaced when session is missing after browser closes */
-          }
-        })();
+        void tryConsumeOAuthUrl(url);
       });
 
+      const pollExpoLinkingSnapshot = async (): Promise<void> => {
+        const snap = Linking.getLinkingURL();
+        if (snap) await tryConsumeOAuthUrl(snap);
+      };
+
+      const onAppState = (s: AppStateStatus): void => {
+        if (s === 'active') void pollExpoLinkingSnapshot();
+      };
+      const appStateSub = AppState.addEventListener('change', onAppState);
+
       try {
-        const result = await WebBrowser.openAuthSessionAsync(data.url, authSessionReturnUrl);
+        await pollExpoLinkingSnapshot();
 
-        if (result.type === 'success' && result.url) {
-          await tryConsumeOAuthUrl(result.url);
-        }
-
-        /** Custom Tabs 일부 기기에서 딥링크가 dismiss 이후에 도착하는 경우가 있어 여유 있게 대기 */
-        if (!oauthHandled && (result.type === 'dismiss' || result.type === 'cancel')) {
-          for (let i = 0; i < 80 && !oauthHandled; i++) {
+        if (Platform.OS === 'android') {
+          /**
+           * openAuthSessionAsync Android 폴리필은 Custom Tabs 종료(AppState)와 딥링크를 Promise.race로
+           * 묶어 일부 기기에서 리스너 정리 타이밍과 겹칠 수 있음. 브라우저만 열고 딥링크는 Linking으로만 처리.
+           */
+          await WebBrowser.openBrowserAsync(data.url);
+          for (let i = 0; i < 150 && !oauth.handled; i++) {
             await new Promise((r) => setTimeout(r, 100));
+            if (i % 2 === 0) await pollExpoLinkingSnapshot();
+          }
+        } else {
+          const result = await WebBrowser.openAuthSessionAsync(data.url, authSessionReturnUrl);
+          if (result.type === 'success' && result.url) {
+            await tryConsumeOAuthUrl(result.url);
+          }
+          if (!oauth.handled && (result.type === 'dismiss' || result.type === 'cancel')) {
+            for (let i = 0; i < 90 && !oauth.handled; i++) {
+              await new Promise((r) => setTimeout(r, 100));
+              if (i % 2 === 0) await pollExpoLinkingSnapshot();
+            }
           }
         }
 
-        if (!oauthHandled) {
+        if (oauth.flowError) throw oauth.flowError;
+        if (!oauth.handled) {
           throw new Error(
-            '카카오 로그인 콜백을 받지 못했습니다. 잠시 후 다시 시도하거나, 카카오 개발자 콘솔의 키 해시·Redirect URI·Supabase Auth 리다이렉트 허용 목록을 확인해주세요.',
+            '카카오 로그인 콜백을 받지 못했습니다. Supabase Authentication → URL 설정에 wherehere://auth/callback 추가, 카카오 개발자 콘솔 Redirect URI에 Supabase 콜백(https://…/auth/v1/callback) 등록을 확인해주세요.',
           );
         }
       } finally {
-        await new Promise((r) => setTimeout(r, 400));
+        appStateSub.remove();
         linkingSub.remove();
+        try {
+          await WebBrowser.dismissBrowser();
+        } catch {
+          /* browser may already be closed */
+        }
+        await new Promise((r) => setTimeout(r, 200));
       }
     } catch (error) {
-      console.error('Kakao login error:', error);
+      if (__DEV__) {
+        console.error('Kakao login error:', error);
+      }
       throw error;
     } finally {
       set({ isLoading: false });
