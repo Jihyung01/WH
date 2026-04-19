@@ -116,12 +116,15 @@ export default function LoginScreen() {
       setIsLoading(true);
       await signInWithKakao();
       await routeAfterLogin();
-    } catch (error: any) {
-      if (error?.message?.includes('cancelled')) return;
-      console.error('Login error:', error);
+    } catch (error: unknown) {
+      const msg =
+        error instanceof Error ? error.message : typeof error === 'string' ? error : '';
+      if (msg.includes('cancelled') || msg.includes('취소')) return;
       Alert.alert(
         '로그인 실패',
-        '카카오 로그인 중 문제가 발생했습니다. 다시 시도해주세요.',
+        msg.trim().length > 0
+          ? msg.trim()
+          : '카카오 로그인 중 문제가 발생했습니다. 다시 시도해주세요.',
         [{ text: '확인' }],
       );
     } finally {

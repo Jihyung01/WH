@@ -194,14 +194,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             return;
           }
         } catch (nativeErr) {
-          if (Platform.OS === 'android') {
+          if (__DEV__ && Platform.OS === 'android') {
             try {
               const KakaoCore = require('@react-native-kakao/core').default;
               const keyHash = await KakaoCore.getKeyHashAndroid?.();
-              console.log('[AUTH] Android Kakao keyHash:', keyHash);
-            } catch {}
+              console.warn('[AUTH] Android Kakao keyHash (dev only):', keyHash);
+            } catch {
+              /* optional key hash for Kakao console registration */
+            }
           }
-          console.warn('[AUTH] Kakao native OIDC failed, falling back to web OAuth:', nativeErr);
+          if (__DEV__) {
+            console.warn('[AUTH] Kakao native OIDC failed, falling back to web OAuth:', nativeErr);
+          }
         }
       }
 
@@ -226,10 +230,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       if (error) throw error;
       if (!data.url) throw new Error('OAuth URL을 받지 못했습니다.');
-
-      console.log('[AUTH] redirectTo:', redirectTo);
-      console.log('[AUTH] authSessionReturnUrl:', authSessionReturnUrl);
-      console.log('[AUTH] Opening URL:', data.url);
 
       let oauthHandled = false;
       const commitOAuthSession = (session: Session) => {
@@ -258,39 +258,29 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         void (async () => {
           try {
             await tryConsumeOAuthUrl(url);
-            if (oauthHandled) console.log('[AUTH] Kakao session established via Linking');
           } catch {
-            /* logged in tryConsumeOAuthUrl */
+            /* errors surfaced when session is missing after browser closes */
           }
         })();
       });
 
       try {
-        const result = await WebBrowser.openAuthSessionAsync(
-          data.url,
-          authSessionReturnUrl,
-        );
-
-        console.log('[AUTH] openAuthSessionAsync result:', result.type);
+        const result = await WebBrowser.openAuthSessionAsync(data.url, authSessionReturnUrl);
 
         if (result.type === 'success' && result.url) {
           await tryConsumeOAuthUrl(result.url);
         }
 
+        /** Custom Tabs 일부 기기에서 딥링크가 dismiss 이후에 도착하는 경우가 있어 여유 있게 대기 */
         if (!oauthHandled && (result.type === 'dismiss' || result.type === 'cancel')) {
-          for (let i = 0; i < 30 && !oauthHandled; i++) {
+          for (let i = 0; i < 80 && !oauthHandled; i++) {
             await new Promise((r) => setTimeout(r, 100));
           }
         }
 
         if (!oauthHandled) {
-          console.warn(
-            '[AUTH] Kakao OAuth closed without session. type=',
-            result.type,
-            'If PKCE, check Supabase redirect allowlist and Kakao redirect URI.',
-          );
           throw new Error(
-            '카카오 로그인 콜백을 받지 못했습니다. Android 딥링크/Redirect 설정 또는 카카오 키해시를 확인해주세요.',
+            '카카오 로그인 콜백을 받지 못했습니다. 잠시 후 다시 시도하거나, 카카오 개발자 콘솔의 키 해시·Redirect URI·Supabase Auth 리다이렉트 허용 목록을 확인해주세요.',
           );
         }
       } finally {

@@ -68,9 +68,13 @@ export async function loginWithKakaoForSupabaseOidc(): Promise<{
     InteractionManager.runAfterInteractions(() => resolve());
   });
 
-  const kakaoTalkAvailable = await KakaoUser.isKakaoTalkLoginAvailable();
+  /**
+   * @react-native-kakao/user: `scopes` / `prompts`는 `useKakaoAccountLogin === false`(카카오톡 앱 로그인)일 때
+   * 전달할 수 없음(kAssert). OIDC `openid` 스코프가 필요하므로 항상 카카오계정 웹 로그인 경로를 쓴다.
+   * (카카오톡 설치 기기에서 이전 로직은 즉시 assertion 실패 → 웹 OAuth만 의존하는 상태가 됨)
+   */
   const token = await KakaoUser.login({
-    useKakaoAccountLogin: !kakaoTalkAvailable,
+    useKakaoAccountLogin: true,
     scopes: ['openid', 'profile_nickname', 'profile_image'],
   });
 
