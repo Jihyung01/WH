@@ -4,9 +4,9 @@ import {
   Text,
   StyleSheet,
   Platform,
+  Image,
   InteractionManager,
 } from 'react-native';
-import { Image } from 'expo-image';
 import { Marker, Callout } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -41,10 +41,9 @@ function MarkMarkerComponent({ mark, onPress, onCalloutPress }: Props) {
   );
   const opacity = useMemo(() => computeOpacity(mark.created_at), [mark.created_at]);
 
-  const [tracksViewChanges, setTracksViewChanges] = useState(IS_ANDROID);
+  const [tracksViewChanges, setTracksViewChanges] = useState(true);
 
   useEffect(() => {
-    if (!IS_ANDROID) return;
     let cancelled = false;
     InteractionManager.runAfterInteractions(() => {
       if (!cancelled) setTracksViewChanges(false);
@@ -79,13 +78,19 @@ function MarkMarkerComponent({ mark, onPress, onCalloutPress }: Props) {
         </View>
       </View>
 
-      <Callout tooltip onPress={() => onCalloutPress?.(mark)}>
-        <View style={[styles.callout, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <Callout
+        tooltip={IS_ANDROID}
+        onPress={() => onCalloutPress?.(mark)}
+      >
+        <View
+          style={[styles.callout, { backgroundColor: colors.surface, borderColor: colors.border }]}
+          collapsable={false}
+        >
           {mark.photo_url ? (
             <Image
               source={{ uri: mark.photo_url }}
               style={styles.calloutImage}
-              contentFit="cover"
+              resizeMode="cover"
             />
           ) : null}
           <View style={styles.calloutBody}>

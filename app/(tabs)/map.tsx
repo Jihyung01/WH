@@ -453,6 +453,7 @@ export default function MapScreen() {
         <ClusteredMapView
           ref={mapRef}
           style={styles.map}
+          removeClippedSubviews={false}
           provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
           customMapStyle={getMapStyle(mode)}
           initialRegion={initialRegion}
