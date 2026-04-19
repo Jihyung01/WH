@@ -50,26 +50,36 @@ interface AuthState {
   checkOnboardingStatus: () => Promise<boolean>;
 }
 
+function parseQueryOrFragmentSegment(segment: string, into: Record<string, string>): void {
+  for (const pair of segment.split('&')) {
+    if (!pair) continue;
+    const eq = pair.indexOf('=');
+    if (eq <= 0) continue;
+    const key = pair.slice(0, eq);
+    const value = pair.slice(eq + 1);
+    if (!key) continue;
+    try {
+      into[key] = decodeURIComponent(value.replace(/\+/g, ' '));
+    } catch {
+      into[key] = value;
+    }
+  }
+}
+
 function extractParamsFromUrl(url: string): Record<string, string> {
   const params: Record<string, string> = {};
 
   const hashIndex = url.indexOf('#');
   if (hashIndex !== -1) {
     const fragment = url.substring(hashIndex + 1);
-    for (const pair of fragment.split('&')) {
-      const [key, value] = pair.split('=');
-      if (key && value) params[key] = decodeURIComponent(value);
-    }
+    parseQueryOrFragmentSegment(fragment, params);
   }
 
   const questionIndex = url.indexOf('?');
   if (questionIndex !== -1) {
     const endIndex = hashIndex !== -1 ? hashIndex : url.length;
     const query = url.substring(questionIndex + 1, endIndex);
-    for (const pair of query.split('&')) {
-      const [key, value] = pair.split('=');
-      if (key && value) params[key] = decodeURIComponent(value);
-    }
+    parseQueryOrFragmentSegment(query, params);
   }
 
   return params;
@@ -114,10 +124,11 @@ async function applySessionFromOAuthRedirectUrl(url: string): Promise<Session | 
   if (colon <= 0) return null;
   if (trimmed.slice(0, colon).toLowerCase() !== 'wherehere') return null;
 
+  /** `join?code=` 등 다른 딥링크의 code 쿼리와 구분 */
   const looksLikeOAuth =
     trimmed.includes('auth/callback') ||
-    /\bcode=/.test(trimmed) ||
-    /\baccess_token=/.test(trimmed);
+    /\baccess_token=/.test(trimmed) ||
+    (/\bcode=/.test(trimmed) && trimmed.toLowerCase().includes('callback'));
   if (!looksLikeOAuth) return null;
 
   const params = extractParamsFromUrl(trimmed);
@@ -148,7 +159,7 @@ async function applySessionFromOAuthRedirectUrl(url: string): Promise<Session | 
   }
 
   throw new Error(
-    '로그인 응답에 인증 코드가 없습니다. Supabase Authentication → URL 설정에 wherehere://auth/callback 이 등록되어 있는지 확인해주세요.',
+    '로그인 응답에 인증 코드가 없습니다. Supabase Redirect URLs에 앱에서 사용하는 리다이렉트 주소가 그대로 등록되어 있는지 확인해주세요.',
   );
 }
 
@@ -216,8 +227,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
       }
 
-      /** Must match Supabase Auth → URL Configuration redirect allowlist. */
-      const redirectTo = 'wherehere://auth/callback';
+      /** Expo가 생성하는 스킴·경로와 일치시키고, Supabase Redirect URLs에 동일 문자열을 등록해야 함 */
+      const redirectTo = Linking.createURL('/auth/callback');
       /**
        * Android `openAuthSessionAsync` polyfill only treats redirects as success when
        * `event.url.startsWith(redirectUrl)`. Some stacks emit `wherehere:///auth/callback`
@@ -285,11 +296,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
         if (Platform.OS === 'android') {
           /**
-           * openAuthSessionAsync Android 폴리필은 Custom Tabs 종료(AppState)와 딥링크를 Promise.race로
-           * 묶어 일부 기기에서 리스너 정리 타이밍과 겹칠 수 있음. 브라우저만 열고 딥링크는 Linking으로만 처리.
+           * Custom Tabs는 일부 기기에서 커스텀 스킴 복귀가 누락될 수 있어, 우선 시스템 기본 브라우저로 연다.
+           * 실패 시에만 in-app 브라우저로 폴백.
            */
-          await WebBrowser.openBrowserAsync(data.url);
-          for (let i = 0; i < 150 && !oauth.handled; i++) {
+          try {
+            await Linking.openURL(data.url);
+          } catch {
+            await WebBrowser.openBrowserAsync(data.url);
+          }
+          for (let i = 0; i < 250 && !oauth.handled; i++) {
             await new Promise((r) => setTimeout(r, 100));
             if (i % 2 === 0) await pollExpoLinkingSnapshot();
           }
@@ -309,7 +324,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         if (oauth.flowError) throw oauth.flowError;
         if (!oauth.handled) {
           throw new Error(
-            '카카오 로그인 콜백을 받지 못했습니다. Supabase Authentication → URL 설정에 wherehere://auth/callback 추가, 카카오 개발자 콘솔 Redirect URI에 Supabase 콜백(https://…/auth/v1/callback) 등록을 확인해주세요.',
+            `카카오 로그인 후 앱으로 돌아오지 못했거나 인증 주소가 맞지 않습니다.\n\n` +
+              `Supabase 대시보드 → Authentication → URL Configuration → Redirect URLs에 아래 주소를 그대로 추가하세요.\n` +
+              `${redirectTo}\n\n` +
+              `카카오 개발자 콘솔 → 앱 설정 → 플랫폼 Android 키 해시 등록, Redirect URI에 Supabase 카카오 콜백(…/auth/v1/callback)이 있는지도 확인하세요.`,
           );
         }
       } finally {
