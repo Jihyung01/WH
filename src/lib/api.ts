@@ -504,8 +504,28 @@ export async function createCharacter(
     })
     .select()
     .single();
+
+  if (!error && data) {
+    return data as Character;
+  }
+
+  const pgCode =
+    error && typeof error === 'object' && 'code' in error
+      ? String((error as { code?: string }).code ?? '')
+      : '';
+  if (pgCode === '23505') {
+    const { data: existing, error: fetchErr } = await supabase
+      .from('characters')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    throwIfError(fetchErr, '캐릭터 정보를 불러오지 못했습니다.');
+    if (existing) return existing as Character;
+  }
+
   throwIfError(error, '캐릭터 생성에 실패했습니다.');
-  return data as Character;
 }
 
 export async function getStarterCharacters(): Promise<StarterCharacter[]> {
@@ -550,10 +570,16 @@ export async function updateProfile(
   updates: Partial<Pick<Profile, 'username' | 'avatar_url' | 'explorer_type'>>,
 ): Promise<Profile> {
   const user = await getCurrentUser();
+  const row: { id: string } & Partial<
+    Pick<Profile, 'username' | 'avatar_url' | 'explorer_type'>
+  > = { id: user.id };
+  if (updates.username !== undefined) row.username = updates.username;
+  if (updates.avatar_url !== undefined) row.avatar_url = updates.avatar_url;
+  if (updates.explorer_type !== undefined) row.explorer_type = updates.explorer_type;
+
   const { data, error } = await supabase
     .from('profiles')
-    .update(updates)
-    .eq('id', user.id)
+    .upsert(row, { onConflict: 'id' })
     .select()
     .single();
   throwIfError(error, '프로필 수정에 실패했습니다.');

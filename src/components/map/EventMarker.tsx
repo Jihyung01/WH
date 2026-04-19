@@ -6,6 +6,7 @@ import {
   Platform,
   InteractionManager,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Marker } from 'react-native-maps';
 import Animated, {
   useSharedValue,
@@ -27,22 +28,30 @@ interface EventMarkerProps {
   onPress: (event: NearbyEvent) => void;
 }
 
-const MARKER_CONFIG: Record<string, { color: string; icon: string; label: string }> = {
-  [EventCategory.ACTIVITY]:   { color: '#00D68F', icon: '🏃', label: '탐험' },
-  [EventCategory.CULTURE]:    { color: '#48DBFB', icon: '📸', label: '인증' },
-  [EventCategory.HIDDEN_GEM]: { color: '#A29BFE', icon: '🧩', label: '퀴즈' },
-  [EventCategory.FOOD]:       { color: '#F0C040', icon: '⭐', label: '제휴' },
-  [EventCategory.CAFE]:       { color: '#F0C040', icon: '☕', label: '카페' },
-  [EventCategory.NATURE]:     { color: '#00D68F', icon: '🌿', label: '자연' },
-  [EventCategory.NIGHTLIFE]:  { color: '#A29BFE', icon: '🌙', label: '야간' },
-  [EventCategory.SHOPPING]:   { color: '#FF6B6B', icon: '🛍️', label: '쇼핑' },
-  [EventCategory.PHOTO]:      { color: '#3B82F6', icon: '📸', label: '포토' },
-  [EventCategory.QUIZ]:       { color: '#8B5CF6', icon: '🧩', label: '퀴즈' },
-  [EventCategory.PARTNERSHIP]:{ color: '#F59E0B', icon: '🤝', label: '제휴' },
+type IonName = React.ComponentProps<typeof Ionicons>['name'];
+
+const MARKER_CONFIG: Record<string, { color: string; ion: IonName; label: string }> = {
+  /** 레거시/별칭 */
+  activity: { color: '#00D68F', ion: 'navigate-outline', label: '탐험' },
+  [EventCategory.EXPLORATION]: { color: '#00D68F', ion: 'navigate-outline', label: '탐험' },
+  [EventCategory.CULTURE]: { color: '#48DBFB', ion: 'camera-outline', label: '인증' },
+  [EventCategory.HIDDEN_GEM]: { color: '#A29BFE', ion: 'sparkles-outline', label: '퀴즈' },
+  [EventCategory.FOOD]: { color: '#F0C040', ion: 'restaurant-outline', label: '제휴' },
+  [EventCategory.CAFE]: { color: '#F0C040', ion: 'cafe-outline', label: '카페' },
+  [EventCategory.NATURE]: { color: '#00D68F', ion: 'leaf-outline', label: '자연' },
+  [EventCategory.NIGHTLIFE]: { color: '#A29BFE', ion: 'moon-outline', label: '야간' },
+  [EventCategory.SHOPPING]: { color: '#FF6B6B', ion: 'bag-outline', label: '쇼핑' },
+  [EventCategory.PHOTO]: { color: '#3B82F6', ion: 'image-outline', label: '포토' },
+  [EventCategory.QUIZ]: { color: '#8B5CF6', ion: 'help-circle-outline', label: '퀴즈' },
+  [EventCategory.PARTNERSHIP]: { color: '#F59E0B', ion: 'people-outline', label: '제휴' },
 };
 
-function getMarkerConfig(category: string) {
-  return MARKER_CONFIG[category] ?? { color: COLORS.primary, icon: '📍', label: '이벤트' };
+function getMarkerConfig(category: string): {
+  color: string;
+  ion: IonName;
+  label: string;
+} {
+  return MARKER_CONFIG[category] ?? { color: COLORS.primary, ion: 'location-outline', label: '이벤트' };
 }
 
 const IS_ANDROID = Platform.OS === 'android';
@@ -113,16 +122,20 @@ function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps
     MARKER_LAYOUT.minHeight +
     (conditionalLabel && !isExpired ? (IS_ANDROID ? 22 : 18) : 0);
 
-  const [tracksViewChanges, setTracksViewChanges] = useState(IS_ANDROID);
+  const [tracksViewChanges, setTracksViewChanges] = useState(true);
 
   useEffect(() => {
-    if (!IS_ANDROID) return;
     let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     InteractionManager.runAfterInteractions(() => {
-      if (!cancelled) setTracksViewChanges(false);
+      const delayMs = IS_ANDROID ? 520 : 160;
+      timer = setTimeout(() => {
+        if (!cancelled) setTracksViewChanges(false);
+      }, delayMs);
     });
     return () => {
       cancelled = true;
+      if (timer) clearTimeout(timer);
     };
   }, [event.id]);
 
@@ -176,15 +189,12 @@ function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps
               },
             ]}
           >
-            <Text
-              style={[
-                styles.icon,
-                { fontSize: MARKER_LAYOUT.iconSize },
-                IS_ANDROID && styles.iconAndroid,
-              ]}
-            >
-              {isExpired ? '✓' : config.icon}
-            </Text>
+            <Ionicons
+              name={isExpired ? 'checkmark' : config.ion}
+              size={MARKER_LAYOUT.iconSize}
+              color="#FFFFFF"
+              style={IS_ANDROID ? styles.ionAndroid : undefined}
+            />
           </View>
         </View>
 
@@ -236,12 +246,8 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 4,
   },
-  icon: {
-    textAlign: 'center',
-  },
-  iconAndroid: {
-    includeFontPadding: false,
-    textAlignVertical: 'center',
+  ionAndroid: {
+    marginTop: -1,
   },
   arrow: {
     width: 0,

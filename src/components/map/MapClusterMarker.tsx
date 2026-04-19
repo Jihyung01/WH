@@ -60,11 +60,15 @@ function MapClusterMarkerInner({
   useEffect(() => {
     if (!isAndroid) return;
     let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     InteractionManager.runAfterInteractions(() => {
-      if (!cancelled) setTracksViewChanges(false);
+      timer = setTimeout(() => {
+        if (!cancelled) setTracksViewChanges(false);
+      }, 480);
     });
     return () => {
       cancelled = true;
+      if (timer) clearTimeout(timer);
     };
   }, [isAndroid, id]);
 

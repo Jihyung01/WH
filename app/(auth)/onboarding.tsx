@@ -12,7 +12,12 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import { createCharacter, updateProfile, profileNeedsPersonalityQuiz } from '../../src/lib/api';
+import {
+  AppError,
+  createCharacter,
+  updateProfile,
+  profileNeedsPersonalityQuiz,
+} from '../../src/lib/api';
 import { supabase } from '../../src/config/supabase';
 import { useAuthStore } from '../../src/stores/authStore';
 import { useCharacterStore } from '../../src/stores/characterStore';
@@ -218,12 +223,11 @@ export default function OnboardingScreen() {
         router.replace('/(tabs)/map');
       }, 1500);
     } catch (error) {
-      console.error('Character creation error:', error);
-      Alert.alert(
-        '생성 실패',
-        '캐릭터 생성 중 문제가 발생했습니다. 다시 시도해주세요.',
-        [{ text: '확인' }]
-      );
+      const detail =
+        error instanceof AppError
+          ? error.message
+          : '캐릭터 생성 중 문제가 발생했습니다. 다시 시도해주세요.';
+      Alert.alert('생성 실패', detail, [{ text: '확인' }]);
       celebrationScale.value = withTiming(0, { duration: 200 });
     } finally {
       setIsCreating(false);

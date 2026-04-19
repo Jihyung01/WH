@@ -61,16 +61,20 @@ function FriendMarkerContent({
     return Number.isFinite(ms) && ms >= 0 && ms < 5 * 60 * 1000;
   }, [friend.last_seen_at]);
 
-  const [tracksViewChanges, setTracksViewChanges] = useState(IS_ANDROID);
+  const [tracksViewChanges, setTracksViewChanges] = useState(true);
 
   useEffect(() => {
-    if (!IS_ANDROID) return;
     let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     InteractionManager.runAfterInteractions(() => {
-      if (!cancelled) setTracksViewChanges(false);
+      const delayMs = IS_ANDROID ? 520 : 160;
+      timer = setTimeout(() => {
+        if (!cancelled) setTracksViewChanges(false);
+      }, delayMs);
     });
     return () => {
       cancelled = true;
+      if (timer) clearTimeout(timer);
     };
   }, [friend.user_id]);
 
