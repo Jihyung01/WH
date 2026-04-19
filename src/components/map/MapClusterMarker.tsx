@@ -55,16 +55,16 @@ function MapClusterMarkerInner({
   const size = isAndroid ? Math.round(base.size * ANDROID_SCALE) : base.size;
   const fontSize = isAndroid ? Math.round(base.fontSize * ANDROID_SCALE) : base.fontSize;
 
-  const [tracksViewChanges, setTracksViewChanges] = useState(isAndroid);
+  const [tracksViewChanges, setTracksViewChanges] = useState(true);
 
   useEffect(() => {
-    if (!isAndroid) return;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     InteractionManager.runAfterInteractions(() => {
+      const delayMs = isAndroid ? 640 : 200;
       timer = setTimeout(() => {
         if (!cancelled) setTracksViewChanges(false);
-      }, 480);
+      }, delayMs);
     });
     return () => {
       cancelled = true;
@@ -85,47 +85,78 @@ function MapClusterMarkerInner({
       <View
         style={[styles.outer, isAndroid && { padding: ANDROID_PAD }]}
         collapsable={false}
+        renderToHardwareTextureAndroid={isAndroid}
       >
         <TouchableOpacity
           activeOpacity={0.5}
           style={[styles.container, { width, height }]}
         >
-          <View
-            style={[
-              styles.wrapper,
-              {
-                backgroundColor: clusterColor,
-                width,
-                height,
-                borderRadius: width / 2,
-              },
-            ]}
-          />
-          <View
-            style={[
-              styles.cluster,
-              {
-                backgroundColor: clusterColor,
-                width: size,
-                height: size,
-                borderRadius: size / 2,
-              },
-            ]}
-          >
-            <Text
+          {isAndroid ? (
+            <View
               style={[
-                styles.text,
+                styles.clusterAndroid,
                 {
-                  color: clusterTextColor,
-                  fontSize,
-                  fontFamily: clusterFontFamily,
+                  backgroundColor: clusterColor,
+                  width: size,
+                  height: size,
+                  borderRadius: size / 2,
+                  borderColor: 'rgba(255,255,255,0.38)',
                 },
-                isAndroid && styles.textAndroid,
               ]}
             >
-              {points}
-            </Text>
-          </View>
+              <Text
+                style={[
+                  styles.text,
+                  {
+                    color: clusterTextColor,
+                    fontSize,
+                    fontFamily: clusterFontFamily,
+                  },
+                  styles.textAndroid,
+                ]}
+              >
+                {points}
+              </Text>
+            </View>
+          ) : (
+            <>
+              <View
+                style={[
+                  styles.wrapper,
+                  {
+                    backgroundColor: clusterColor,
+                    width,
+                    height,
+                    borderRadius: width / 2,
+                  },
+                ]}
+              />
+              <View
+                style={[
+                  styles.cluster,
+                  {
+                    backgroundColor: clusterColor,
+                    width: size,
+                    height: size,
+                    borderRadius: size / 2,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.text,
+                    {
+                      color: clusterTextColor,
+                      fontSize,
+                      fontFamily: clusterFontFamily,
+                    },
+                  ]}
+                >
+                  {points}
+                </Text>
+              </View>
+            </>
+          )}
         </TouchableOpacity>
       </View>
     </Marker>
@@ -153,6 +184,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1,
+  },
+  /** Android Map marker: two stacked circles often clip to half-moons; one disc + border ring instead. */
+  clusterAndroid: {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    elevation: 0,
   },
   text: {
     fontWeight: 'bold',

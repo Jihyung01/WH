@@ -99,6 +99,7 @@ function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps
   const pulseVisible = useSharedValue(0);
 
   useEffect(() => {
+    if (IS_ANDROID) return;
     pulseVisible.value = isInRange && !isExpired ? 1 : 0;
     if (isInRange && !isExpired) {
       pulseOpacity.value = withRepeat(
@@ -128,7 +129,8 @@ function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     InteractionManager.runAfterInteractions(() => {
-      const delayMs = IS_ANDROID ? 520 : 160;
+      /** Android: no Reanimated inside marker — shorter settle is enough. Slightly longer avoids half-bitmap. */
+      const delayMs = IS_ANDROID ? 720 : 160;
       timer = setTimeout(() => {
         if (!cancelled) setTracksViewChanges(false);
       }, delayMs);
@@ -138,6 +140,8 @@ function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps
       if (timer) clearTimeout(timer);
     };
   }, [event.id]);
+
+  const showAndroidStaticPulse = IS_ANDROID && isInRange && !isExpired;
 
   return (
     <Marker
@@ -152,11 +156,14 @@ function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps
           {
             opacity: markerOpacity,
             width: MARKER_LAYOUT.containerWidth,
-            minHeight: containerMinHeight,
+            ...(IS_ANDROID
+              ? { height: containerMinHeight, minHeight: undefined }
+              : { minHeight: containerMinHeight }),
             paddingBottom: MARKER_LAYOUT.paddingBottom,
           },
         ]}
         collapsable={false}
+        renderToHardwareTextureAndroid={IS_ANDROID}
       >
         <View
           style={[
@@ -164,23 +171,42 @@ function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps
             { width: MARKER_LAYOUT.markerBody, height: MARKER_LAYOUT.markerBody },
           ]}
         >
-          <Animated.View
-            pointerEvents="none"
-            style={[
-              styles.pulseRing,
-              {
-                width: MARKER_LAYOUT.pulseRing,
-                height: MARKER_LAYOUT.pulseRing,
-                borderRadius: MARKER_LAYOUT.pulseRing / 2,
-                borderColor: markerColor,
-              },
-              pulseStyle,
-            ]}
-          />
+          {IS_ANDROID ? (
+            showAndroidStaticPulse ? (
+              <View
+                pointerEvents="none"
+                style={[
+                  styles.pulseRing,
+                  styles.pulseRingAndroidStatic,
+                  {
+                    width: MARKER_LAYOUT.pulseRing,
+                    height: MARKER_LAYOUT.pulseRing,
+                    borderRadius: MARKER_LAYOUT.pulseRing / 2,
+                    borderColor: markerColor,
+                  },
+                ]}
+              />
+            ) : null
+          ) : (
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.pulseRing,
+                {
+                  width: MARKER_LAYOUT.pulseRing,
+                  height: MARKER_LAYOUT.pulseRing,
+                  borderRadius: MARKER_LAYOUT.pulseRing / 2,
+                  borderColor: markerColor,
+                },
+                pulseStyle,
+              ]}
+            />
+          )}
 
           <View
             style={[
               styles.bubble,
+              IS_ANDROID && styles.bubbleAndroid,
               {
                 backgroundColor: markerColor,
                 width: MARKER_LAYOUT.bubble,
@@ -235,6 +261,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     borderWidth: 3,
   },
+  /** Reanimated + Map marker bitmap on Android often clips rings to arcs; static ring only. */
+  pulseRingAndroidStatic: {
+    opacity: 0.42,
+  },
   bubble: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -245,6 +275,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 4,
+  },
+  bubbleAndroid: {
+    elevation: 0,
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    shadowOffset: { width: 0, height: 0 },
   },
   ionAndroid: {
     marginTop: -1,
