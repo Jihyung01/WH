@@ -33,8 +33,13 @@ import { PressableScale } from '../../src/components/ui';
 export default function LoginScreen() {
   const router = useRouter();
   const { colors } = useTheme();
-  const { signInWithKakao, signInWithApple, signInWithEmailPassword, checkOnboardingStatus } =
-    useAuthStore();
+  const {
+    signInWithKakao,
+    signInWithApple,
+    signInWithGoogle,
+    signInWithEmailPassword,
+    checkOnboardingStatus,
+  } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
   const [emailExpanded, setEmailExpanded] = useState(false);
   const [email, setEmail] = useState('');
@@ -132,6 +137,27 @@ export default function LoginScreen() {
     }
   };
 
+  const handleGoogleLogin = async () => {
+    try {
+      setIsLoading(true);
+      await signInWithGoogle();
+      await routeAfterLogin();
+    } catch (error: unknown) {
+      const msg =
+        error instanceof Error ? error.message : typeof error === 'string' ? error : '';
+      if (msg.includes('cancel') || msg.includes('취소')) return;
+      Alert.alert(
+        '로그인 실패',
+        msg.trim().length > 0
+          ? msg.trim()
+          : '구글 로그인 중 문제가 발생했습니다. 다시 시도해주세요.',
+        [{ text: '확인' }],
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleAppleLogin = async () => {
     try {
       setIsLoading(true);
@@ -222,6 +248,21 @@ export default function LoginScreen() {
             <Text style={styles.kakaoIcon}>💬</Text>
             <Text style={styles.kakaoButtonText}>
               {isLoading ? '로그인 중...' : '카카오로 시작하기'}
+            </Text>
+          </PressableScale>
+        </Animated.View>
+
+        <Animated.View style={[buttonAnimatedStyle, { marginTop: 12 }]}>
+          <PressableScale
+            style={[styles.googleButton, { borderColor: colors.border }]}
+            onPress={handleGoogleLogin}
+            disabled={isLoading}
+            accessibilityLabel="구글로 로그인하기"
+            accessibilityRole="button"
+          >
+            <Text style={styles.googleIcon}>G</Text>
+            <Text style={[styles.googleButtonText, { color: colors.textPrimary }]}>
+              {isLoading ? '로그인 중...' : '구글로 시작하기'}
             </Text>
           </PressableScale>
         </Animated.View>
@@ -419,6 +460,34 @@ const styles = StyleSheet.create({
   },
   kakaoButtonText: {
     color: BRAND.kakaoText,
+    fontSize: FONT_SIZE.lg,
+    fontWeight: FONT_WEIGHT.bold,
+  },
+  googleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 18,
+    borderRadius: BORDER_RADIUS.lg,
+    gap: SPACING.sm,
+    borderWidth: 1,
+    ...SHADOWS.sm,
+  },
+  googleIcon: {
+    width: 26,
+    height: 26,
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    fontSize: 18,
+    fontWeight: FONT_WEIGHT.extrabold,
+    color: '#4285F4',
+    backgroundColor: '#F1F3F4',
+    borderRadius: 13,
+    lineHeight: 26,
+    overflow: 'hidden',
+  },
+  googleButtonText: {
     fontSize: FONT_SIZE.lg,
     fontWeight: FONT_WEIGHT.bold,
   },

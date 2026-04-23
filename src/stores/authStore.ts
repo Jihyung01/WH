@@ -44,6 +44,7 @@ interface AuthState {
   forceAuthGateOpen: () => void;
   signInWithKakao: () => Promise<void>;
   signInWithApple: () => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
   signInWithEmailPassword: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   initializeAuth: () => Promise<void>;
@@ -161,6 +162,116 @@ async function applySessionFromOAuthRedirectUrl(url: string): Promise<Session | 
   throw new Error(
     '로그인 응답에 인증 코드가 없습니다. Supabase Redirect URLs에 앱에서 사용하는 리다이렉트 주소가 그대로 등록되어 있는지 확인해주세요.',
   );
+}
+
+/**
+ * Shared web-OAuth helper for Supabase providers that don't have a native SDK
+ * installed in this app (Google). Follows the same flow the Kakao fallback
+ * branch uses: open the provider URL → catch `wherehere://auth/callback` via
+ * `Linking`, fall back to `WebBrowser.openAuthSessionAsync` on iOS.
+ *
+ * Returns the new Session on success (caller is responsible for storing it).
+ */
+async function runSupabaseWebOAuth(
+  provider: 'google',
+): Promise<Session | null> {
+  assertSupabaseUrlConfigured();
+
+  const redirectTo = Linking.createURL('/auth/callback');
+  const authSessionReturnUrl =
+    Platform.OS === 'android' ? 'wherehere://' : redirectTo;
+
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider,
+    options: {
+      redirectTo,
+      skipBrowserRedirect: true,
+      /** Google consent: always prompt so account switching works after logout. */
+      ...(provider === 'google'
+        ? { queryParams: { prompt: 'select_account', access_type: 'offline' } }
+        : {}),
+    },
+  });
+  if (error) throw error;
+  if (!data.url) throw new Error('OAuth URL을 받지 못했습니다.');
+
+  const flow = { handled: false, session: null as Session | null, flowError: null as Error | null };
+
+  const tryConsumeOAuthUrl = async (url: string | undefined | null): Promise<void> => {
+    const u = url?.trim();
+    if (!u || flow.handled) return;
+    flow.flowError = null;
+    try {
+      const session = await applySessionFromOAuthRedirectUrl(u);
+      if (session) {
+        flow.session = session;
+        flow.handled = true;
+      }
+    } catch (e) {
+      if (!flow.handled) flow.flowError = e instanceof Error ? e : new Error(String(e));
+    }
+  };
+
+  const linkingSub = Linking.addEventListener('url', ({ url }) => {
+    void tryConsumeOAuthUrl(url);
+  });
+
+  const pollSnapshot = async (): Promise<void> => {
+    const snap = Linking.getLinkingURL();
+    if (snap) await tryConsumeOAuthUrl(snap);
+  };
+
+  const onAppState = (s: AppStateStatus): void => {
+    if (s === 'active') void pollSnapshot();
+  };
+  const appStateSub = AppState.addEventListener('change', onAppState);
+
+  try {
+    await pollSnapshot();
+
+    if (Platform.OS === 'android') {
+      try {
+        await Linking.openURL(data.url);
+      } catch {
+        await WebBrowser.openBrowserAsync(data.url);
+      }
+      for (let i = 0; i < 250 && !flow.handled; i++) {
+        await new Promise((r) => setTimeout(r, 100));
+        if (i % 2 === 0) await pollSnapshot();
+      }
+    } else {
+      const result = await WebBrowser.openAuthSessionAsync(data.url, authSessionReturnUrl);
+      if (result.type === 'success' && result.url) {
+        await tryConsumeOAuthUrl(result.url);
+      }
+      if (!flow.handled && (result.type === 'dismiss' || result.type === 'cancel')) {
+        for (let i = 0; i < 90 && !flow.handled; i++) {
+          await new Promise((r) => setTimeout(r, 100));
+          if (i % 2 === 0) await pollSnapshot();
+        }
+      }
+    }
+
+    if (flow.flowError) throw flow.flowError;
+    if (!flow.handled) {
+      throw new Error(
+        `구글 로그인 후 앱으로 돌아오지 못했거나 인증 주소가 맞지 않습니다.\n\n` +
+          `Supabase 대시보드 → Authentication → URL Configuration → Redirect URLs에 아래 주소를 그대로 추가하세요.\n` +
+          `${redirectTo}\n\n` +
+          `Google Cloud Console → OAuth 2.0 Client ID의 Authorized redirect URI 에도 Supabase Google 콜백(…/auth/v1/callback)이 등록되어 있어야 합니다.`,
+      );
+    }
+    return flow.session;
+  } finally {
+    appStateSub.remove();
+    linkingSub.remove();
+    try {
+      await WebBrowser.dismissBrowser();
+    } catch {
+      /* browser may already be closed */
+    }
+    await new Promise((r) => setTimeout(r, 200));
+  }
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -389,6 +500,27 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
     } catch (error) {
       console.error('Apple login error:', error);
+      throw error;
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  signInWithGoogle: async () => {
+    try {
+      set({ isLoading: true });
+      const session = await runSupabaseWebOAuth('google');
+      if (session) {
+        await ensureProfileRow(session.user);
+        set({
+          session,
+          user: session.user,
+          isAuthenticated: true,
+        });
+        void useModerationStore.getState().refreshBlockedUsers();
+      }
+    } catch (error) {
+      if (__DEV__) console.error('Google login error:', error);
       throw error;
     } finally {
       set({ isLoading: false });

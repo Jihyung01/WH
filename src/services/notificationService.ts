@@ -1,7 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
-import api from './api';
+import { savePushToken } from '../lib/api';
 import { useNotificationStore } from '../stores/notificationStore';
 
 const DAILY_REMINDER_ID = 'daily-reminder';
@@ -67,10 +67,15 @@ export const notificationService = {
 
       useNotificationStore.getState().setPushToken(token);
 
+      /**
+       * Previously this POSTed to `/users/me/push-token` via the axios wrapper,
+       * but the app has no separate API server (see CLAUDE.md). All persistence
+       * goes through Supabase — write the token into `profiles.push_token`.
+       */
       try {
-        await api.post('/users/me/push-token', { token });
+        await savePushToken(token);
       } catch {
-        // server unreachable — token saved locally for retry
+        // Supabase unreachable — token still lives in the Zustand store for retry.
       }
 
       return token;

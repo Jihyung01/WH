@@ -141,6 +141,13 @@ export const backgroundLocationService = {
       distanceInterval: liveMode ? 10 : 40,
       deferredUpdatesInterval: liveMode ? 15000 : 45000,
       showsBackgroundLocationIndicator: true,
+      /** iOS: prevent the system from pausing updates when the device is stationary
+       * (would stop friend live sharing for long periods). */
+      pausesUpdatesAutomatically: false,
+      /** iOS hint: "Other" keeps location running in the background but lets iOS
+       * slow it down intelligently when the user isn't moving. The enum is
+       * re-exported from `expo-location` as `ActivityType`. */
+      activityType: Location.ActivityType.Other,
       foregroundService: {
         notificationTitle: 'WhereHere',
         notificationBody: '친구에게 위치 공유 중 · 주변 탐험 알림',
@@ -201,7 +208,23 @@ export async function syncContinuousLocationTask(options: {
   }
 
   const { status } = await Location.getBackgroundPermissionsAsync();
-  if (status !== 'granted') return;
+  if (status !== 'granted') {
+    /**
+     * User revoked background location from system settings while we were
+     * still carrying `friend_live_sharing=true` locally. Clear the flag so the
+     * Social tab's toggle reflects reality and we stop nagging the background
+     * task on every cold start.
+     */
+    if (wantFriend) {
+      try {
+        await AsyncStorage.removeItem(FRIEND_LIVE_SHARING_STORAGE_KEY);
+      } catch {
+        /* best-effort cleanup */
+      }
+    }
+    await backgroundLocationService.stop();
+    return;
+  }
 
   await backgroundLocationService.start({ friendLiveSharing: wantFriend });
 }

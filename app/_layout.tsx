@@ -7,6 +7,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StyleSheet, Alert } from 'react-native';
 import * as Linking from 'expo-linking';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
+import { useFonts } from 'expo-font';
+import { Ionicons } from '@expo/vector-icons';
 
 void SplashScreen.preventAutoHideAsync();
 
@@ -25,9 +27,24 @@ function AppContent() {
   const responseListener = useRef<{ remove: () => void } | undefined>(undefined);
   const cancelled = useRef(false);
 
+  /**
+   * Preload Ionicons so Android MapView bitmap capture never races a missing
+   * glyph (→ "?" / clipped icon on first map frame). Other tabs using Ionicons
+   * also benefit. Failure is non-fatal — we still release the splash on a
+   * short timeout so a font-load bug never leaves the user on the splash.
+   */
+  const [fontsReady] = useFonts({ ...Ionicons.font });
+
   useEffect(() => {
-    SplashScreen.hideAsync().catch(() => {});
-  }, []);
+    if (fontsReady) {
+      SplashScreen.hideAsync().catch(() => {});
+      return;
+    }
+    const t = setTimeout(() => {
+      SplashScreen.hideAsync().catch(() => {});
+    }, 2500);
+    return () => clearTimeout(t);
+  }, [fontsReady]);
 
   useEffect(() => {
     useWeatherStore.getState().syncTimeOfDay();

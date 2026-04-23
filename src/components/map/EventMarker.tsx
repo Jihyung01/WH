@@ -56,18 +56,24 @@ function getMarkerConfig(category: string): {
 
 const IS_ANDROID = Platform.OS === 'android';
 
-/** Android MapView often under-measures custom Marker children; explicit box + one tracksViewChanges pass fixes clipping. */
+/**
+ * Android MapView rasterises custom Markers into a bitmap bounded by the measured
+ * container. When the pulse ring was position:absolute with no top/left the ring
+ * was pinned at [0,0] of `markerBody` and the bottom/right corners were clipped
+ * (→ "호" 모양). We now give the ring explicit centred coords and size the body
+ * exactly to fit the ring + a small rim so no child can overshoot the bitmap.
+ */
 const MARKER_LAYOUT = IS_ANDROID
   ? {
-      containerWidth: 72,
-      minHeight: 78,
-      markerBody: 60,
+      containerWidth: 88,
+      minHeight: 94,
+      markerBody: 72,
       bubble: 44,
-      pulseRing: 56,
+      pulseRing: 62,
       iconSize: 20,
-      paddingBottom: 10,
-      arrowTop: 9,
-      arrowSide: 7,
+      paddingBottom: 12,
+      arrowTop: 10,
+      arrowSide: 8,
     }
   : {
       containerWidth: 64,
@@ -80,6 +86,9 @@ const MARKER_LAYOUT = IS_ANDROID
       arrowTop: 8,
       arrowSide: 6,
     };
+
+/** Exact half-offset so position:absolute rings always draw centred on the bubble. */
+const PULSE_RING_TOP = (MARKER_LAYOUT.markerBody - MARKER_LAYOUT.pulseRing) / 2;
 
 function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps) {
   const config = getMarkerConfig(event.category);
@@ -129,8 +138,12 @@ function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     InteractionManager.runAfterInteractions(() => {
-      /** Android: no Reanimated inside marker — shorter settle is enough. Slightly longer avoids half-bitmap. */
-      const delayMs = IS_ANDROID ? 720 : 160;
+      /**
+       * Android: bitmap needs to capture *after* Ionicons glyphs are rasterised by
+       * the text shaper. 900ms is conservative but avoids the "?" / half-glyph
+       * case on cold start. iOS captures immediately.
+       */
+      const delayMs = IS_ANDROID ? 900 : 160;
       timer = setTimeout(() => {
         if (!cancelled) setTracksViewChanges(false);
       }, delayMs);
@@ -149,6 +162,10 @@ function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps
       coordinate={coordinate}
       onPress={() => onPress(event)}
       tracksViewChanges={tracksViewChanges}
+      /** Google Maps bitmap anchor: center-x, bottom (tip of the arrow points to the coordinate). */
+      anchor={IS_ANDROID ? { x: 0.5, y: 1 } : undefined}
+      /** Android flatten layer avoids extra RenderNode clipping during bitmap capture. */
+      flat={false}
     >
       <View
         style={[
@@ -179,6 +196,8 @@ function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps
                   styles.pulseRing,
                   styles.pulseRingAndroidStatic,
                   {
+                    top: PULSE_RING_TOP,
+                    left: PULSE_RING_TOP,
                     width: MARKER_LAYOUT.pulseRing,
                     height: MARKER_LAYOUT.pulseRing,
                     borderRadius: MARKER_LAYOUT.pulseRing / 2,
@@ -193,6 +212,8 @@ function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps
               style={[
                 styles.pulseRing,
                 {
+                  top: PULSE_RING_TOP,
+                  left: PULSE_RING_TOP,
                   width: MARKER_LAYOUT.pulseRing,
                   height: MARKER_LAYOUT.pulseRing,
                   borderRadius: MARKER_LAYOUT.pulseRing / 2,
@@ -219,7 +240,9 @@ function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps
               name={isExpired ? 'checkmark' : config.ion}
               size={MARKER_LAYOUT.iconSize}
               color="#FFFFFF"
+              /** Android: disable font padding / force vertical centre so the glyph is not baseline-clipped. */
               style={IS_ANDROID ? styles.ionAndroid : undefined}
+              allowFontScaling={false}
             />
           </View>
         </View>
@@ -284,6 +307,9 @@ const styles = StyleSheet.create({
   },
   ionAndroid: {
     marginTop: -1,
+    includeFontPadding: false,
+    textAlignVertical: 'center',
+    textAlign: 'center',
   },
   arrow: {
     width: 0,
