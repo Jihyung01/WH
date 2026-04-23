@@ -105,13 +105,57 @@ function inferUsername(user: User): string {
 }
 
 async function ensureProfileRow(user: User): Promise<void> {
-  // Fallback safety in case auth.users -> profiles trigger is missing in a deployed DB.
-  const username = inferUsername(user);
-  const { error } = await supabase
-    .from('profiles')
-    .upsert({ id: user.id, username }, { onConflict: 'id' });
-  if (error) {
-    console.warn('[auth] ensureProfileRow failed:', error);
+  // Fallback safety in case auth.users -> profiles trigger is missing/failed in a deployed DB.
+  // 이미 row가 있으면 그대로 두고, 없을 때만 INSERT. username UNIQUE 충돌 회피를 위해
+  // 후보 → (후보_suffix) → UUID 기반 fallback 순으로 시도한다.
+  try {
+    const { data: existing, error: selectError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', user.id)
+      .maybeSingle();
+    if (!selectError && existing) return; // 트리거가 이미 성공적으로 만든 경우
+
+    const candidate = inferUsername(user);
+    const uuidFallback = `user_${user.id.replace(/-/g, '')}`;
+
+    // 1) 기본 후보로 insert
+    let { error: insertError } = await supabase
+      .from('profiles')
+      .insert({ id: user.id, username: candidate });
+    if (!insertError) return;
+
+    // 23505 = unique_violation: id 충돌이면 이미 존재 → 성공 처리
+    if ((insertError as { code?: string }).code === '23505') {
+      // id 충돌(이미 생성됨)이면 OK, username 충돌이면 재시도
+      const { data: reCheck } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (reCheck) return;
+
+      // 2) 랜덤 suffix 붙여서 재시도
+      const suffix = Math.random().toString(36).slice(2, 6);
+      const withSuffix = `${candidate.slice(0, 24)}_${suffix}`;
+      const { error: retryError } = await supabase
+        .from('profiles')
+        .insert({ id: user.id, username: withSuffix });
+      if (!retryError) return;
+
+      // 3) 최종 fallback: UUID 기반 (충돌 불가능)
+      const { error: finalError } = await supabase
+        .from('profiles')
+        .insert({ id: user.id, username: uuidFallback });
+      if (finalError) {
+        console.warn('[auth] ensureProfileRow final fallback failed:', finalError);
+      }
+      return;
+    }
+
+    console.warn('[auth] ensureProfileRow insert failed:', insertError);
+  } catch (e) {
+    console.warn('[auth] ensureProfileRow threw:', e);
   }
 }
 
