@@ -52,7 +52,7 @@ AI 서사 + 순우리말 캐릭터 + 게이미피케이션을 결합한 서비�
 - 결제: react-native-purchases (RevenueCat; 초기화 코드 존재, 실제 상품 미설정)
 - 분석: Mixpanel, Sentry (`@sentry/react-native`)
 - 빌드: EAS Build/Update (`eas.json` production **channel**: `production`)
-- OTA: expo-updates (checkAutomatically: ON_LOAD, `app.json` runtimeVersion 정책: appVersion → 현재 **1.1.0**)
+- OTA: expo-updates (checkAutomatically: ON_LOAD, `app.json` runtimeVersion 정책: appVersion → 현재 **1.2.0**)
 
 별도 API 서버 없음. FastAPI 없음. Railway 없음.
 모든 백엔드 로직은 Supabase 직접 호출 + RPC 함수 + Edge Functions로 처리.
@@ -66,7 +66,7 @@ AI 서사 + 순우리말 캐릭터 + 게이미피케이션을 결합한 서비�
 | App Store (iOS) | ✅ 배포 완료 (v1.1.0) | 네이티브 변경 시 재빌드+재심사 필요 (1~3일) |
 | Google Play | 🔶 내부 테스트 (테스터 3명) | 12명 확보 후 14일 대기 → 프로덕션 신청 |
 | OTA (EAS Update) | ✅ 활성 | JS 코드 변경은 OTA로 즉시 배포 가능 |
-| Runtime Version | 1.1.0 | 네이티브 변경 없으면 이 버전으로 OTA 계속 가능 |
+| Runtime Version | 1.2.0 | 네이티브 변경 없으면 이 버전으로 OTA 계속 가능 |
 
 ### OTA vs Production 빌드 판단 기준
 
@@ -189,6 +189,15 @@ profileStore, questStore, storage, supabaseAuthStorage, uiStore
 
 ## 코딩 규칙
 
+### Android 지도 마커 (중요)
+
+- `react-native-maps` Android GoogleMap의 custom `<Marker>`는 RN View를 실제 View로 유지하지 않고, `AirMapMarker/MapMarker`가 ShadowNode의 measured width/height로 비트맵을 만든 뒤 `marker.setIcon()`에 넣는다.
+- 이 비트맵 캡처 경로는 Samsung One UI/Z Flip 같은 고DPI Android에서 `borderRadius` 원, `position: absolute` 링, elevation/shadow, Reanimated, SVG, emoji/icon font, 늦게 로드되는 이미지가 잘리거나 누락될 수 있다.
+- Android 지도 마커는 원칙적으로 `<Marker image={require(...)} />` 로컬 PNG 자산을 사용한다. 이벤트/친구/클러스터/UGC 등 새 마커를 만들 때도 Android는 이미지 마커를 우선한다.
+- iOS는 기존 custom Marker View가 정상 동작하므로, iOS 분기는 불필요하게 바꾸지 않는다.
+- Android에서 마커 내부에 복잡한 UI가 필요하면 지도 마커는 단순 이미지로 두고, 상세 UI는 바텀시트/오버레이/콜아웃에서 보여준다.
+- Android 마커 자산은 `assets/map-markers/`에 `@1x/@2x/@3x` PNG로 추가하고, 새 네이티브 패키지나 `app.json` 변경 없이 OTA 가능한 범위에서 처리한다.
+
 ### TypeScript
 - strict 모드. any 사용 금지.
 - 모든 함수에 반환 타입 명시.
@@ -238,7 +247,8 @@ profileStore, questStore, storage, supabaseAuthStorage, uiStore
 
 ### Git / 배포
 - 기능 완료 후: git add + commit + push
-- OTA 배포: `npm run eas:update:prod` 또는 `eas update --channel production --message "변경 설명"`
+- OTA 배포: `npm run eas:update:prod` 또는 `eas update --channel production --environment production --message "변경 설명"`
+- 앱 코드/번들 자산 변경 완료 후 기본 흐름은 `git add` → `git commit` → `git push` → production OTA 배포까지 진행한다. 문서만 변경한 경우 OTA는 불필요하며 커밋/푸시만 한다.
 - Edge Function 배포: `npx supabase functions deploy [함수명]` (로컬에 CLI 없을 때)
 - DB 변경: supabase db push
 
