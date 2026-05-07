@@ -15,6 +15,7 @@ import Animated, {
   withTiming,
   Easing,
 } from 'react-native-reanimated';
+import Svg, { Circle as SvgCircle } from 'react-native-svg';
 import { EventCategory } from '../../types/enums';
 import type { NearbyEvent, GeoPoint } from '../../types';
 import { getConditionalEventTag } from '../../services/weather';
@@ -64,9 +65,12 @@ function getMarkerConfig(category: string): {
 
 const IS_ANDROID = Platform.OS === 'android';
 const ANDROID_MARKER_WIDTH = 96;
-const ANDROID_MARKER_HEIGHT = 64;
+const ANDROID_MARKER_HEIGHT = 72;
 const ANDROID_MARKER_BOTTOM_HEIGHT = 22;
-const ANDROID_BUBBLE_SIZE = 44;
+const ANDROID_BUBBLE_FRAME_SIZE = 56;
+const ANDROID_BUBBLE_RADIUS = 21;
+const ANDROID_BUBBLE_CENTER = ANDROID_BUBBLE_FRAME_SIZE / 2;
+const ANDROID_HALO_RADIUS = 25;
 
 function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps) {
   const config = getMarkerConfig(event.category);
@@ -146,17 +150,40 @@ function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps
         >
           <View
             style={[
-              styles.androidBubble,
-              {
-                backgroundColor: markerColor,
-                opacity: markerOpacity,
-                borderColor: isInRange && !isExpired ? '#FFFFFF' : 'rgba(255,255,255,0.55)',
-              },
+              styles.androidBubbleFrame,
+              { opacity: markerOpacity },
             ]}
           >
-            <Text style={styles.androidEmoji} allowFontScaling={false}>
-              {isExpired ? '✅' : config.emoji}
-            </Text>
+            <Svg
+              width={ANDROID_BUBBLE_FRAME_SIZE}
+              height={ANDROID_BUBBLE_FRAME_SIZE}
+              viewBox={`0 0 ${ANDROID_BUBBLE_FRAME_SIZE} ${ANDROID_BUBBLE_FRAME_SIZE}`}
+            >
+              {isInRange && !isExpired ? (
+                <SvgCircle
+                  cx={ANDROID_BUBBLE_CENTER}
+                  cy={ANDROID_BUBBLE_CENTER}
+                  r={ANDROID_HALO_RADIUS}
+                  fill="none"
+                  stroke={markerColor}
+                  strokeWidth={3}
+                  opacity={0.38}
+                />
+              ) : null}
+              <SvgCircle
+                cx={ANDROID_BUBBLE_CENTER}
+                cy={ANDROID_BUBBLE_CENTER}
+                r={ANDROID_BUBBLE_RADIUS}
+                fill={markerColor}
+                stroke={isInRange && !isExpired ? '#FFFFFF' : 'rgba(255,255,255,0.55)'}
+                strokeWidth={3}
+              />
+            </Svg>
+            <View style={styles.androidEmojiLayer} pointerEvents="none">
+              <Text style={styles.androidEmoji} allowFontScaling={false}>
+                {isExpired ? '✅' : config.emoji}
+              </Text>
+            </View>
           </View>
           {conditionalLabel && !isExpired ? (
             <View style={styles.androidTag} collapsable={false}>
@@ -262,11 +289,18 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
     overflow: 'visible',
   },
-  androidBubble: {
-    width: ANDROID_BUBBLE_SIZE,
-    height: ANDROID_BUBBLE_SIZE,
-    borderRadius: ANDROID_BUBBLE_SIZE / 2,
-    borderWidth: 3,
+  androidBubbleFrame: {
+    width: ANDROID_BUBBLE_FRAME_SIZE,
+    height: ANDROID_BUBBLE_FRAME_SIZE,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  androidEmojiLayer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: ANDROID_BUBBLE_FRAME_SIZE,
+    height: ANDROID_BUBBLE_FRAME_SIZE,
     alignItems: 'center',
     justifyContent: 'center',
   },
