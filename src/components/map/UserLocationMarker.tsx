@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
-import { View, StyleSheet } from 'react-native';
-import { Marker, Circle } from 'react-native-maps';
+import { Platform, Text, View, StyleSheet } from 'react-native';
+import { Marker, Circle as MapCircle } from 'react-native-maps';
+import Svg, { Circle as SvgCircle, G, Path } from 'react-native-svg';
 import { CharacterAvatar } from '../character/CharacterAvatar';
 import Animated, {
   useSharedValue,
@@ -11,6 +12,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import type { GeoPoint } from '../../types';
 import { CHECK_IN_RADIUS_METERS } from '../../utils/constants';
+import { getCharacterEmoji, getEvolutionStage } from '../../utils/characterAssets';
 
 interface UserLocationMarkerProps {
   position: GeoPoint;
@@ -20,6 +22,10 @@ interface UserLocationMarkerProps {
   characterLevel?: number;
   favoriteDistrict?: string | null;
 }
+
+const IS_ANDROID = Platform.OS === 'android';
+const ANDROID_MARKER_SIZE = 80;
+const ANDROID_CENTER = ANDROID_MARKER_SIZE / 2;
 
 export function UserLocationMarker({
   position,
@@ -50,10 +56,87 @@ export function UserLocationMarker({
     opacity: pulseOpacity.value,
   }));
 
+  const androidEmoji =
+    characterType != null && characterLevel != null
+      ? getCharacterEmoji(characterType, getEvolutionStage(characterLevel))
+      : null;
+
+  if (IS_ANDROID) {
+    return (
+      <>
+        {showRadius && (
+          <MapCircle
+            center={position}
+            radius={CHECK_IN_RADIUS_METERS}
+            fillColor="rgba(108, 92, 231, 0.08)"
+            strokeColor="rgba(108, 92, 231, 0.25)"
+            strokeWidth={1}
+          />
+        )}
+
+        <Marker
+          identifier="user-location"
+          coordinate={position}
+          anchor={{ x: 0.5, y: 0.5 }}
+          flat
+          tracksViewChanges
+        >
+          <View
+            style={styles.androidContainer}
+            collapsable={false}
+            renderToHardwareTextureAndroid
+          >
+            <Svg
+              width={ANDROID_MARKER_SIZE}
+              height={ANDROID_MARKER_SIZE}
+              viewBox={`0 0 ${ANDROID_MARKER_SIZE} ${ANDROID_MARKER_SIZE}`}
+            >
+              {heading !== null ? (
+                <G transform={`rotate(${heading} ${ANDROID_CENTER} ${ANDROID_CENTER})`}>
+                  <Path
+                    d={`M${ANDROID_CENTER} 8 L${ANDROID_CENTER - 12} 36 L${ANDROID_CENTER + 12} 36 Z`}
+                    fill="rgba(72, 219, 251, 0.16)"
+                  />
+                </G>
+              ) : null}
+              <SvgCircle
+                cx={ANDROID_CENTER}
+                cy={ANDROID_CENTER}
+                r={27}
+                fill="rgba(72, 219, 251, 0.14)"
+              />
+              <SvgCircle
+                cx={ANDROID_CENTER}
+                cy={ANDROID_CENTER}
+                r={19}
+                fill="rgba(72, 219, 251, 0.36)"
+                stroke="rgba(255,255,255,0.92)"
+                strokeWidth={3}
+              />
+              <SvgCircle
+                cx={ANDROID_CENTER}
+                cy={ANDROID_CENTER}
+                r={10}
+                fill={androidEmoji ? 'rgba(15,23,42,0.82)' : '#48DBFB'}
+              />
+            </Svg>
+            {androidEmoji ? (
+              <View style={styles.androidEmojiLayer} pointerEvents="none">
+                <Text style={styles.androidEmoji} allowFontScaling={false}>
+                  {androidEmoji}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        </Marker>
+      </>
+    );
+  }
+
   return (
     <>
       {showRadius && (
-        <Circle
+        <MapCircle
           center={position}
           radius={CHECK_IN_RADIUS_METERS}
           fillColor="rgba(108, 92, 231, 0.08)"
@@ -112,6 +195,29 @@ const styles = StyleSheet.create({
     height: 80,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  androidContainer: {
+    width: ANDROID_MARKER_SIZE,
+    height: ANDROID_MARKER_SIZE,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'visible',
+  },
+  androidEmojiLayer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: ANDROID_MARKER_SIZE,
+    height: ANDROID_MARKER_SIZE,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  androidEmoji: {
+    fontSize: 18,
+    lineHeight: 22,
+    textAlign: 'center',
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
   pulse: {
     position: 'absolute',
