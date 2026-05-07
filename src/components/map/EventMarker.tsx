@@ -63,6 +63,10 @@ function getMarkerConfig(category: string): {
 }
 
 const IS_ANDROID = Platform.OS === 'android';
+const ANDROID_MARKER_WIDTH = 96;
+const ANDROID_MARKER_HEIGHT = 64;
+const ANDROID_MARKER_BOTTOM_HEIGHT = 22;
+const ANDROID_BUBBLE_SIZE = 44;
 
 function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps) {
   const config = getMarkerConfig(event.category);
@@ -133,9 +137,13 @@ function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps
         coordinate={coordinate}
         onPress={() => onPress(event)}
         tracksViewChanges={tracksViewChanges}
-        anchor={{ x: 0.5, y: 0.5 }}
+        anchor={{ x: 0.5, y: 0.66 }}
       >
-        <View style={styles.androidContainer} collapsable={false}>
+        <View
+          style={styles.androidContainer}
+          collapsable={false}
+          renderToHardwareTextureAndroid
+        >
           <View
             style={[
               styles.androidBubble,
@@ -156,7 +164,9 @@ function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps
                 {conditionalLabel}
               </Text>
             </View>
-          ) : null}
+          ) : (
+            <View style={styles.androidSpacer} />
+          )}
         </View>
       </Marker>
     );
@@ -242,15 +252,20 @@ function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps
 const styles = StyleSheet.create({
   // ---- Android (bitmap-safe) ----
   androidContainer: {
-    // 고정 폭. width/height 동적 변동 없어야 Android Marker bitmap이 잘리지 않음.
-    width: 96,
+    // Android MapView snapshots the marker view into a bitmap; fixed bounds
+    // with breathing room prevent the circle border from being clipped.
+    width: ANDROID_MARKER_WIDTH,
+    height: ANDROID_MARKER_HEIGHT,
+    paddingTop: 4,
+    paddingHorizontal: 6,
     alignItems: 'center',
     justifyContent: 'flex-start',
+    overflow: 'visible',
   },
   androidBubble: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: ANDROID_BUBBLE_SIZE,
+    height: ANDROID_BUBBLE_SIZE,
+    borderRadius: ANDROID_BUBBLE_SIZE / 2,
     borderWidth: 3,
     alignItems: 'center',
     justifyContent: 'center',
@@ -266,10 +281,14 @@ const styles = StyleSheet.create({
   androidTag: {
     marginTop: 4,
     maxWidth: 92,
+    minHeight: 18,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 8,
     backgroundColor: 'rgba(15, 23, 42, 0.88)',
+  },
+  androidSpacer: {
+    height: ANDROID_MARKER_BOTTOM_HEIGHT,
   },
   androidTagText: {
     fontSize: 9,
