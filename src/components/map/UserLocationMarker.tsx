@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Platform, Text, View, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { Marker, Circle as MapCircle } from 'react-native-maps';
 import { CharacterAvatar } from '../character/CharacterAvatar';
 import Animated, {
@@ -21,24 +21,13 @@ interface UserLocationMarkerProps {
   favoriteDistrict?: string | null;
 }
 
-const IS_ANDROID = Platform.OS === 'android';
-const ANDROID_MARKER_SIZE = 80;
-
 /**
- * Single ASCII glyph per character type, drawn inside the inner disc on
- * Android. We deliberately avoid emoji / SVG / icon-fonts on Android because
- * Samsung One UI's marker bitmap snapshot has been observed to drop those
- * layers; a stock <Text> in the system sans font is the only thing the
- * snapshot reliably preserves.
+ * 9d77a82 (마커가 동그랗게 정상 동작했던 시점) 의 패턴 복원.
+ * 핵심: 플랫폼 분기 없이 동일 view tree 사용 + tracksViewChanges=false.
+ * `CharacterAvatar`는 expo-image 기반이라 Android marker bitmap 에서도
+ * 안정적으로 캡처된다. 별도의 Android-only SVG/Text 경로는 오히려 OEM ROM
+ * 별로 비트맵 누락을 일으켜 회귀였음.
  */
-const ANDROID_CHARACTER_GLYPH: Record<string, string> = {
-  explorer:  'D', // 도담
-  foodie:    'N', // 나래
-  artist:    'H', // 하람
-  socialite: 'B', // 별찌
-};
-const ANDROID_CHARACTER_DEFAULT_GLYPH = 'O';
-
 export function UserLocationMarker({
   position,
   heading,
@@ -67,66 +56,6 @@ export function UserLocationMarker({
     transform: [{ scale: pulseScale.value }],
     opacity: pulseOpacity.value,
   }));
-
-  const characterGlyph =
-    characterType != null && characterLevel != null
-      ? ANDROID_CHARACTER_GLYPH[characterType] ?? ANDROID_CHARACTER_DEFAULT_GLYPH
-      : null;
-
-  if (IS_ANDROID) {
-    return (
-      <>
-        {showRadius && (
-          <MapCircle
-            center={position}
-            radius={CHECK_IN_RADIUS_METERS}
-            fillColor="rgba(108, 92, 231, 0.08)"
-            strokeColor="rgba(108, 92, 231, 0.25)"
-            strokeWidth={1}
-          />
-        )}
-
-        <Marker
-          identifier="user-location"
-          coordinate={position}
-          anchor={{ x: 0.5, y: 0.5 }}
-          flat
-          tracksViewChanges
-        >
-          {/*
-            Android-only path. Pure RN <View> + borderRadius for every ring,
-            <Text> in the system sans font for the character glyph. No SVG,
-            no emoji, no icon font — Samsung One UI's marker bitmap has been
-            dropping all three of those on Z Flip. Stock RN primitives are
-            the only thing the bitmap snapshot is guaranteed to capture.
-          */}
-          <View style={styles.androidContainer} collapsable={false}>
-            <View style={styles.androidOuterRing} pointerEvents="none" />
-            <View style={styles.androidMidRing}>
-              <View
-                style={[
-                  styles.androidInnerDisc,
-                  characterGlyph
-                    ? styles.androidInnerDiscWithGlyph
-                    : styles.androidInnerDiscEmpty,
-                ]}
-              >
-                {characterGlyph ? (
-                  <Text
-                    style={styles.androidGlyph}
-                    allowFontScaling={false}
-                    numberOfLines={1}
-                  >
-                    {characterGlyph}
-                  </Text>
-                ) : null}
-              </View>
-            </View>
-          </View>
-        </Marker>
-      </>
-    );
-  }
 
   return (
     <>
@@ -190,52 +119,6 @@ const styles = StyleSheet.create({
     height: 80,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  androidContainer: {
-    width: ANDROID_MARKER_SIZE,
-    height: ANDROID_MARKER_SIZE,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'visible',
-  },
-  androidOuterRing: {
-    position: 'absolute',
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    backgroundColor: 'rgba(72, 219, 251, 0.14)',
-  },
-  androidMidRing: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(72, 219, 251, 0.36)',
-    borderWidth: 3,
-    borderColor: 'rgba(255,255,255,0.92)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  androidInnerDisc: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  androidInnerDiscWithGlyph: {
-    backgroundColor: 'rgba(15,23,42,0.92)',
-  },
-  androidInnerDiscEmpty: {
-    backgroundColor: '#48DBFB',
-  },
-  androidGlyph: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    lineHeight: 14,
-    fontWeight: '900',
-    textAlign: 'center',
-    includeFontPadding: false,
-    textAlignVertical: 'center',
   },
   pulse: {
     position: 'absolute',

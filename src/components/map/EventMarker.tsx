@@ -62,49 +62,51 @@ function getMarkerConfig(category: string): {
   return MARKER_CONFIG[category] ?? { color: COLORS.primary, ion: 'location-outline', emoji: '📍', label: '이벤트' };
 }
 
-/**
- * Android-only category glyph.
- *
- * Why ASCII (and not emoji/SVG/Ionicons):
- * - Ionicons font glyphs aren't always loaded when the marker bitmap is
- *   captured → boxes / wrong glyphs.
- * - Emoji glyphs render through a separate emoji font that is sometimes not
- *   composited into the marker bitmap on certain OEM ROMs (notably Samsung
- *   One UI on Z Flip) → emoji floats outside / drops from the bubble.
- * - react-native-svg renders into a TextureView/SurfaceView that the Google
- *   Maps marker bitmap snapshot does not always capture cleanly on the same
- *   OEM ROMs → empty bitmap or partial paths.
- * - A bold ASCII letter rendered with `<Text>` in the device's default sans
- *   font is the ONE thing the marker bitmap is guaranteed to contain.
- *
- * Each value is a single ASCII character so layout & font matching are
- * predictable. Distinguishing categories at a glance on the map relies on
- * the bubble color (already set per category in `MARKER_CONFIG`).
- */
-const ANDROID_CATEGORY_GLYPH: Record<string, string> = {
-  exploration: 'E',
-  activity:    'E',
-  culture:     'C',
-  hidden_gem:  '*', // sparkle
-  food:        'F',
-  cafe:        'K', // K so it doesn't collide with Culture's "C"
-  nature:      'N',
-  nightlife:   'M', // Moonlight
-  shopping:    'S',
-  photo:       'P',
-  quiz:        '?',
-  partnership: '&',
-};
-const ANDROID_DEFAULT_GLYPH = 'O';
-const ANDROID_EXPIRED_GLYPH = 'v'; // small visual checkmark substitute
-
 const IS_ANDROID = Platform.OS === 'android';
-const ANDROID_MARKER_WIDTH = 96;
-const ANDROID_MARKER_HEIGHT = 72;
-const ANDROID_MARKER_BOTTOM_HEIGHT = 22;
-const ANDROID_BUBBLE_FRAME_SIZE = 56;
-const ANDROID_BUBBLE_RADIUS = 21;
-const ANDROID_HALO_RADIUS = 25;
+
+/**
+ * 9d77a82 (마커가 동그랗게 정상으로 나왔던 시점)에서 검증된 레이아웃.
+ * Android는 GoogleMap이 marker view를 비트맵으로 스냅샷해 GL 텍스처로
+ * 띄우는데, 이 비트맵 캡처가 다음 셋에 약하다:
+ *   1) 컨테이너 height가 고정인데 자식(spacer/tag) 가 그 밖으로 overflow
+ *      하면 캡처에서 잘려나감.
+ *   2) absolute-positioned 자식(예: 헤일로) — 일부 OEM 에서 비트맵에
+ *      안정적으로 합성되지 않음.
+ *   3) Reanimated worklet 이 marker bitmap commit 과 경합 → 반쪽 비트맵.
+ *
+ * 그래서 동작했던 패턴:
+ *   - 컨테이너 height = body + (tag 있으면 22 추가) — 항상 자식 다 포함.
+ *   - 펄스 링은 absolute 지만 markerBody **안쪽** 에 들어가는 크기 (60>56)
+ *     로 잡아서 컨테이너 안에서 완전히 cover 된다.
+ *   - bubble 안에 Ionicons size 20 (다른 OEM 에서 폰트 글리프 누락이 있다는
+ *     보고가 있지만, 적어도 Z Flip 의 SVG/emoji 누락 케이스보다 안정적이며
+ *     원래 정상 동작했던 조합).
+ *   - tracksViewChanges 720ms (Z Flip 첫 layout commit + Ionicons 폰트
+ *     계측이 끝날 시간 충분히 줌).
+ */
+const MARKER_LAYOUT = IS_ANDROID
+  ? {
+      containerWidth: 72,
+      minHeight: 78,
+      markerBody: 60,
+      bubble: 44,
+      pulseRing: 56,
+      iconSize: 20,
+      paddingBottom: 10,
+      arrowTop: 9,
+      arrowSide: 7,
+    }
+  : {
+      containerWidth: 64,
+      minHeight: 72,
+      markerBody: 56,
+      bubble: 40,
+      pulseRing: 52,
+      iconSize: 18,
+      paddingBottom: 4,
+      arrowTop: 8,
+      arrowSide: 6,
+    };
 
 function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps) {
   const config = getMarkerConfig(event.category);
@@ -119,11 +121,13 @@ function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps
     : Infinity;
   const isInRange = distance <= CHECK_IN_RADIUS_METERS;
 
+  // Reanimated은 iOS 펄스 링 전용. Android 분기에서는 호출 자체를 피해서
+  // marker bitmap commit 과 worklet 초기화가 경합하지 않게 한다.
   const pulseOpacity = useSharedValue(1);
   const pulseVisible = useSharedValue(0);
 
   useEffect(() => {
-    if (IS_ANDROID) return; // Android uses static view path — no Reanimated in bitmap.
+    if (IS_ANDROID) return;
     pulseVisible.value = isInRange && !isExpired ? 1 : 0;
     if (isInRange && !isExpired) {
       pulseOpacity.value = withRepeat(
@@ -143,14 +147,21 @@ function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps
   const markerColor = isExpired ? '#555B6E' : conditionalLabel ? '#7C3AED' : config.color;
   const markerOpacity = isExpired ? 0.5 : isInRange ? 1 : 0.7;
 
+  // 9d77a82와 동일: tag 있으면 컨테이너 height에 22(android)/18(ios) 더해서
+  // 자식이 컨테이너 밖으로 overflow 안 되게 한다. 이 한 줄이 "잘림" 의 원인.
+  const containerMinHeight =
+    MARKER_LAYOUT.minHeight +
+    (conditionalLabel && !isExpired ? (IS_ANDROID ? 22 : 18) : 0);
+
   const [tracksViewChanges, setTracksViewChanges] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     InteractionManager.runAfterInteractions(() => {
-      // Android: emoji는 system font라 즉시 렌더되지만, 첫 레이아웃 커밋 이후 스냅샷해야 함.
-      const delayMs = IS_ANDROID ? 350 : 160;
+      // Android: 첫 layout commit + Ionicons 폰트 계측이 다 끝날 시간 충분히 준다.
+      // 이 값을 350으로 줄였더니 Z Flip 에서 반쪽 비트맵으로 굳는 회귀가 있었음.
+      const delayMs = IS_ANDROID ? 720 : 160;
       timer = setTimeout(() => {
         if (!cancelled) setTracksViewChanges(false);
       }, delayMs);
@@ -159,87 +170,11 @@ function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [event.id, isInRange, isExpired, conditionalLabel]);
+  }, [event.id]);
 
-  // -------------------------------------------------------------------------
-  // Android: dramatically simplified layout. No position:absolute, no
-  // Reanimated, no dynamic height. Just a centered bubble with an emoji
-  // (system emoji font is always loaded → survives bitmap capture). The
-  // optional tag renders as a separate inline Text below the circle so that
-  // its baseline doesn't reshape the bitmap.
-  // -------------------------------------------------------------------------
-  if (IS_ANDROID) {
-    const glyph = isExpired
-      ? ANDROID_EXPIRED_GLYPH
-      : ANDROID_CATEGORY_GLYPH[event.category] ?? ANDROID_DEFAULT_GLYPH;
-    const showHalo = isInRange && !isExpired;
-    return (
-      <Marker
-        identifier={`event-${event.id}`}
-        coordinate={coordinate}
-        onPress={() => onPress(event)}
-        tracksViewChanges={tracksViewChanges}
-        anchor={{ x: 0.5, y: 0.66 }}
-      >
-        {/*
-          Android-only path. Pure RN <View> + borderRadius for the disc, plain
-          <Text> with a bold ASCII glyph for the icon. No SVG, no emoji, no
-          icon font — those three are exactly what Samsung One UI's marker
-          bitmap snapshot has been mis-handling for this user. Everything here
-          is a stock RN primitive that the marker bitmap captures verbatim.
-        */}
-        <View style={styles.androidContainer} collapsable={false}>
-          <View style={styles.androidBubbleFrame}>
-            {showHalo ? (
-              <View
-                pointerEvents="none"
-                style={[
-                  styles.androidHalo,
-                  { borderColor: markerColor },
-                ]}
-              />
-            ) : null}
-            <View
-              style={[
-                styles.androidBubble,
-                {
-                  backgroundColor: markerColor,
-                  opacity: markerOpacity,
-                  borderColor: showHalo ? '#FFFFFF' : 'rgba(255,255,255,0.55)',
-                },
-              ]}
-            >
-              <Text
-                style={styles.androidGlyph}
-                allowFontScaling={false}
-                numberOfLines={1}
-              >
-                {glyph}
-              </Text>
-            </View>
-          </View>
-          {conditionalLabel && !isExpired ? (
-            <View style={styles.androidTag} collapsable={false}>
-              <Text style={styles.androidTagText} allowFontScaling={false} numberOfLines={1}>
-                {conditionalLabel}
-              </Text>
-            </View>
-          ) : (
-            <View style={styles.androidSpacer} />
-          )}
-        </View>
-      </Marker>
-    );
-  }
-
-  // -------------------------------------------------------------------------
-  // iOS: keep the rich pulse-ring + Ionicons path. Works reliably under UIKit
-  // snapshot; Ionicons fonts are loaded by the time snapshot happens.
-  // -------------------------------------------------------------------------
-  const iosBubble = 40;
-  const iosPulse = 52;
-  const iosBody = 56;
-  const pulseTop = (iosBody - iosPulse) / 2;
+  // Android는 Reanimated 펄스 링을 쓰지 않고, isInRange 일 때만 정적 링을 그린다.
+  // (Reanimated worklet 이 marker bitmap commit 과 경합하면 반쪽 비트맵이 됨.)
+  const showAndroidStaticPulse = IS_ANDROID && isInRange && !isExpired;
 
   return (
     <Marker
@@ -250,41 +185,76 @@ function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps
     >
       <View
         style={[
-          styles.iosContainer,
-          { opacity: markerOpacity },
+          styles.container,
+          {
+            opacity: markerOpacity,
+            width: MARKER_LAYOUT.containerWidth,
+            // Android: 명시적 height. iOS: minHeight (Reanimated 펄스가
+            // 살짝 밖으로 나가도 UIKit 스냅샷이 처리해줌).
+            ...(IS_ANDROID
+              ? { height: containerMinHeight, minHeight: undefined }
+              : { minHeight: containerMinHeight }),
+            paddingBottom: MARKER_LAYOUT.paddingBottom,
+          },
         ]}
+        collapsable={false}
+        renderToHardwareTextureAndroid={IS_ANDROID}
       >
-        <View style={[styles.iosBody, { width: iosBody, height: iosBody }]}>
-          <Animated.View
-            pointerEvents="none"
-            style={[
-              styles.iosPulse,
-              {
-                top: pulseTop,
-                left: pulseTop,
-                width: iosPulse,
-                height: iosPulse,
-                borderRadius: iosPulse / 2,
-                borderColor: markerColor,
-              },
-              pulseStyle,
-            ]}
-          />
+        <View
+          style={[
+            styles.markerBody,
+            { width: MARKER_LAYOUT.markerBody, height: MARKER_LAYOUT.markerBody },
+          ]}
+        >
+          {IS_ANDROID ? (
+            showAndroidStaticPulse ? (
+              <View
+                pointerEvents="none"
+                style={[
+                  styles.pulseRing,
+                  styles.pulseRingAndroidStatic,
+                  {
+                    width: MARKER_LAYOUT.pulseRing,
+                    height: MARKER_LAYOUT.pulseRing,
+                    borderRadius: MARKER_LAYOUT.pulseRing / 2,
+                    borderColor: markerColor,
+                  },
+                ]}
+              />
+            ) : null
+          ) : (
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.pulseRing,
+                {
+                  width: MARKER_LAYOUT.pulseRing,
+                  height: MARKER_LAYOUT.pulseRing,
+                  borderRadius: MARKER_LAYOUT.pulseRing / 2,
+                  borderColor: markerColor,
+                },
+                pulseStyle,
+              ]}
+            />
+          )}
+
           <View
             style={[
-              styles.iosBubble,
+              styles.bubble,
+              IS_ANDROID && styles.bubbleAndroid,
               {
                 backgroundColor: markerColor,
-                width: iosBubble,
-                height: iosBubble,
-                borderRadius: iosBubble / 2,
+                width: MARKER_LAYOUT.bubble,
+                height: MARKER_LAYOUT.bubble,
+                borderRadius: MARKER_LAYOUT.bubble / 2,
               },
             ]}
           >
             <Ionicons
               name={isExpired ? 'checkmark' : config.ion}
-              size={18}
+              size={MARKER_LAYOUT.iconSize}
               color="#FFFFFF"
+              style={IS_ANDROID ? styles.ionAndroid : undefined}
               allowFontScaling={false}
             />
           </View>
@@ -292,14 +262,19 @@ function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps
 
         <View
           style={[
-            styles.iosArrow,
-            { borderTopColor: markerColor },
+            styles.arrow,
+            {
+              borderTopColor: markerColor,
+              borderLeftWidth: MARKER_LAYOUT.arrowSide,
+              borderRightWidth: MARKER_LAYOUT.arrowSide,
+              borderTopWidth: MARKER_LAYOUT.arrowTop,
+            },
           ]}
         />
 
         {conditionalLabel && !isExpired ? (
-          <View style={styles.iosTag}>
-            <Text style={styles.iosTagText} numberOfLines={1}>
+          <View style={styles.tagWrap}>
+            <Text style={styles.tagText} numberOfLines={1}>
               {conditionalLabel}
             </Text>
           </View>
@@ -310,86 +285,24 @@ function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps
 }
 
 const styles = StyleSheet.create({
-  // ---- Android (bitmap-safe) ----
-  androidContainer: {
-    // Android MapView snapshots the marker view into a bitmap; fixed bounds
-    // with breathing room prevent the circle border from being clipped.
-    width: ANDROID_MARKER_WIDTH,
-    height: ANDROID_MARKER_HEIGHT,
-    paddingTop: 4,
-    paddingHorizontal: 6,
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    overflow: 'visible',
-  },
-  androidBubbleFrame: {
-    width: ANDROID_BUBBLE_FRAME_SIZE,
-    height: ANDROID_BUBBLE_FRAME_SIZE,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  androidBubble: {
-    width: ANDROID_BUBBLE_RADIUS * 2,
-    height: ANDROID_BUBBLE_RADIUS * 2,
-    borderRadius: ANDROID_BUBBLE_RADIUS,
-    borderWidth: 3,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  androidHalo: {
-    position: 'absolute',
-    width: ANDROID_HALO_RADIUS * 2,
-    height: ANDROID_HALO_RADIUS * 2,
-    borderRadius: ANDROID_HALO_RADIUS,
-    borderWidth: 3,
-    opacity: 0.38,
-  },
-  androidGlyph: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    lineHeight: 22,
-    fontWeight: '900',
-    textAlign: 'center',
-    includeFontPadding: false,
-    textAlignVertical: 'center',
-  },
-  androidTag: {
-    marginTop: 4,
-    maxWidth: 92,
-    minHeight: 18,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
-    backgroundColor: 'rgba(15, 23, 42, 0.88)',
-  },
-  androidSpacer: {
-    height: ANDROID_MARKER_BOTTOM_HEIGHT,
-  },
-  androidTagText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: '#F5F3FF',
-    textAlign: 'center',
-    includeFontPadding: false,
-  },
-
-  // ---- iOS (rich animated) ----
-  iosContainer: {
+  container: {
     alignItems: 'center',
     overflow: 'visible',
-    minHeight: 72,
-    width: 64,
-    paddingBottom: 4,
   },
-  iosBody: {
+  markerBody: {
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iosPulse: {
+  pulseRing: {
     position: 'absolute',
     borderWidth: 3,
   },
-  iosBubble: {
+  /** Reanimated worklet 이 marker bitmap commit 과 경합하면 펄스 링이 호일/반원이
+   *  되거나 사라진다. Android 에서는 동일 위치에 정적 링만 그려서 회피. */
+  pulseRingAndroidStatic: {
+    opacity: 0.42,
+  },
+  bubble: {
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
@@ -398,18 +311,27 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
+    elevation: 4,
   },
-  iosArrow: {
+  /** elevation/shadow 가 marker bitmap 캡처 시 픽셀을 그림자 영역까지 계산하면서
+   *  컨테이너 안쪽 컨텐츠를 잘라먹는 OEM 케이스가 있어 Android는 elevation 0. */
+  bubbleAndroid: {
+    elevation: 0,
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  ionAndroid: {
+    marginTop: -1,
+  },
+  arrow: {
     width: 0,
     height: 0,
-    borderLeftWidth: 6,
-    borderRightWidth: 6,
-    borderTopWidth: 8,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
     marginTop: -1,
   },
-  iosTag: {
+  tagWrap: {
     marginTop: 2,
     maxWidth: 120,
     paddingHorizontal: 6,
@@ -417,11 +339,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: 'rgba(15, 23, 42, 0.88)',
   },
-  iosTagText: {
+  tagText: {
     fontSize: 9,
     fontWeight: '700',
     color: '#F5F3FF',
     textAlign: 'center',
+    ...(IS_ANDROID ? { includeFontPadding: false } : {}),
   },
 });
 
