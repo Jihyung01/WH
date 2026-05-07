@@ -5,6 +5,7 @@ import {
   StyleSheet,
   Platform,
   InteractionManager,
+  type ImageRequireSource,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Marker } from 'react-native-maps';
@@ -53,6 +54,24 @@ const MARKER_CONFIG: Record<string, { color: string; ion: IonName; emoji: string
   [EventCategory.PARTNERSHIP]:      { color: '#F59E0B', ion: 'people-outline',        emoji: '🤝', label: '제휴' },
 };
 
+const ANDROID_MARKER_IMAGES: Record<string, ImageRequireSource> = {
+  activity: require('../../../assets/map-markers/event-marker-exploration.png'),
+  [EventCategory.EXPLORATION]: require('../../../assets/map-markers/event-marker-exploration.png'),
+  [EventCategory.CULTURE]: require('../../../assets/map-markers/event-marker-culture.png'),
+  [EventCategory.HIDDEN_GEM]: require('../../../assets/map-markers/event-marker-hidden.png'),
+  [EventCategory.FOOD]: require('../../../assets/map-markers/event-marker-food.png'),
+  [EventCategory.CAFE]: require('../../../assets/map-markers/event-marker-food.png'),
+  [EventCategory.NATURE]: require('../../../assets/map-markers/event-marker-exploration.png'),
+  [EventCategory.NIGHTLIFE]: require('../../../assets/map-markers/event-marker-nightlife.png'),
+  [EventCategory.SHOPPING]: require('../../../assets/map-markers/event-marker-shopping.png'),
+  [EventCategory.PHOTO]: require('../../../assets/map-markers/event-marker-photo.png'),
+  [EventCategory.QUIZ]: require('../../../assets/map-markers/event-marker-quiz.png'),
+  [EventCategory.PARTNERSHIP]: require('../../../assets/map-markers/event-marker-partnership.png'),
+};
+
+const ANDROID_EXPIRED_MARKER_IMAGE = require('../../../assets/map-markers/event-marker-expired.png');
+const ANDROID_CONDITIONAL_MARKER_IMAGE = require('../../../assets/map-markers/event-marker-conditional.png');
+
 function getMarkerConfig(category: string): {
   color: string;
   ion: IonName;
@@ -60,6 +79,16 @@ function getMarkerConfig(category: string): {
   label: string;
 } {
   return MARKER_CONFIG[category] ?? { color: COLORS.primary, ion: 'location-outline', emoji: '📍', label: '이벤트' };
+}
+
+function getAndroidMarkerImage(
+  category: string,
+  isExpired: boolean,
+  conditionalLabel: string | null,
+): ImageRequireSource {
+  if (isExpired) return ANDROID_EXPIRED_MARKER_IMAGE;
+  if (conditionalLabel) return ANDROID_CONDITIONAL_MARKER_IMAGE;
+  return ANDROID_MARKER_IMAGES[category] ?? ANDROID_MARKER_IMAGES[EventCategory.EXPLORATION];
 }
 
 const IS_ANDROID = Platform.OS === 'android';
@@ -182,6 +211,20 @@ function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps
   // Android는 Reanimated 펄스 링을 쓰지 않고, isInRange 일 때만 정적 링을 그린다.
   // (Reanimated worklet 이 marker bitmap commit 과 경합하면 반쪽 비트맵이 됨.)
   const showAndroidStaticPulse = IS_ANDROID && isInRange && !isExpired;
+
+  if (IS_ANDROID) {
+    return (
+      <Marker
+        identifier={`event-${event.id}`}
+        coordinate={coordinate}
+        onPress={() => onPress(event)}
+        image={getAndroidMarkerImage(event.category, isExpired, conditionalLabel)}
+        opacity={markerOpacity}
+        anchor={{ x: 0.5, y: 0.91 }}
+        tracksViewChanges={false}
+      />
+    );
+  }
 
   return (
     <Marker
