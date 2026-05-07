@@ -86,15 +86,20 @@ const IS_ANDROID = Platform.OS === 'android';
  */
 const MARKER_LAYOUT = IS_ANDROID
   ? {
-      containerWidth: 72,
-      minHeight: 78,
+      // GoogleMap (Android) 의 marker bitmap 은 view의 measured size 를 dp 로
+      // 잡아 캔버스를 만든다. 측정 - layout 간 1~2px 라운딩 오류가 OEM 마다
+      // 다르게 발생하므로 width/height 모두 8~12px 여유를 둔다.
+      containerWidth: 84,        // 60 markerBody + 24 buffer (양옆 12씩)
+      minHeight: 90,             // 60 markerBody + 10 arrow + 14 buffer + 6 padding
       markerBody: 60,
       bubble: 44,
       pulseRing: 56,
       iconSize: 20,
-      paddingBottom: 10,
+      paddingBottom: 6,          // 작게. 음수 margin 안 쓰고 직접 간격 줌.
       arrowTop: 9,
       arrowSide: 7,
+      arrowMarginTop: 0,         // 음수 margin 금지 — 일부 OEM 에서 측정 오류.
+      pulseInset: (60 - 56) / 2, // markerBody 안에서 pulseRing 가 정확히 중앙
     }
   : {
       containerWidth: 64,
@@ -106,6 +111,8 @@ const MARKER_LAYOUT = IS_ANDROID
       paddingBottom: 4,
       arrowTop: 8,
       arrowSide: 6,
+      arrowMarginTop: -1,        // iOS 는 그대로 유지 (UIKit 스냅샷 안전).
+      pulseInset: (56 - 52) / 2,
     };
 
 function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps) {
@@ -218,6 +225,10 @@ function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps
                     height: MARKER_LAYOUT.pulseRing,
                     borderRadius: MARKER_LAYOUT.pulseRing / 2,
                     borderColor: markerColor,
+                    // Android: absolute child를 alignItems/justifyContent 에
+                    // 의존시키지 말고 명시적 top/left 로 중앙 잡는다.
+                    top: MARKER_LAYOUT.pulseInset,
+                    left: MARKER_LAYOUT.pulseInset,
                   },
                 ]}
               />
@@ -268,6 +279,7 @@ function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps
               borderLeftWidth: MARKER_LAYOUT.arrowSide,
               borderRightWidth: MARKER_LAYOUT.arrowSide,
               borderTopWidth: MARKER_LAYOUT.arrowTop,
+              marginTop: MARKER_LAYOUT.arrowMarginTop, // 0 on Android, -1 on iOS
             },
           ]}
         />
@@ -321,15 +333,18 @@ const styles = StyleSheet.create({
     shadowRadius: 0,
     shadowOffset: { width: 0, height: 0 },
   },
+  // Android 에서는 음수 margin 을 view bound 측정에서 무시하는 OEM 이 있어
+  // bitmap clipping 을 유발한다. iOS 에서만 1px 위로 미세 조정.
   ionAndroid: {
-    marginTop: -1,
+    // Android: marginTop 0. font 베이스라인은 includeFontPadding/textAlignVertical
+    // 로 잡고 음수 margin 안 쓴다.
   },
   arrow: {
     width: 0,
     height: 0,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
-    marginTop: -1,
+    // marginTop 은 MARKER_LAYOUT.arrowMarginTop 로 inline 지정 (Android 0 / iOS -1).
   },
   tagWrap: {
     marginTop: 2,
