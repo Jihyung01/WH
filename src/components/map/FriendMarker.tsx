@@ -5,6 +5,7 @@ import {
   StyleSheet,
   Platform,
   InteractionManager,
+  type ImageRequireSource,
 } from 'react-native';
 import { Marker } from 'react-native-maps';
 import { COLORS, BRAND } from '../../config/theme';
@@ -12,6 +13,8 @@ import type { FriendLocation } from '../../services/friendLocation';
 import { CharacterAvatar } from '../character/CharacterAvatar';
 
 const IS_ANDROID = Platform.OS === 'android';
+const ANDROID_FRIEND_MARKER_RECENT = require('../../../assets/map-markers/friend-marker-recent.png');
+const ANDROID_FRIEND_MARKER_STALE = require('../../../assets/map-markers/friend-marker-stale.png');
 
 interface Props {
   friend: FriendLocation;
@@ -77,6 +80,25 @@ function FriendMarkerContent({
       if (timer) clearTimeout(timer);
     };
   }, [friend.user_id]);
+
+  if (IS_ANDROID) {
+    const image: ImageRequireSource = isRecent
+      ? ANDROID_FRIEND_MARKER_RECENT
+      : ANDROID_FRIEND_MARKER_STALE;
+
+    return (
+      <MarkerComponent
+        coordinate={coordinate}
+        identifier={`friend-${friend.user_id}`}
+        cluster={false}
+        zIndex={2000}
+        onPress={onPress}
+        tracksViewChanges={false}
+        image={image}
+        anchor={{ x: 0.5, y: 0.91 }}
+      />
+    );
+  }
 
   return (
     <MarkerComponent
