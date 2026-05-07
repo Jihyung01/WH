@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Platform, Text, View, StyleSheet } from 'react-native';
+import { Platform, View, StyleSheet } from 'react-native';
 import { Marker, Circle as MapCircle } from 'react-native-maps';
 import Svg, { Circle as SvgCircle, G, Path } from 'react-native-svg';
 import { CharacterAvatar } from '../character/CharacterAvatar';
@@ -12,7 +12,6 @@ import Animated, {
 } from 'react-native-reanimated';
 import type { GeoPoint } from '../../types';
 import { CHECK_IN_RADIUS_METERS } from '../../utils/constants';
-import { getCharacterEmoji, getEvolutionStage } from '../../utils/characterAssets';
 
 interface UserLocationMarkerProps {
   position: GeoPoint;
@@ -26,6 +25,30 @@ interface UserLocationMarkerProps {
 const IS_ANDROID = Platform.OS === 'android';
 const ANDROID_MARKER_SIZE = 80;
 const ANDROID_CENTER = ANDROID_MARKER_SIZE / 2;
+
+/**
+ * Per-character SVG path used **only on Android** marker bitmaps.
+ *
+ * Why: Android snapshots the marker view into a bitmap; an absolute-positioned
+ * <Text> emoji layer is not reliably composited into that bitmap, leaving the
+ * emoji floating outside / mis-aligned to the circle (the broken render the
+ * user reported). Drawing the icon as an SVG path inside the same Svg as the
+ * circles guarantees a single atomic bitmap.
+ *
+ * Paths are drawn in a 12×12 viewBox with white fill, translated to the SVG
+ * center (40, 40) – the small (r=10) inner disc is exactly that size.
+ */
+const ANDROID_CHARACTER_PATHS: Record<string, string> = {
+  // 🌱 explorer (도담) – sprout / leaf cluster
+  explorer:  'M6 1 c-2 0-3 1-3 3 c0 2 1 3 3 4 c2-1 3-2 3-4 c0-2-1-3-3-3 z M6 8 v3',
+  // 🍃 foodie (나래) – flowing leaf
+  foodie:    'M2 6 c1-3 4-5 8-4 c-1 4-3 6-6 7 c-1 0-2-1-2-3 z M3 9 l3-3',
+  // 🔥 artist (하람) – flame
+  artist:    'M6 1 c-1 2-3 3-3 6 c0 2 1.5 4 3 4 s3-2 3-4 c0-1-1-2-1-3 c-1 0-1 1-1 2 c0-2-1-3-1-5 z',
+  // ✨ socialite (별찌) – 4-point sparkle
+  socialite: 'M6 1 L7 5 L11 6 L7 7 L6 11 L5 7 L1 6 L5 5 Z',
+};
+const ANDROID_CHARACTER_DEFAULT_PATH = 'M6 2 a4 4 0 100 8 a4 4 0 000-8 z';
 
 export function UserLocationMarker({
   position,
@@ -56,9 +79,9 @@ export function UserLocationMarker({
     opacity: pulseOpacity.value,
   }));
 
-  const androidEmoji =
+  const characterPath =
     characterType != null && characterLevel != null
-      ? getCharacterEmoji(characterType, getEvolutionStage(characterLevel))
+      ? ANDROID_CHARACTER_PATHS[characterType] ?? ANDROID_CHARACTER_DEFAULT_PATH
       : null;
 
   if (IS_ANDROID) {
@@ -81,10 +104,15 @@ export function UserLocationMarker({
           flat
           tracksViewChanges
         >
+          {/*
+            Render rings + character glyph as ONE Svg so the marker bitmap
+            captures everything atomically. Previously the character emoji
+            was a separate <Text> overlay which Android dropped/mis-aligned
+            during the bitmap snapshot.
+          */}
           <View
             style={styles.androidContainer}
             collapsable={false}
-            renderToHardwareTextureAndroid
           >
             <Svg
               width={ANDROID_MARKER_SIZE}
@@ -117,16 +145,15 @@ export function UserLocationMarker({
                 cx={ANDROID_CENTER}
                 cy={ANDROID_CENTER}
                 r={10}
-                fill={androidEmoji ? 'rgba(15,23,42,0.82)' : '#48DBFB'}
+                fill={characterPath ? 'rgba(15,23,42,0.92)' : '#48DBFB'}
               />
+              {characterPath ? (
+                /* 12×12 path translated so it's centered on (40, 40). */
+                <G transform={`translate(${ANDROID_CENTER - 6} ${ANDROID_CENTER - 6})`}>
+                  <Path d={characterPath} fill="#FFFFFF" />
+                </G>
+              ) : null}
             </Svg>
-            {androidEmoji ? (
-              <View style={styles.androidEmojiLayer} pointerEvents="none">
-                <Text style={styles.androidEmoji} allowFontScaling={false}>
-                  {androidEmoji}
-                </Text>
-              </View>
-            ) : null}
           </View>
         </Marker>
       </>
@@ -202,22 +229,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'visible',
-  },
-  androidEmojiLayer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: ANDROID_MARKER_SIZE,
-    height: ANDROID_MARKER_SIZE,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  androidEmoji: {
-    fontSize: 18,
-    lineHeight: 22,
-    textAlign: 'center',
-    includeFontPadding: false,
-    textAlignVertical: 'center',
   },
   pulse: {
     position: 'absolute',

@@ -15,7 +15,7 @@ import Animated, {
   withTiming,
   Easing,
 } from 'react-native-reanimated';
-import Svg, { Circle as SvgCircle } from 'react-native-svg';
+import Svg, { Circle as SvgCircle, G, Path as SvgPath } from 'react-native-svg';
 import { EventCategory } from '../../types/enums';
 import type { NearbyEvent, GeoPoint } from '../../types';
 import { getConditionalEventTag } from '../../services/weather';
@@ -62,6 +62,50 @@ function getMarkerConfig(category: string): {
 } {
   return MARKER_CONFIG[category] ?? { color: COLORS.primary, ion: 'location-outline', emoji: '📍', label: '이벤트' };
 }
+
+/**
+ * SVG icon paths used **only on Android** marker bitmaps.
+ *
+ * Background: Android snapshots a custom Marker view into a bitmap. A separate
+ * absolute-positioned <Text> emoji layer is **not** reliably composited into that
+ * bitmap (the emoji either drops out, mis-aligns, or floats outside the bubble),
+ * which is exactly the broken render the user reported. Rendering the icon as
+ * an SVG path inside the same Svg as the bubble guarantees a single atomic
+ * bitmap with circle + glyph aligned.
+ *
+ * Paths are designed in a 16×16 viewBox with white fill. They are translated to
+ * (20, 20) inside the 56×56 bubble so the icon is visually centered on the
+ * circle origin (28, 28).
+ */
+const ANDROID_ICON_PATHS: Record<string, string> = {
+  // ▲ Compass arrow — exploration
+  exploration: 'M8 1.5 L11.5 11.5 L8 9.5 L4.5 11.5 Z',
+  activity:    'M8 1.5 L11.5 11.5 L8 9.5 L4.5 11.5 Z',
+  // ◳ Camera — culture / photo
+  culture: 'M5.5 3.5 L4.5 5 H2.5 a1 1 0 00-1 1 v6.5 a1 1 0 001 1 h11 a1 1 0 001-1 V6 a1 1 0 00-1-1 h-2 l-1-1.5 z M8 6.5 a2.5 2.5 0 100 5 a2.5 2.5 0 000-5 z',
+  photo:   'M5.5 3.5 L4.5 5 H2.5 a1 1 0 00-1 1 v6.5 a1 1 0 001 1 h11 a1 1 0 001-1 V6 a1 1 0 00-1-1 h-2 l-1-1.5 z M8 6.5 a2.5 2.5 0 100 5 a2.5 2.5 0 000-5 z',
+  // ✦ 4-point sparkle — hidden_gem
+  hidden_gem: 'M8 1 L9.4 6.6 L15 8 L9.4 9.4 L8 15 L6.6 9.4 L1 8 L6.6 6.6 Z',
+  // 🍴 Fork & knife — food
+  food: 'M3.5 1.5 v5 a1.5 1.5 0 001 1.4 V14.5 h1.4 V7.9 a1.5 1.5 0 001-1.4 V1.5 h-0.9 V5 H5.4 V1.5 H4.5 V5 H4 V1.5 z M11 1.5 c-1 0.6-1.7 2-1.7 3.6 v2 a1.4 1.4 0 001.2 1.4 v6 H11.5 V1.5 z',
+  // ☕ Coffee cup — cafe
+  cafe: 'M3 4.5 H11 V8.5 a3 3 0 01-3 3 H6 a3 3 0 01-3 -3 z M11 5.5 H12.5 a1.5 1.5 0 010 3 H11 z M5 12.5 H9 V13.5 H5 z',
+  // 🌿 Leaf — nature
+  nature: 'M14 2.5 c-3 0.5-7 1-9 3 c-2 2-2 4-1 5.8 l-1 1.7 l1 0.5 l1-1.7 c1.8 1 3.8 1 5.8-1 c2-2 2.5-5.5 3.2-8.3 z M5 11 c0-2.5 2-5 5-6.5',
+  // 🌙 Moon — nightlife
+  nightlife: 'M11.5 3 a5.5 5.5 0 105.5 5.5 a4.2 4.2 0 01-5.5 -5.5 z',
+  // 🛍️ Bag — shopping
+  shopping: 'M3 5 H13 L12.4 14 H3.6 z M5.4 5 c0-2 1.1-3.6 2.6-3.6 s2.6 1.6 2.6 3.6',
+  // ❓ Question mark — quiz
+  quiz: 'M8 1.5 c-2.5 0-4 1.6-4 4 h2 c0-1.2 0.8-2 2-2 s2 0.8 2 2 c0 1.2-1 1.7-2 2.4 c-0.6 0.4-1 1-1 1.8 V11 h2 V9.7 c0-0.4 0.3-0.7 0.8-1 c1.2-0.8 2.2-1.8 2.2-3.2 c0-2.4-1.5-4-4-4 z M7 12.5 H9 V14.5 H7 z',
+  // 🤝 Handshake — partnership
+  partnership: 'M2 8 L5 5 L8 8 L5 11 z M14 8 L11 5 L8 8 L11 11 z M5.5 8 H10.5 V9 H5.5 z',
+};
+// Default pin path (matches getMarkerConfig fallback).
+const ANDROID_DEFAULT_ICON_PATH =
+  'M8 1.5 c-3 0-5 2-5 5 c0 4 5 8 5 8 s5-4 5-8 c0-3-2-5-5-5 z M8 4.5 a2 2 0 100 4 a2 2 0 000-4 z';
+// Checkmark for expired/completed events.
+const ANDROID_CHECK_ICON_PATH = 'M3 8.5 L6.5 12 L13 4.5 L11.5 3 L6.5 9 L4.5 7 z';
 
 const IS_ANDROID = Platform.OS === 'android';
 const ANDROID_MARKER_WIDTH = 96;
@@ -135,6 +179,9 @@ function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps
   // its baseline doesn't reshape the bitmap.
   // -------------------------------------------------------------------------
   if (IS_ANDROID) {
+    const iconPath = isExpired
+      ? ANDROID_CHECK_ICON_PATH
+      : ANDROID_ICON_PATHS[event.category] ?? ANDROID_DEFAULT_ICON_PATH;
     return (
       <Marker
         identifier={`event-${event.id}`}
@@ -143,10 +190,16 @@ function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps
         tracksViewChanges={tracksViewChanges}
         anchor={{ x: 0.5, y: 0.66 }}
       >
+        {/*
+          Android renders the marker into a bitmap. We keep ALL drawing inside
+          a single <Svg> so the circle + icon are guaranteed to composite as one
+          atomic bitmap. (A separate <Text> emoji overlay was previously being
+          dropped or mis-aligned during the snapshot, producing the “broken
+          marker” the user saw.)
+        */}
         <View
           style={styles.androidContainer}
           collapsable={false}
-          renderToHardwareTextureAndroid
         >
           <View
             style={[
@@ -178,12 +231,11 @@ function EventMarkerComponent({ event, userLocation, onPress }: EventMarkerProps
                 stroke={isInRange && !isExpired ? '#FFFFFF' : 'rgba(255,255,255,0.55)'}
                 strokeWidth={3}
               />
+              {/* 16×16 path translated to (20,20) so the 16×16 viewBox is centered on (28,28). */}
+              <G transform={`translate(${ANDROID_BUBBLE_CENTER - 8} ${ANDROID_BUBBLE_CENTER - 8})`}>
+                <SvgPath d={iconPath} fill="#FFFFFF" />
+              </G>
             </Svg>
-            <View style={styles.androidEmojiLayer} pointerEvents="none">
-              <Text style={styles.androidEmoji} allowFontScaling={false}>
-                {isExpired ? '✅' : config.emoji}
-              </Text>
-            </View>
           </View>
           {conditionalLabel && !isExpired ? (
             <View style={styles.androidTag} collapsable={false}>
@@ -294,23 +346,6 @@ const styles = StyleSheet.create({
     height: ANDROID_BUBBLE_FRAME_SIZE,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  androidEmojiLayer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: ANDROID_BUBBLE_FRAME_SIZE,
-    height: ANDROID_BUBBLE_FRAME_SIZE,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  androidEmoji: {
-    fontSize: 20,
-    lineHeight: 24,
-    textAlign: 'center',
-    includeFontPadding: false,
-    textAlignVertical: 'center',
-    color: '#FFFFFF',
   },
   androidTag: {
     marginTop: 4,
