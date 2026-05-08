@@ -747,7 +747,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     borderRadius: BORDER_RADIUS.full, backgroundColor: '#FFF5DC',
   },
-  slotChipActive: { backgroundColor: `${'#FF4757'}25`, borderWidth: 1, borderColor: '#FF4757' },
+  slotChipActive: { backgroundColor: `${'#FF4757'}25`, borderWidth: 2, borderColor: '#FF4757' },
   slotChipText: { fontSize: FONT_SIZE.sm, color: 'rgba(26,22,18,0.5)' },
   slotChipTextActive: { color: '#FF4757', fontWeight: FONT_WEIGHT.bold },
 
@@ -781,7 +781,7 @@ const styles = StyleSheet.create({
   giftBtn: {
     marginTop: SPACING.sm, paddingVertical: SPACING.sm,
     borderRadius: BORDER_RADIUS.md, backgroundColor: `${'#FF4757'}18`,
-    borderWidth: 1, borderColor: `${'#FF4757'}40`, alignItems: 'center',
+    borderWidth: 2, borderColor: `${'#FF4757'}40`, alignItems: 'center',
   },
   giftBtnText: { fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.bold, color: '#FF4757' },
 
@@ -831,7 +831,7 @@ const styles = StyleSheet.create({
   coinCard: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     backgroundColor: '#FFFEF5' /* manga paper */, borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.lg, borderWidth: 1, borderColor: '#1A1612',
+    padding: SPACING.lg, borderWidth: 2, borderColor: '#1A1612',
     position: 'relative', overflow: 'visible',
   },
   coinCardBest: { borderColor: '#FFD93D', borderWidth: 2 },
@@ -872,7 +872,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: SPACING.md,
     marginTop: SPACING.xl, backgroundColor: `${'#FF4757'}12`,
     borderRadius: BORDER_RADIUS.lg, padding: SPACING.lg,
-    borderWidth: 1, borderColor: `${'#FF4757'}30`,
+    borderWidth: 2, borderColor: `${'#FF4757'}30`,
   },
   premiumBannerEmoji: { fontSize: 28 },
   premiumBannerTitle: {

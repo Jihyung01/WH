@@ -588,8 +588,15 @@ export default function MapScreen() {
         </ClusteredMapView>
       )}
 
-      {/* CharacterBubble 은 옛 스타일 말풍선이라 manga 톤에서 일단 숨김.
-          Phase 4 (소셜) 또는 향후 manga 톤으로 재작성 예정. */}
+      {/* CharacterBubble — manga 톤 노랑 말풍선 (잉크 외곽선 + caret).
+          매일 첫 진입 시 캐릭터별 환경 반응 대사 1회 노출. */}
+      {isFocused && mapCharacter ? (
+        <CharacterBubble
+          situation="app_open"
+          preferEnvironmentalLine
+          topOffset={overlayTop + 116}
+        />
+      ) : null}
       {/* (avatar btn 제거 — manga 디자인엔 없음. 프로필 진입은 탭바로) */}
 
       {/* ── 상단: 만화 톤 검색바 + 알림 종 (Phase 2) ── */}

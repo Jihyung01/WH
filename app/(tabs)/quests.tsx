@@ -640,7 +640,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFB7C520',
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.lg, marginBottom: SPACING.sm,
-    borderWidth: 1, borderColor: '#FFB7C540',
+    borderWidth: 2, borderColor: '#FFB7C540',
   },
   seasonEmoji: { fontSize: 36 },
   seasonTitle: { fontSize: FONT_SIZE.lg, fontWeight: FONT_WEIGHT.bold, color: '#1A1612' },

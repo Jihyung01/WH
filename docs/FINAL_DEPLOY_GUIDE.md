@@ -174,3 +174,4 @@ npx eas update --channel production --message "manga 통합 완성"
 
 ## 변경 이력
 - v1 (2026-05-08): 최종 deploy 가이드. theme 통합 + 18 화면 일괄 swap + 자가검토 6 + 추가 4 픽스.
+- v2 (2026-05-08): 잉크 외곽선 borderWidth 1→2 (16+ 화면 일괄) + SHADOWS.glow 제거 + CharacterBubble manga 재작성(노랑 말풍선) + map.tsx 에서 다시 활성화.

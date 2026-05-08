@@ -383,7 +383,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   input: {
-    borderWidth: 1,
+    borderWidth: 2,
     borderRadius: BORDER_RADIUS.md,
     paddingHorizontal: SPACING.md,
     paddingVertical: 12,
@@ -471,7 +471,7 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     borderRadius: BORDER_RADIUS.lg,
     gap: SPACING.sm,
-    borderWidth: 1,
+    borderWidth: 2,
     ...SHADOWS.sm,
   },
   googleIcon: {

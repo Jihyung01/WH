@@ -243,7 +243,7 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.lg,
     gap: SPACING.md,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: '#1A1612',
   },
   rewardIcon: {
@@ -274,8 +274,7 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.lg,
     borderRadius: BORDER_RADIUS.lg,
     gap: SPACING.sm,
-    ...SHADOWS.glow,
-  },
+    },
   primaryBtnText: {
     fontSize: FONT_SIZE.lg,
     fontWeight: FONT_WEIGHT.bold,

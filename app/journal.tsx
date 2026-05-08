@@ -1005,7 +1005,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
     borderRadius: BORDER_RADIUS.full,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: '#1A1612',
   },
   placeChipText: {
@@ -1054,8 +1054,7 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.lg,
     borderRadius: BORDER_RADIUS.lg,
     gap: SPACING.sm,
-    ...SHADOWS.glow,
-  },
+    },
   shareButtonText: {
     fontSize: FONT_SIZE.md,
     fontWeight: FONT_WEIGHT.bold,
@@ -1090,8 +1089,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.xl,
     borderRadius: BORDER_RADIUS.full,
     gap: SPACING.sm,
-    ...SHADOWS.glow,
-  },
+    },
   generateButtonText: {
     fontSize: FONT_SIZE.md,
     fontWeight: FONT_WEIGHT.bold,

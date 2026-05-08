@@ -379,7 +379,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF5DC',
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.lg, gap: SPACING.md,
-    borderWidth: 1,
+    borderWidth: 2,
   },
   itemIconCircle: {
     width: 48, height: 48, borderRadius: 24,
@@ -423,7 +423,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center', marginTop: SPACING.lg,
     paddingHorizontal: SPACING.xl, paddingVertical: SPACING.md,
     borderRadius: BORDER_RADIUS.full,
-    borderWidth: 1, borderColor: '#FF4757',
+    borderWidth: 2, borderColor: '#FF4757',
   },
   shopBtnText: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.bold, color: '#FF4757' },
 

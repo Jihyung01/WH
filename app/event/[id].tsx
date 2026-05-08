@@ -779,7 +779,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFEF5',
     borderRadius: BORDER_RADIUS.lg,
     overflow: 'hidden',
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: '#1A1612',
     marginBottom: SPACING.xl,
     ...SHADOWS.sm,
@@ -829,7 +829,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: BORDER_RADIUS.full,
     backgroundColor: '#FFF5DC',
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: '#1A1612',
   },
   placesChipText: {
@@ -846,7 +846,7 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.sm,
     borderRadius: BORDER_RADIUS.md,
     backgroundColor: `${'#FF4757'}12`,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: `${'#FF4757'}35`,
   },
   placesLinkText: {
@@ -1009,8 +1009,7 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.lg,
     borderRadius: BORDER_RADIUS.lg,
     alignItems: 'center',
-    ...SHADOWS.glow,
-  },
+    },
   ctaBtnDisabled: {
     backgroundColor: '#F0E5C0',
     shadowOpacity: 0,

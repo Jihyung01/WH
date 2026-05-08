@@ -130,6 +130,7 @@ export function CharacterBubble({
   );
 }
 
+// manga 톤 말풍선 — 잉크 외곽선 2.5px + 노랑 배경 + caret 굵은 잉크
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
@@ -145,41 +146,39 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: BORDER_RADIUS.full,
-    backgroundColor: COLORS.surface,
-    borderWidth: 2,
-    borderColor: BRAND.primary,
+    backgroundColor: '#FFFEF5',     // manga paper
+    borderWidth: 2.5,
+    borderColor: '#1A1612',         // manga ink
     alignItems: 'center',
     justifyContent: 'center',
-    ...SHADOWS.md,
   },
   bubble: {
     flex: 1,
     marginLeft: SPACING.sm,
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.lg,
-    borderWidth: 1.5,
-    borderColor: BRAND.primary,
+    backgroundColor: '#FFD93D',     // manga yellow — 캐릭터 말풍선
+    borderRadius: 14,
+    borderWidth: 2.5,
+    borderColor: '#1A1612',
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
-    ...SHADOWS.md,
   },
   caret: {
     position: 'absolute',
-    left: -8,
+    left: -10,
     top: 12,
     width: 0,
     height: 0,
-    borderTopWidth: 8,
-    borderBottomWidth: 8,
-    borderRightWidth: 8,
+    borderTopWidth: 9,
+    borderBottomWidth: 9,
+    borderRightWidth: 10,
     borderTopColor: 'transparent',
     borderBottomColor: 'transparent',
-    borderRightColor: BRAND.primary,
+    borderRightColor: '#1A1612',
   },
   text: {
     fontSize: FONT_SIZE.md,
-    fontWeight: FONT_WEIGHT.medium,
-    color: COLORS.textPrimary,
+    fontWeight: '900',              // 만화 굵게
+    color: '#1A1612',
     lineHeight: FONT_SIZE.md * 1.5,
   },
 });

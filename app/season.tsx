@@ -310,8 +310,7 @@ const nodeStyles = StyleSheet.create({
   },
   circleClaimable: {
     borderColor: '#FF4757',
-    ...SHADOWS.glow,
-  },
+    },
   lockIcon: {
     fontSize: 20,
   },
@@ -383,8 +382,7 @@ const levelNodeStyles = StyleSheet.create({
   circleCurrent: {
     backgroundColor: '#FF4757',
     borderColor: '#FF4757',
-    ...SHADOWS.glow,
-  },
+    },
   text: {
     fontSize: FONT_SIZE.xs,
     fontWeight: FONT_WEIGHT.semibold,
@@ -818,7 +816,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.xs + 2,
     borderRadius: BORDER_RADIUS.full,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: `${'#FF4757'}30`,
   },
   daysBadgeText: {
@@ -975,7 +973,7 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.lg,
     overflow: 'hidden',
     marginBottom: SPACING.xl,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: `${'#C5A6FF'}40`,
   },
   premiumGradient: {
@@ -1018,8 +1016,7 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.lg,
     borderRadius: BORDER_RADIUS.lg,
     alignItems: 'center',
-    ...SHADOWS.glow,
-  },
+    },
   premiumButtonText: {
     fontSize: FONT_SIZE.lg,
     fontWeight: FONT_WEIGHT.bold,

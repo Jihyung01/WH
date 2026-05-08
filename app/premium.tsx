@@ -456,7 +456,7 @@ const styles = StyleSheet.create({
   pricingCardDisabled: {
     opacity: 0.45,
   },
-  pricingCardSelected: { borderColor: '#FF4757', backgroundColor: `${'#FF4757'}08`, ...SHADOWS.glow },
+  pricingCardSelected: { borderColor: '#FF4757', backgroundColor: `${'#FF4757'}08`, },
   selectedDot: { position: 'absolute', top: SPACING.md, right: SPACING.md },
   pricingLabel: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.semibold, color: 'rgba(26,22,18,0.65)', marginBottom: SPACING.sm },
   pricingPrice: { fontSize: FONT_SIZE.xxl, fontWeight: FONT_WEIGHT.extrabold, color: '#1A1612' },
@@ -476,8 +476,7 @@ const styles = StyleSheet.create({
 
   purchaseButton: {
     backgroundColor: '#FF4757', paddingVertical: SPACING.lg,
-    borderRadius: BORDER_RADIUS.lg, alignItems: 'center', marginBottom: SPACING.lg, ...SHADOWS.glow,
-  },
+    borderRadius: BORDER_RADIUS.lg, alignItems: 'center', marginBottom: SPACING.lg, },
   purchaseButtonDisabled: { opacity: 0.7 },
   purchaseButtonText: { fontSize: FONT_SIZE.lg, fontWeight: FONT_WEIGHT.bold, color: '#FFF' },
 
@@ -508,7 +507,7 @@ const styles = StyleSheet.create({
   activeBenefitTitle: { fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.medium, color: 'rgba(26,22,18,0.65)', textAlign: 'center' },
   manageBtn: {
     marginTop: SPACING.xxl, paddingHorizontal: SPACING.xl, paddingVertical: SPACING.md,
-    borderRadius: BORDER_RADIUS.md, borderWidth: 1, borderColor: '#FF4757',
+    borderRadius: BORDER_RADIUS.md, borderWidth: 2, borderColor: '#FF4757',
   },
   manageBtnText: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.semibold, color: '#FF4757' },
 });

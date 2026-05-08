@@ -537,7 +537,7 @@ const styles = StyleSheet.create({
   },
   chip: {
     backgroundColor: '#FFFEF5',
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: '#FF4757',
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.sm,

@@ -531,7 +531,7 @@ const styles = StyleSheet.create({
   group: {
     borderRadius: BORDER_RADIUS.lg,
     overflow: 'hidden',
-    borderWidth: 1,
+    borderWidth: 2,
   },
   row: {
     flexDirection: 'row',
@@ -593,7 +593,7 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.lg,
     borderRadius: BORDER_RADIUS.lg,
     marginTop: SPACING.md,
-    borderWidth: 1,
+    borderWidth: 2,
   },
   logoutText: {
     fontSize: FONT_SIZE.md,
@@ -607,7 +607,7 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.md,
     borderRadius: BORDER_RADIUS.lg,
     marginTop: SPACING.sm,
-    borderWidth: 1,
+    borderWidth: 2,
   },
   deleteBtnText: {
     fontSize: FONT_SIZE.sm,
