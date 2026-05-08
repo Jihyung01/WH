@@ -2041,3 +2041,185 @@ export async function getExploreSummary(): Promise<ExploreSummary> {
   }
   return { places_visited: 0, cities_visited: 0, records_count: 0, collectibles_count: 0 };
 }
+
+// ──────────────────────────────────────────────────────────────
+// Phase 5 — 메시지 (Spec §6)
+// 마이그레이션: 20260508092934_phase5_messages.sql
+// ──────────────────────────────────────────────────────────────
+
+export type ChatRoomType = '1on1' | 'group' | 'crew';
+export type MessageType = 'text' | 'image' | 'location' | 'event_invite' | 'system';
+
+export interface ChatRoomSummary {
+  room_id: string;
+  type: ChatRoomType;
+  title: string | null;
+  emoji: string | null;
+  crew_id: string | null;
+  last_message_at: string;
+  live_video_started_at: string | null;
+  unread_count: number;
+  member_count: number;
+  last_message_text: string | null;
+  last_message_sender: string | null;
+}
+
+export interface RoomMessage {
+  id: string;
+  sender_id: string;
+  sender_name: string | null;
+  content: string | null;
+  message_type: MessageType;
+  payload: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export async function listMyChatRooms(limit = 30): Promise<ChatRoomSummary[]> {
+  const { data, error } = await supabase.rpc('list_my_chat_rooms', { p_limit: limit });
+  if (error) throw new AppError(error.message, 'LIST_CHAT_ROOMS_FAILED');
+  return (data ?? []) as ChatRoomSummary[];
+}
+
+export async function getOrCreate1on1Room(targetUserId: string): Promise<string> {
+  const { data, error } = await supabase.rpc('get_or_create_1on1_room', {
+    p_target_user_id: targetUserId,
+  });
+  if (error) throw new AppError(error.message, 'GET_OR_CREATE_1ON1_ROOM_FAILED');
+  return String(data);
+}
+
+export async function listRoomMessages(
+  roomId: string,
+  opts?: { limit?: number; before?: string },
+): Promise<RoomMessage[]> {
+  const { data, error } = await supabase.rpc('list_room_messages', {
+    p_room_id: roomId,
+    p_limit: opts?.limit ?? 80,
+    p_before: opts?.before ?? null,
+  });
+  if (error) throw new AppError(error.message, 'LIST_ROOM_MESSAGES_FAILED');
+  return (data ?? []) as RoomMessage[];
+}
+
+export interface SendMessageParams {
+  roomId: string;
+  content?: string | null;
+  messageType?: MessageType;
+  payload?: Record<string, unknown> | null;
+}
+
+export async function sendMessage(params: SendMessageParams): Promise<string> {
+  const { data, error } = await supabase.rpc('send_message', {
+    p_room_id: params.roomId,
+    p_content: params.content ?? null,
+    p_message_type: params.messageType ?? 'text',
+    p_payload: params.payload ?? null,
+  });
+  if (error) throw new AppError(error.message, 'SEND_MESSAGE_FAILED');
+  return String(data);
+}
+
+export async function markRoomRead(roomId: string): Promise<void> {
+  const { error } = await supabase.rpc('mark_room_read', { p_room_id: roomId });
+  if (error) throw new AppError(error.message, 'MARK_ROOM_READ_FAILED');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 7 — 일기 / 장소 메모리 사진 업로드
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** 일기 사진 업로드 → public URL */
+export async function uploadDiaryPhoto(imageUri: string): Promise<string> {
+  const user = await getCurrentUser();
+  const { body, ext } = await uriToUploadBody(imageUri);
+  const fileName = `${user.id}/${Date.now()}.${ext}`;
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const token = session?.access_token ?? '';
+
+  const uploadUrl = `${SUPABASE_URL}/storage/v1/object/diary-photos/${fileName}`;
+  const res = await fetch(uploadUrl, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, apikey: SUPABASE_ANON_KEY },
+    body,
+  });
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '');
+    console.error('Diary photo upload failed:', res.status, errText);
+    throw new AppError('사진 업로드에 실패했습니다.', 'UPLOAD_ERROR', 500);
+  }
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from('diary-photos').getPublicUrl(fileName);
+  return publicUrl;
+}
+
+/** 장소 메모리 사진 업로드 → public URL */
+export async function uploadPlaceMemoryPhoto(imageUri: string): Promise<string> {
+  const user = await getCurrentUser();
+  const { body, ext } = await uriToUploadBody(imageUri);
+  const fileName = `${user.id}/${Date.now()}.${ext}`;
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const token = session?.access_token ?? '';
+
+  const uploadUrl = `${SUPABASE_URL}/storage/v1/object/place-memories/${fileName}`;
+  const res = await fetch(uploadUrl, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, apikey: SUPABASE_ANON_KEY },
+    body,
+  });
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '');
+    console.error('Place memory upload failed:', res.status, errText);
+    throw new AppError('사진 업로드에 실패했습니다.', 'UPLOAD_ERROR', 500);
+  }
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from('place-memories').getPublicUrl(fileName);
+  return publicUrl;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 7 — AI 탐험 노트
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface ExplorationNote {
+  interest: string;
+  recent_category: string;
+  line: string;
+  cached?: boolean;
+  created_at?: string;
+}
+
+/** 캐시된 최신 노트(있으면) 반환 — RPC. */
+export async function getLatestExplorationNote(): Promise<ExplorationNote | null> {
+  const { data, error } = await supabase.rpc('get_latest_exploration_note');
+  if (error) throw new AppError(error.message, 'GET_LATEST_NOTE_FAILED');
+  if (!data) return null;
+  const obj = data as { interest?: string; recent_category?: string; line?: string; created_at?: string };
+  if (!obj.interest || !obj.recent_category || !obj.line) return null;
+  return {
+    interest: obj.interest,
+    recent_category: obj.recent_category,
+    line: obj.line,
+    created_at: obj.created_at,
+  };
+}
+
+/** Edge Function 호출 — 캐시 없거나 강제 재생성 시. */
+export async function generateExplorationNote(): Promise<ExplorationNote> {
+  const data = await invokeEdgeFunction<ExplorationNote>(
+    'generate-exploration-note',
+    {},
+  );
+  return data;
+}

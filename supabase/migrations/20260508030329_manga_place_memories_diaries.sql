@@ -416,3 +416,10 @@ LANGUAGE sql STABLE SECURITY INVOKER AS $$
 $$;
 
 GRANT EXECUTE ON FUNCTION public.get_explore_summary() TO authenticated;
+
+-- ========================================
+-- PostgREST schema cache reload
+-- ========================================
+-- 새 RPC 가 PostgREST 의 schema cache 에 등록되도록 NOTIFY 발행.
+-- supabase db push 후 client 가 즉시 새 함수 호출 가능.
+NOTIFY pgrst, 'reload schema';

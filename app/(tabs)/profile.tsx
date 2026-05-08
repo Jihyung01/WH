@@ -39,6 +39,9 @@ import {
   type Diary,
   type PlaceMemory,
   type ExploreSummary,
+  getLatestExplorationNote,
+  generateExplorationNote,
+  type ExplorationNote,
 } from '../../src/lib/api';
 import { MANGA, MANGA_BORDER, MANGA_RADIUS, FONT_FAMILY } from '../../src/config/theme';
 import { InkCard, InkButton, MangaAvatar, showToast } from '../../src/components/ui';
@@ -60,20 +63,33 @@ export default function ProfileScreen() {
   const [memories, setMemories] = useState<PlaceMemory[]>([]);
   const [diaries, setDiaries] = useState<Diary[]>([]);
   const [summary, setSummary] = useState<ExploreSummary | null>(null);
+  const [aiNote, setAiNote] = useState<ExplorationNote | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
-      const [m, d, s] = await Promise.all([
+      const [m, d, s, n] = await Promise.all([
         listMyPlaceMemories(20).catch(() => []),
         listMyDiaries(20).catch(() => []),
         getExploreSummary().catch(() => null),
+        getLatestExplorationNote().catch(() => null),
       ]);
       setMemories(m);
       setDiaries(d);
       setSummary(s);
+      setAiNote(n);
     } catch {
       /* silent — partial loads OK */
+    }
+  }, []);
+
+  const onRefreshAiNote = useCallback(async () => {
+    try {
+      const n = await generateExplorationNote();
+      setAiNote(n);
+      showToast('AI 노트 새로 받음', { tone: 'success' });
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : '잠시 후 다시 시도', { tone: 'paper' });
     }
   }, []);
 
@@ -265,7 +281,10 @@ export default function ProfileScreen() {
       <ExploreSummarySection summary={summary} />
 
       {/* 4. AI 탐험 노트 */}
-      <AINoteSection onPress={() => router.push('/journal' as never)} />
+      <AINoteSection
+        note={aiNote ? { interest: aiNote.interest, recent_category: aiNote.recent_category } : null}
+        onPress={onRefreshAiNote}
+      />
 
       {/* 5. 탐험 허브 */}
       <ExploreHubSection tiles={hubTiles} />

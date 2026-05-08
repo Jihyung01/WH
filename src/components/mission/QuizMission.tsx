@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
     borderRadius: BORDER_RADIUS.sm,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: 'transparent',
   },
   optionCorrect: {
@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
     borderRadius: BORDER_RADIUS.sm,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: COLORS.success,
   },
   optionWrong: {
@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
     borderRadius: BORDER_RADIUS.sm,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: COLORS.error,
   },
   optionCorrectReveal: {
@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
     borderRadius: BORDER_RADIUS.sm,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: 'rgba(0, 214, 143, 0.3)',
   },
   optionText: {

@@ -99,8 +99,8 @@ export function UserLocationMarker({
                 showLoadoutOverlay={false}
                 showEvolutionBadge={false}
                 favoriteDistrict={favoriteDistrict}
-                borderColor="#FFFFFF"
-                backgroundColor="rgba(72,219,251,0.35)"
+                borderColor="#1A1612"      /* manga ink */
+                backgroundColor="#FFD93D"  /* manga yellow */
                 interactive={false}
               />
             ) : (
@@ -120,12 +120,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // manga 톤 — 노랑 펄스 + 잉크 외곽선 + 노랑 dot.
   pulse: {
     position: 'absolute',
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: 'rgba(72, 219, 251, 0.3)',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 217, 61, 0.42)',  /* manga yellow soft */
+    borderWidth: 2,
+    borderColor: '#1A1612',
   },
   headingCone: {
     position: 'absolute',
@@ -141,28 +144,25 @@ const styles = StyleSheet.create({
     borderBottomWidth: 24,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
-    borderBottomColor: 'rgba(72, 219, 251, 0.15)',
+    borderBottomColor: 'rgba(255, 217, 61, 0.4)',  /* manga yellow */
     top: 4,
   },
   outerRing: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.3)',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#FFFEF5',          /* manga paper */
+    borderWidth: 2.5,
+    borderColor: '#1A1612',              /* manga ink */
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#48DBFB',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 8,
-    elevation: 4,
   },
   dot: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: '#48DBFB',
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#FFD93D',          /* manga yellow */
     borderWidth: 2.5,
-    borderColor: '#FFFFFF',
+    borderColor: '#1A1612',
   },
 });

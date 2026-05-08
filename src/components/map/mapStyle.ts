@@ -221,9 +221,18 @@ export const MANGA_MAP_STYLE = [
     stylers: [{ visibility: 'off' }],
   },
 
-  // POI: 기본 POI 는 거의 숨김. 공원만 살림.
+  // POI: 모든 카테고리 명시적 숨김. WhereHere 의 manga 마커에 시선 집중.
+  // (공원만 살림.)
+  { featureType: 'poi', stylers: [{ visibility: 'off' }] },
   { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] },
-  { featureType: 'poi', elementType: 'geometry', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi', elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi.attraction', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi.business', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi.government', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi.medical', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi.place_of_worship', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi.school', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi.sports_complex', stylers: [{ visibility: 'off' }] },
   {
     featureType: 'poi.park',
     elementType: 'geometry',
@@ -239,6 +248,9 @@ export const MANGA_MAP_STYLE = [
     elementType: 'labels.text.fill',
     stylers: [{ color: '#5C7A3C' }],
   },
+  // transit station 도 큰 핀 그림 → 숨김
+  { featureType: 'transit', elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
+  { featureType: 'transit.station', stylers: [{ visibility: 'off' }] },
 
   // 도로 — 모래색 grade
   {

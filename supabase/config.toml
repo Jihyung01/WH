@@ -12,6 +12,13 @@ entrypoint = "./functions/complete-event/index.ts"
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/complete-event/*.html" ]
 
+[functions.generate-exploration-note]
+enabled = true
+# verify_jwt = false → 함수 본문에서 직접 supabaseAdmin.auth.getUser(Bearer) 검증 (Expo Go JWT 호환)
+verify_jwt = false
+import_map = "./functions/generate-exploration-note/deno.json"
+entrypoint = "./functions/generate-exploration-note/index.ts"
+
 [functions.generate-narrative]
 enabled = true
 verify_jwt = true

@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.sm,
     paddingVertical: 2,
     borderRadius: BORDER_RADIUS.sm,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: 'transparent',
   },
   rewardEmoji: { fontSize: 11 },

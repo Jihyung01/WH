@@ -19,12 +19,14 @@ import {
   Pressable,
   Alert,
 } from 'react-native';
+import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
-import { createDiary, type DiaryVisibility } from '../../src/lib/api';
-import { MANGA, MANGA_BORDER, MANGA_RADIUS, FONT_FAMILY } from '../../src/config/theme';
+import { createDiary, uploadDiaryPhoto, type DiaryVisibility } from '../../src/lib/api';
+import { MANGA, FONT_FAMILY } from '../../src/config/theme';
 import { InkCard, InkButton, MangaChip, showToast } from '../../src/components/ui';
 
 const VISIBILITY_OPTIONS: { value: DiaryVisibility; label: string; emoji: string }[] = [
@@ -41,6 +43,38 @@ export default function DiaryCreateScreen() {
   const [placeLabel, setPlaceLabel] = useState('');
   const [visibility, setVisibility] = useState<DiaryVisibility>('private');
   const [submitting, setSubmitting] = useState(false);
+  const [photoUris, setPhotoUris] = useState<string[]>([]);
+  const [picking, setPicking] = useState(false);
+
+  const onPickPhoto = async () => {
+    if (photoUris.length >= 4) {
+      showToast('사진은 최대 4장', { tone: 'paper' });
+      return;
+    }
+    setPicking(true);
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert('권한 필요', '사진을 첨부하려면 사진 권한이 필요합니다.');
+        return;
+      }
+      const res = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.85,
+        allowsMultipleSelection: false,
+      });
+      if (res.canceled || !res.assets?.[0]) return;
+      setPhotoUris((prev) => [...prev, res.assets[0].uri]);
+    } catch (e) {
+      Alert.alert('사진 선택 실패', e instanceof Error ? e.message : '잠시 후 다시 시도');
+    } finally {
+      setPicking(false);
+    }
+  };
+
+  const onRemovePhoto = (idx: number) => {
+    setPhotoUris((prev) => prev.filter((_, i) => i !== idx));
+  };
 
   const onSubmit = async () => {
     if (!title.trim()) {
@@ -53,11 +87,19 @@ export default function DiaryCreateScreen() {
     }
     setSubmitting(true);
     try {
+      // 1) 사진 업로드 (있는 경우)
+      const photoUrls: string[] = [];
+      for (const uri of photoUris) {
+        const url = await uploadDiaryPhoto(uri);
+        photoUrls.push(url);
+      }
+      // 2) 일기 저장
       await createDiary({
         title: title.trim(),
         body: body.trim(),
         place_label: placeLabel.trim() || null,
         visibility,
+        photo_urls: photoUrls,
       });
       showToast('일기 저장됨', { tone: 'success', icon: '✦' });
       router.back();
@@ -126,6 +168,37 @@ export default function DiaryCreateScreen() {
         </InkCard>
 
         <View style={{ marginTop: 12 }}>
+          <Text style={[styles.fieldLabel, { paddingHorizontal: 4 }]} allowFontScaling={false}>
+            사진 (선택, 최대 4장)
+          </Text>
+          <View style={styles.photoStrip}>
+            {photoUris.map((uri, idx) => (
+              <View key={uri} style={styles.photoTile}>
+                <View style={styles.photoTileShadow} />
+                <View style={styles.photoTileBody}>
+                  <Image source={{ uri }} style={styles.photoImg} contentFit="cover" />
+                  <Pressable
+                    style={styles.photoRemove}
+                    onPress={() => onRemovePhoto(idx)}
+                    hitSlop={6}
+                  >
+                    <Ionicons name="close" size={14} color="#FFFEF5" />
+                  </Pressable>
+                </View>
+              </View>
+            ))}
+            {photoUris.length < 4 ? (
+              <Pressable onPress={onPickPhoto} disabled={picking} style={styles.photoAdd}>
+                <Ionicons name="camera" size={22} color={MANGA.ink} />
+                <Text style={styles.photoAddText} allowFontScaling={false}>
+                  {picking ? '선택 중…' : '사진'}
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
+        </View>
+
+        <View style={{ marginTop: 16 }}>
           <Text style={[styles.fieldLabel, { paddingHorizontal: 4 }]} allowFontScaling={false}>
             공개 범위
           </Text>
@@ -199,5 +272,60 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     minHeight: 140,
     textAlignVertical: 'top',
+  },
+  photoStrip: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginTop: 8,
+  },
+  photoTile: { width: 78, height: 78, position: 'relative' },
+  photoTileShadow: {
+    position: 'absolute',
+    top: 3,
+    left: 3,
+    width: 78,
+    height: 78,
+    borderRadius: 14,
+    backgroundColor: MANGA.ink,
+  },
+  photoTileBody: {
+    width: 78,
+    height: 78,
+    borderRadius: 14,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: MANGA.ink,
+    backgroundColor: MANGA.paper,
+  },
+  photoImg: { width: '100%', height: '100%' },
+  photoRemove: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: MANGA.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoAdd: {
+    width: 78,
+    height: 78,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: MANGA.ink,
+    borderStyle: 'dashed',
+    backgroundColor: MANGA.paper,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+  },
+  photoAddText: {
+    color: MANGA.ink,
+    fontSize: 11,
+    fontFamily: FONT_FAMILY.primaryBold,
+    opacity: 0.7,
   },
 });

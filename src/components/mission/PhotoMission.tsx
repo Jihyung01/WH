@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
     gap: 6,
     minWidth: 140,
     justifyContent: 'center',
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: COLORS.border,
   },
   captureBtnDisabled: {
