@@ -253,7 +253,7 @@ export default function SettingsScreen() {
     );
   };
 
-  const switchTrack = { false: colors.surfaceHighlight, true: BRAND.primary };
+  const switchTrack = { false: colors.surfaceHighlight, true: '#FF4757' };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -348,7 +348,7 @@ export default function SettingsScreen() {
             <Switch
               value={powerSaveMode}
               onValueChange={handlePowerSaveToggle}
-              trackColor={{ false: colors.surfaceHighlight, true: BRAND.gold }}
+              trackColor={{ false: colors.surfaceHighlight, true: '#FFD93D' }}
               thumbColor="#FFFFFF"
               accessibilityLabel={`절전 모드 ${powerSaveMode ? '끄기' : '켜기'}`}
             />
@@ -379,8 +379,8 @@ export default function SettingsScreen() {
                   key={opt.value}
                   style={[
                     styles.themeOption,
-                    { borderColor: isActive ? BRAND.primary : colors.border },
-                    isActive && { backgroundColor: BRAND.primary + '18' },
+                    { borderColor: isActive ? '#FF4757' : colors.border },
+                    isActive && { backgroundColor: '#FF4757' + '18' },
                   ]}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -392,12 +392,12 @@ export default function SettingsScreen() {
                   <Ionicons
                     name={opt.icon}
                     size={20}
-                    color={isActive ? BRAND.primary : colors.textMuted}
+                    color={isActive ? '#FF4757' : colors.textMuted}
                   />
                   <Text
                     style={[
                       styles.themeLabel,
-                      { color: isActive ? BRAND.primary : colors.textSecondary },
+                      { color: isActive ? '#FF4757' : colors.textSecondary },
                     ]}
                   >
                     {opt.label}

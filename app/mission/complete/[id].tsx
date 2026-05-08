@@ -70,11 +70,11 @@ export default function MissionCompleteScreen() {
     const coinEstimate = Math.round((event.difficulty ?? 1) * 20);
     const items: RewardItem[] = [
       { icon: '⚡', label: 'XP', value: `+${xp}`, color: COLORS.primary },
-      { icon: '🪙', label: '코인', value: `+${coinEstimate}`, color: COLORS.warning },
+      { icon: '🪙', label: '코인', value: `+${coinEstimate}`, color: '#FFD93D' },
     ];
     const extra = event.rewards;
     if (Array.isArray(extra) && extra.length > 0 && extra[0]?.name) {
-      items.push({ icon: '🎁', label: '아이템', value: extra[0].name, color: COLORS.info });
+      items.push({ icon: '🎁', label: '아이템', value: extra[0].name, color: '#4FBDFF' });
     }
     return items;
   }, [event]);
@@ -136,7 +136,7 @@ export default function MissionCompleteScreen() {
 
       <View style={styles.content}>
         <Animated.View style={[styles.trophyContainer, trophyStyle]}>
-          <LinearGradient colors={[COLORS.warning, '#FF9500']} style={styles.trophyGradient}>
+          <LinearGradient colors={['#FFD93D', '#FF9500']} style={styles.trophyGradient}>
             <Text style={styles.trophyEmoji}>🏆</Text>
           </LinearGradient>
         </Animated.View>
@@ -175,7 +175,7 @@ export default function MissionCompleteScreen() {
             router.replace('/(tabs)/map');
           }}
         >
-          <Ionicons name="map-outline" size={20} color={COLORS.textPrimary} />
+          <Ionicons name="map-outline" size={20} color={'#1A1612'} />
           <Text style={styles.primaryBtnText}>지도로 돌아가기</Text>
         </Pressable>
 
@@ -190,7 +190,7 @@ export default function MissionCompleteScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#FFF5DC',
   },
   confettiLayer: {
     ...StyleSheet.absoluteFillObject,
@@ -223,12 +223,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FONT_SIZE.xxxl,
     fontWeight: FONT_WEIGHT.extrabold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     marginBottom: SPACING.sm,
   },
   subtitle: {
     fontSize: FONT_SIZE.md,
-    color: COLORS.textSecondary,
+    color: 'rgba(26,22,18,0.65)',
     textAlign: 'center',
     marginBottom: SPACING.xxxl,
   },
@@ -239,12 +239,12 @@ const styles = StyleSheet.create({
   rewardCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.lg,
     gap: SPACING.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: '#1A1612',
   },
   rewardIcon: {
     fontSize: 32,
@@ -254,7 +254,7 @@ const styles = StyleSheet.create({
   },
   rewardLabel: {
     fontSize: FONT_SIZE.sm,
-    color: COLORS.textMuted,
+    color: 'rgba(26,22,18,0.5)',
     marginBottom: 2,
   },
   rewardValue: {
@@ -279,7 +279,7 @@ const styles = StyleSheet.create({
   primaryBtnText: {
     fontSize: FONT_SIZE.lg,
     fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
   },
   secondaryBtn: {
     alignItems: 'center',
@@ -288,7 +288,7 @@ const styles = StyleSheet.create({
   secondaryBtnText: {
     fontSize: FONT_SIZE.md,
     fontWeight: FONT_WEIGHT.medium,
-    color: COLORS.textSecondary,
+    color: 'rgba(26,22,18,0.65)',
     textDecorationLine: 'underline',
   },
 });

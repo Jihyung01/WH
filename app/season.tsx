@@ -122,7 +122,7 @@ function SkeletonBlock({
           width,
           height,
           borderRadius: BORDER_RADIUS.sm,
-          backgroundColor: COLORS.surfaceLight,
+          backgroundColor: '#FFF5DC',
         },
         style,
       ]}
@@ -205,7 +205,7 @@ function ClaimBurst({ visible }: { visible: boolean }) {
     height: NODE_SIZE + 24,
     borderRadius: (NODE_SIZE + 24) / 2,
     borderWidth: 3,
-    borderColor: BRAND.primary,
+    borderColor: '#FF4757',
     top: -12,
     left: -12,
   }));
@@ -256,9 +256,9 @@ function RewardNode({
             ]}
           >
             {isClaiming ? (
-              <ActivityIndicator size="small" color={BRAND.primary} />
+              <ActivityIndicator size="small" color={'#FF4757'} />
             ) : reward.claimed ? (
-              <Ionicons name="checkmark" size={22} color={BRAND.primary} />
+              <Ionicons name="checkmark" size={22} color={'#FF4757'} />
             ) : locked ? (
               <Text style={nodeStyles.lockIcon}>🔒</Text>
             ) : (
@@ -291,25 +291,25 @@ const nodeStyles = StyleSheet.create({
     borderRadius: NODE_SIZE / 2,
     backgroundColor: '#FFFEF5' /* manga paper */,
     borderWidth: 2,
-    borderColor: COLORS.border,
+    borderColor: '#1A1612',
     alignItems: 'center',
     justifyContent: 'center',
   },
   circleReachable: {
-    borderColor: BRAND.primary,
-    backgroundColor: `${BRAND.primary}15`,
+    borderColor: '#FF4757',
+    backgroundColor: `${'#FF4757'}15`,
   },
   circleClaimed: {
-    borderColor: BRAND.primary,
-    backgroundColor: `${BRAND.primary}25`,
+    borderColor: '#FF4757',
+    backgroundColor: `${'#FF4757'}25`,
   },
   circleLocked: {
-    borderColor: COLORS.textDisabled,
-    backgroundColor: COLORS.surfaceLight,
+    borderColor: 'rgba(26,22,18,0.35)',
+    backgroundColor: '#FFF5DC',
     opacity: 0.6,
   },
   circleClaimable: {
-    borderColor: BRAND.primary,
+    borderColor: '#FF4757',
     ...SHADOWS.glow,
   },
   lockIcon: {
@@ -320,12 +320,12 @@ const nodeStyles = StyleSheet.create({
   },
   label: {
     fontSize: FONT_SIZE.xs,
-    color: COLORS.textSecondary,
+    color: 'rgba(26,22,18,0.65)',
     marginTop: 4,
     textAlign: 'center',
   },
   labelClaimed: {
-    color: BRAND.primary,
+    color: '#FF4757',
   },
 });
 
@@ -370,28 +370,28 @@ const levelNodeStyles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
     borderWidth: 1.5,
-    borderColor: COLORS.border,
+    borderColor: '#1A1612',
     alignItems: 'center',
     justifyContent: 'center',
   },
   circlePast: {
-    backgroundColor: `${BRAND.primary}30`,
-    borderColor: BRAND.primary,
+    backgroundColor: `${'#FF4757'}30`,
+    borderColor: '#FF4757',
   },
   circleCurrent: {
-    backgroundColor: BRAND.primary,
-    borderColor: BRAND.primary,
+    backgroundColor: '#FF4757',
+    borderColor: '#FF4757',
     ...SHADOWS.glow,
   },
   text: {
     fontSize: FONT_SIZE.xs,
     fontWeight: FONT_WEIGHT.semibold,
-    color: COLORS.textMuted,
+    color: 'rgba(26,22,18,0.5)',
   },
   textPast: {
-    color: BRAND.primary,
+    color: '#FF4757',
   },
   textCurrent: {
     color: '#FFF',
@@ -402,7 +402,7 @@ function ProgressBar({
   progress,
   delay = 0,
   height = 8,
-  color = BRAND.primary,
+  color = '#FF4757',
 }: {
   progress: number;
   delay?: number;
@@ -434,7 +434,7 @@ function ProgressBar({
 const progressStyles = StyleSheet.create({
   track: {
     width: '100%',
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
     borderRadius: 4,
     overflow: 'hidden',
   },
@@ -510,7 +510,7 @@ export default function SeasonPassScreen() {
   const renderEmptyState = () => (
     <Animated.View entering={FadeIn.duration(400)} style={styles.emptyContainer}>
       <View style={styles.emptyIcon}>
-        <Ionicons name="trophy-outline" size={48} color={COLORS.textMuted} />
+        <Ionicons name="trophy-outline" size={48} color={'rgba(26,22,18,0.5)'} />
       </View>
       <Text style={styles.emptyTitle}>활성 시즌이 없습니다</Text>
       <Text style={styles.emptyDesc}>
@@ -540,8 +540,8 @@ export default function SeasonPassScreen() {
       pass.claimed_rewards,
     );
 
-    const theme = si.theme_color || BRAND.primary;
-    const bannerColors: [string, string, string] = [theme, `${theme}88`, COLORS.surface];
+    const theme = si.theme_color || '#FF4757';
+    const bannerColors: [string, string, string] = [theme, `${theme}88`, '#FFFEF5'];
 
     return (
       <ScrollView
@@ -695,13 +695,13 @@ export default function SeasonPassScreen() {
             >
               <View style={styles.premiumHeader}>
                 <Text style={styles.premiumBadge}>PREMIUM</Text>
-                <Ionicons name="star" size={20} color={BRAND.gold} />
+                <Ionicons name="star" size={20} color={'#FFD93D'} />
               </View>
               <Text style={styles.premiumTitle}>프리미엄 패스 업그레이드</Text>
               <View style={styles.premiumBenefits}>
                 {PREMIUM_BENEFITS.map((b) => (
                   <View key={b.text} style={styles.benefitRow}>
-                    <Ionicons name={b.icon} size={16} color={BRAND.primary} />
+                    <Ionicons name={b.icon} size={16} color={'#FF4757'} />
                     <Text style={styles.benefitText}>{b.text}</Text>
                   </View>
                 ))}
@@ -728,7 +728,7 @@ export default function SeasonPassScreen() {
               <Text style={styles.statBoxLabel}>시즌 XP</Text>
             </View>
             <View style={styles.statBox}>
-              <Ionicons name="trophy" size={22} color={BRAND.primary} />
+              <Ionicons name="trophy" size={22} color={'#FF4757'} />
               <Text style={styles.statBoxValue}>
                 {pass.current_level} / {SEASON_MAX_LEVEL}
               </Text>
@@ -753,12 +753,12 @@ export default function SeasonPassScreen() {
           onPress={() => router.back()}
           hitSlop={12}
         >
-          <Ionicons name="chevron-back" size={24} color={COLORS.textPrimary} />
+          <Ionicons name="chevron-back" size={24} color={'#1A1612'} />
         </Pressable>
         <Text style={styles.headerTitle}>시즌 패스</Text>
         {hasSeasonContent && !loading ? (
           <View style={styles.daysBadge}>
-            <Ionicons name="time-outline" size={14} color={BRAND.primary} />
+            <Ionicons name="time-outline" size={14} color={'#FF4757'} />
             <Text style={styles.daysBadgeText}>{daysRemaining}일 남음</Text>
           </View>
         ) : (
@@ -791,21 +791,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: '#1A1612',
     backgroundColor: '#FFFEF5' /* manga paper */,
   },
   backBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerTitle: {
     fontSize: FONT_SIZE.lg,
     fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
   },
   headerSpacer: {
     width: 80,
@@ -814,17 +814,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: `${BRAND.primary}15`,
+    backgroundColor: `${'#FF4757'}15`,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.xs + 2,
     borderRadius: BORDER_RADIUS.full,
     borderWidth: 1,
-    borderColor: `${BRAND.primary}30`,
+    borderColor: `${'#FF4757'}30`,
   },
   daysBadgeText: {
     fontSize: FONT_SIZE.xs,
     fontWeight: FONT_WEIGHT.semibold,
-    color: BRAND.primary,
+    color: '#FF4757',
   },
 
   scrollView: {
@@ -885,7 +885,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   levelBadge: {
-    backgroundColor: BRAND.primary,
+    backgroundColor: '#FF4757',
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.xs,
     borderRadius: BORDER_RADIUS.full,
@@ -898,7 +898,7 @@ const styles = StyleSheet.create({
   levelLabel: {
     fontSize: FONT_SIZE.md,
     fontWeight: FONT_WEIGHT.semibold,
-    color: COLORS.textSecondary,
+    color: 'rgba(26,22,18,0.65)',
   },
   xpRow: {
     flexDirection: 'row',
@@ -908,18 +908,18 @@ const styles = StyleSheet.create({
   xpText: {
     fontSize: FONT_SIZE.xs,
     fontWeight: FONT_WEIGHT.medium,
-    color: BRAND.primary,
+    color: '#FF4757',
   },
   xpNextText: {
     fontSize: FONT_SIZE.xs,
-    color: COLORS.textMuted,
+    color: 'rgba(26,22,18,0.5)',
   },
 
   // Reward track
   sectionTitle: {
     fontSize: FONT_SIZE.lg,
     fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     marginBottom: SPACING.md,
   },
   trackContainer: {
@@ -928,7 +928,7 @@ const styles = StyleSheet.create({
   trackLabel: {
     fontSize: FONT_SIZE.sm,
     fontWeight: FONT_WEIGHT.semibold,
-    color: COLORS.textSecondary,
+    color: 'rgba(26,22,18,0.65)',
     marginBottom: SPACING.sm,
     marginTop: SPACING.sm,
   },
@@ -957,7 +957,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     height: 3,
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
     borderRadius: 1.5,
   },
   connectorLine: {
@@ -965,7 +965,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     height: 3,
-    backgroundColor: BRAND.primary,
+    backgroundColor: '#FF4757',
     borderRadius: 1.5,
     zIndex: 1,
   },
@@ -976,7 +976,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginBottom: SPACING.xl,
     borderWidth: 1,
-    borderColor: `${BRAND.purple}40`,
+    borderColor: `${'#C5A6FF'}40`,
   },
   premiumGradient: {
     padding: SPACING.xl,
@@ -990,13 +990,13 @@ const styles = StyleSheet.create({
   premiumBadge: {
     fontSize: FONT_SIZE.xs,
     fontWeight: FONT_WEIGHT.bold,
-    color: BRAND.gold,
+    color: '#FFD93D',
     letterSpacing: 2,
   },
   premiumTitle: {
     fontSize: FONT_SIZE.xl,
     fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     marginBottom: SPACING.lg,
   },
   premiumBenefits: {
@@ -1010,11 +1010,11 @@ const styles = StyleSheet.create({
   },
   benefitText: {
     fontSize: FONT_SIZE.md,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     fontWeight: FONT_WEIGHT.medium,
   },
   premiumButton: {
-    backgroundColor: BRAND.primary,
+    backgroundColor: '#FF4757',
     paddingVertical: SPACING.lg,
     borderRadius: BORDER_RADIUS.lg,
     alignItems: 'center',
@@ -1027,7 +1027,7 @@ const styles = StyleSheet.create({
   },
   premiumNote: {
     fontSize: FONT_SIZE.xs,
-    color: COLORS.textMuted,
+    color: 'rgba(26,22,18,0.5)',
     textAlign: 'center',
     marginTop: SPACING.sm,
   },
@@ -1042,7 +1042,7 @@ const styles = StyleSheet.create({
   statsTitle: {
     fontSize: FONT_SIZE.md,
     fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     marginBottom: SPACING.lg,
   },
   statsGrid: {
@@ -1052,7 +1052,7 @@ const styles = StyleSheet.create({
   statBox: {
     flex: 1,
     alignItems: 'center',
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
     borderRadius: BORDER_RADIUS.md,
     paddingVertical: SPACING.lg,
     gap: SPACING.xs,
@@ -1060,11 +1060,11 @@ const styles = StyleSheet.create({
   statBoxValue: {
     fontSize: FONT_SIZE.lg,
     fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
   },
   statBoxLabel: {
     fontSize: FONT_SIZE.xs,
-    color: COLORS.textSecondary,
+    color: 'rgba(26,22,18,0.65)',
   },
 
   // Empty state
@@ -1086,12 +1086,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: FONT_SIZE.xl,
     fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     marginBottom: SPACING.sm,
   },
   emptyDesc: {
     fontSize: FONT_SIZE.md,
-    color: COLORS.textSecondary,
+    color: 'rgba(26,22,18,0.65)',
     textAlign: 'center',
     lineHeight: FONT_SIZE.md * 1.6,
     marginBottom: SPACING.xl,
@@ -1100,7 +1100,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.sm,
-    backgroundColor: BRAND.primary,
+    backgroundColor: '#FF4757',
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.xl,
     borderRadius: BORDER_RADIUS.full,

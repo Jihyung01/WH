@@ -347,7 +347,7 @@ export default function ShopScreen() {
                 <Text style={styles.ownedText}>보유중</Text>
               </View>
             ) : isPurchasing ? (
-              <ActivityIndicator size="small" color={BRAND.gold} style={{ marginTop: SPACING.sm }} />
+              <ActivityIndicator size="small" color={'#FFD93D'} style={{ marginTop: SPACING.sm }} />
             ) : (
               <View style={styles.priceBadge}>
                 <Text style={styles.priceText}>🪙 {item.coin_price}</Text>
@@ -365,7 +365,7 @@ export default function ShopScreen() {
               }}
             >
               {giftingId === item.id ? (
-                <ActivityIndicator size="small" color={BRAND.primary} />
+                <ActivityIndicator size="small" color={'#FF4757'} />
               ) : (
                 <Text style={styles.giftBtnText}>🎁 선물하기</Text>
               )}
@@ -410,7 +410,7 @@ export default function ShopScreen() {
               <ActivityIndicator size="small" color="#FFF" />
             ) : (
               <LinearGradient
-                colors={bestValue ? [BRAND.gold, '#E8A317'] : [BRAND.primary, '#1AAD8A']}
+                colors={bestValue ? ['#FFD93D', '#E8A317'] : ['#FF4757', '#D32B3C']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.coinPriceBtn}
@@ -442,7 +442,7 @@ export default function ShopScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Ionicons name="chevron-back" size={24} color={COLORS.textPrimary} />
+          <Ionicons name="chevron-back" size={24} color={'#1A1612'} />
         </Pressable>
         <Text style={styles.headerTitle}>상점</Text>
         <View style={styles.coinHeaderBadge}>
@@ -459,7 +459,7 @@ export default function ShopScreen() {
           <Ionicons
             name="color-palette-outline"
             size={16}
-            color={mainTab === 'cosmetics' ? '#FFF' : COLORS.textMuted}
+            color={mainTab === 'cosmetics' ? '#FFF' : 'rgba(26,22,18,0.5)'}
           />
           <Text style={[styles.mainTabText, mainTab === 'cosmetics' && styles.mainTabTextActive]}>
             코스메틱
@@ -519,7 +519,7 @@ export default function ShopScreen() {
           {/* Cosmetic Grid */}
           {isLoading ? (
             <View style={styles.loading}>
-              <ActivityIndicator size="large" color={BRAND.primary} />
+              <ActivityIndicator size="large" color={'#FF4757'} />
             </View>
           ) : (
             <FlatList
@@ -550,7 +550,7 @@ export default function ShopScreen() {
           {/* Hero banner */}
           <Animated.View entering={FadeInUp.duration(400)}>
             <LinearGradient
-              colors={[BRAND.gold, '#E8A317', COLORS.surface]}
+              colors={['#FFD93D', '#E8A317', '#FFFEF5']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.coinHero}
@@ -570,7 +570,7 @@ export default function ShopScreen() {
           <Text style={styles.coinSectionTitle}>코인 팩</Text>
 
           {!coinProductsLoaded ? (
-            <ActivityIndicator size="large" color={BRAND.gold} style={{ marginVertical: SPACING.xl }} />
+            <ActivityIndicator size="large" color={'#FFD93D'} style={{ marginVertical: SPACING.xl }} />
           ) : (
             <FlatList
               data={coinProductsForStore}
@@ -613,7 +613,7 @@ export default function ShopScreen() {
                 XP 2배, 프리미엄 스킨, AI 대화 무제한
               </Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color={BRAND.primary} />
+            <Ionicons name="chevron-forward" size={20} color={'#FF4757'} />
           </Pressable>
         </ScrollView>
       )}
@@ -643,7 +643,7 @@ export default function ShopScreen() {
               </Text>
             ) : null}
             {giftFriendsLoading ? (
-              <ActivityIndicator style={{ marginVertical: SPACING.xl }} color={BRAND.primary} />
+              <ActivityIndicator style={{ marginVertical: SPACING.xl }} color={'#FF4757'} />
             ) : giftFriends.length === 0 ? (
               <Text style={styles.giftEmpty}>친구를 추가한 뒤 선물할 수 있어요.</Text>
             ) : (
@@ -669,7 +669,7 @@ export default function ShopScreen() {
                     }}
                   >
                     <Text style={styles.giftFriendName}>{f.username}</Text>
-                    <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+                    <Ionicons name="chevron-forward" size={18} color={'rgba(26,22,18,0.5)'} />
                   </Pressable>
                 ))}
               </ScrollView>
@@ -697,14 +697,14 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md,
-    borderBottomWidth: 1, borderBottomColor: COLORS.border,
+    borderBottomWidth: 1, borderBottomColor: '#1A1612',
   },
-  headerTitle: { fontSize: FONT_SIZE.lg, fontWeight: FONT_WEIGHT.bold, color: COLORS.textPrimary },
+  headerTitle: { fontSize: FONT_SIZE.lg, fontWeight: FONT_WEIGHT.bold, color: '#1A1612' },
   coinHeaderBadge: {
-    backgroundColor: `${BRAND.gold}20`, paddingHorizontal: SPACING.md,
+    backgroundColor: `${'#FFD93D'}20`, paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.xs, borderRadius: BORDER_RADIUS.full,
   },
-  coinHeaderText: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.bold, color: BRAND.gold },
+  coinHeaderText: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.bold, color: '#FFD93D' },
 
   // Main tabs
   mainTabRow: {
@@ -714,10 +714,10 @@ const styles = StyleSheet.create({
   mainTab: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: SPACING.xs, paddingVertical: SPACING.md,
-    borderRadius: BORDER_RADIUS.md, backgroundColor: COLORS.surfaceLight,
+    borderRadius: BORDER_RADIUS.md, backgroundColor: '#FFF5DC',
   },
-  mainTabActive: { backgroundColor: BRAND.primary },
-  mainTabText: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.semibold, color: COLORS.textMuted },
+  mainTabActive: { backgroundColor: '#FF4757' },
+  mainTabText: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.semibold, color: 'rgba(26,22,18,0.5)' },
   mainTabTextActive: { color: '#FFF', fontWeight: FONT_WEIGHT.bold },
 
   // Cosmetic sub-tabs
@@ -727,10 +727,10 @@ const styles = StyleSheet.create({
   },
   tab: {
     flex: 1, alignItems: 'center', paddingVertical: SPACING.md,
-    borderRadius: BORDER_RADIUS.md, backgroundColor: COLORS.surfaceLight,
+    borderRadius: BORDER_RADIUS.md, backgroundColor: '#FFF5DC',
   },
-  tabActive: { backgroundColor: BRAND.primary },
-  tabText: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.semibold, color: COLORS.textMuted },
+  tabActive: { backgroundColor: '#FF4757' },
+  tabText: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.semibold, color: 'rgba(26,22,18,0.5)' },
   tabTextActive: { color: '#FFF', fontWeight: FONT_WEIGHT.bold },
 
   slotFilterList: { maxHeight: 44 },
@@ -745,11 +745,11 @@ const styles = StyleSheet.create({
     height: 34,
     justifyContent: 'center',
     alignSelf: 'center',
-    borderRadius: BORDER_RADIUS.full, backgroundColor: COLORS.surfaceLight,
+    borderRadius: BORDER_RADIUS.full, backgroundColor: '#FFF5DC',
   },
-  slotChipActive: { backgroundColor: `${BRAND.primary}25`, borderWidth: 1, borderColor: BRAND.primary },
-  slotChipText: { fontSize: FONT_SIZE.sm, color: COLORS.textMuted },
-  slotChipTextActive: { color: BRAND.primary, fontWeight: FONT_WEIGHT.bold },
+  slotChipActive: { backgroundColor: `${'#FF4757'}25`, borderWidth: 1, borderColor: '#FF4757' },
+  slotChipText: { fontSize: FONT_SIZE.sm, color: 'rgba(26,22,18,0.5)' },
+  slotChipTextActive: { color: '#FF4757', fontWeight: FONT_WEIGHT.bold },
 
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   gridRow: { justifyContent: 'flex-start', paddingHorizontal: SPACING.lg },
@@ -757,33 +757,33 @@ const styles = StyleSheet.create({
   cardWrapper: { marginBottom: SPACING.md },
   card: {
     alignItems: 'stretch', padding: SPACING.md,
-    backgroundColor: COLORS.surfaceLight, borderRadius: BORDER_RADIUS.md,
+    backgroundColor: '#FFF5DC', borderRadius: BORDER_RADIUS.md,
     borderWidth: 2, minHeight: 150,
   },
   cardMainTap: { alignItems: 'center' },
   cardEmoji: { fontSize: 36, marginBottom: SPACING.xs },
   cardName: {
     fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.semibold,
-    color: COLORS.textPrimary, textAlign: 'center',
+    color: '#1A1612', textAlign: 'center',
   },
-  cardEffect: { fontSize: FONT_SIZE.xs, color: COLORS.textSecondary, textAlign: 'center', marginTop: 2 },
+  cardEffect: { fontSize: FONT_SIZE.xs, color: 'rgba(26,22,18,0.65)', textAlign: 'center', marginTop: 2 },
   cardRarity: { fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.bold, marginTop: 2 },
   priceBadge: {
-    backgroundColor: `${BRAND.gold}20`, paddingHorizontal: SPACING.md,
+    backgroundColor: `${'#FFD93D'}20`, paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.xs, borderRadius: BORDER_RADIUS.full, marginTop: SPACING.sm,
   },
-  priceText: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.bold, color: BRAND.gold },
+  priceText: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.bold, color: '#FFD93D' },
   ownedBadge: {
-    backgroundColor: `${BRAND.primary}20`, paddingHorizontal: SPACING.md,
+    backgroundColor: `${'#FF4757'}20`, paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.xs, borderRadius: BORDER_RADIUS.full, marginTop: SPACING.sm,
   },
-  ownedText: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.bold, color: BRAND.primary },
+  ownedText: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.bold, color: '#FF4757' },
   giftBtn: {
     marginTop: SPACING.sm, paddingVertical: SPACING.sm,
-    borderRadius: BORDER_RADIUS.md, backgroundColor: `${BRAND.primary}18`,
-    borderWidth: 1, borderColor: `${BRAND.primary}40`, alignItems: 'center',
+    borderRadius: BORDER_RADIUS.md, backgroundColor: `${'#FF4757'}18`,
+    borderWidth: 1, borderColor: `${'#FF4757'}40`, alignItems: 'center',
   },
-  giftBtnText: { fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.bold, color: BRAND.primary },
+  giftBtnText: { fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.bold, color: '#FF4757' },
 
   // Gift modal
   giftModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
@@ -791,21 +791,21 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFEF5' /* manga paper */, borderTopLeftRadius: BORDER_RADIUS.xl,
     borderTopRightRadius: BORDER_RADIUS.xl, padding: SPACING.xl, maxHeight: '70%',
   },
-  giftSheetTitle: { fontSize: FONT_SIZE.lg, fontWeight: FONT_WEIGHT.bold, color: COLORS.textPrimary },
-  giftSheetSub: { fontSize: FONT_SIZE.sm, color: COLORS.textSecondary, marginTop: SPACING.sm },
+  giftSheetTitle: { fontSize: FONT_SIZE.lg, fontWeight: FONT_WEIGHT.bold, color: '#1A1612' },
+  giftSheetSub: { fontSize: FONT_SIZE.sm, color: 'rgba(26,22,18,0.65)', marginTop: SPACING.sm },
   giftFriendList: { maxHeight: 320, marginTop: SPACING.lg },
   giftFriendRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingVertical: SPACING.md, borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: '#1A1612',
   },
-  giftFriendName: { fontSize: FONT_SIZE.md, color: COLORS.textPrimary, fontWeight: FONT_WEIGHT.semibold },
-  giftEmpty: { textAlign: 'center', color: COLORS.textMuted, marginVertical: SPACING.xl },
+  giftFriendName: { fontSize: FONT_SIZE.md, color: '#1A1612', fontWeight: FONT_WEIGHT.semibold },
+  giftEmpty: { textAlign: 'center', color: 'rgba(26,22,18,0.5)', marginVertical: SPACING.xl },
   giftCancelBtn: { marginTop: SPACING.lg, alignItems: 'center', padding: SPACING.md },
-  giftCancelText: { fontSize: FONT_SIZE.md, color: COLORS.textSecondary },
+  giftCancelText: { fontSize: FONT_SIZE.md, color: 'rgba(26,22,18,0.65)' },
   empty: { alignItems: 'center', paddingVertical: SPACING.xxxl },
   emptyEmoji: { fontSize: 48, marginBottom: SPACING.md },
-  emptyText: { fontSize: FONT_SIZE.md, color: COLORS.textMuted },
+  emptyText: { fontSize: FONT_SIZE.md, color: 'rgba(26,22,18,0.5)' },
 
   // ── Coin tab ──
   coinScrollView: { flex: 1 },
@@ -825,19 +825,19 @@ const styles = StyleSheet.create({
 
   coinSectionTitle: {
     fontSize: FONT_SIZE.lg, fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary, marginBottom: SPACING.lg,
+    color: '#1A1612', marginBottom: SPACING.lg,
   },
 
   coinCard: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     backgroundColor: '#FFFEF5' /* manga paper */, borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.lg, borderWidth: 1, borderColor: COLORS.border,
+    padding: SPACING.lg, borderWidth: 1, borderColor: '#1A1612',
     position: 'relative', overflow: 'visible',
   },
-  coinCardBest: { borderColor: BRAND.gold, borderWidth: 2 },
+  coinCardBest: { borderColor: '#FFD93D', borderWidth: 2 },
   coinCardLeft: { flex: 1 },
-  coinAmount: { fontSize: FONT_SIZE.lg, fontWeight: FONT_WEIGHT.extrabold, color: COLORS.textPrimary },
-  coinPerUnit: { fontSize: FONT_SIZE.xs, color: COLORS.textMuted, marginTop: 2 },
+  coinAmount: { fontSize: FONT_SIZE.lg, fontWeight: FONT_WEIGHT.extrabold, color: '#1A1612' },
+  coinPerUnit: { fontSize: FONT_SIZE.xs, color: 'rgba(26,22,18,0.5)', marginTop: 2 },
   coinCardRight: { marginLeft: SPACING.md },
   coinPriceBtn: {
     paddingHorizontal: SPACING.xl, paddingVertical: SPACING.md,
@@ -846,10 +846,10 @@ const styles = StyleSheet.create({
   coinPriceText: { color: '#FFF', fontWeight: FONT_WEIGHT.bold, fontSize: FONT_SIZE.md },
   coinBadge: {
     position: 'absolute', top: -10, left: SPACING.lg,
-    backgroundColor: BRAND.coral, paddingHorizontal: SPACING.sm,
+    backgroundColor: '#FF4757', paddingHorizontal: SPACING.sm,
     paddingVertical: 2, borderRadius: BORDER_RADIUS.sm,
   },
-  coinBadgeBest: { backgroundColor: BRAND.gold },
+  coinBadgeBest: { backgroundColor: '#FFD93D' },
   coinBadgeText: { fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.bold, color: '#FFF' },
 
   // Earn section
@@ -859,24 +859,24 @@ const styles = StyleSheet.create({
   },
   earnTitle: {
     fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary, marginBottom: SPACING.lg,
+    color: '#1A1612', marginBottom: SPACING.lg,
   },
   earnList: { gap: SPACING.md },
   earnRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
   earnEmoji: { fontSize: 20, width: 28, textAlign: 'center' },
-  earnLabel: { flex: 1, fontSize: FONT_SIZE.sm, color: COLORS.textPrimary },
-  earnValue: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.bold, color: BRAND.gold },
+  earnLabel: { flex: 1, fontSize: FONT_SIZE.sm, color: '#1A1612' },
+  earnValue: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.bold, color: '#FFD93D' },
 
   // Premium upsell
   premiumBanner: {
     flexDirection: 'row', alignItems: 'center', gap: SPACING.md,
-    marginTop: SPACING.xl, backgroundColor: `${BRAND.primary}12`,
+    marginTop: SPACING.xl, backgroundColor: `${'#FF4757'}12`,
     borderRadius: BORDER_RADIUS.lg, padding: SPACING.lg,
-    borderWidth: 1, borderColor: `${BRAND.primary}30`,
+    borderWidth: 1, borderColor: `${'#FF4757'}30`,
   },
   premiumBannerEmoji: { fontSize: 28 },
   premiumBannerTitle: {
-    fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.bold, color: COLORS.textPrimary,
+    fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.bold, color: '#1A1612',
   },
-  premiumBannerSub: { fontSize: FONT_SIZE.xs, color: COLORS.textSecondary, marginTop: 2 },
+  premiumBannerSub: { fontSize: FONT_SIZE.xs, color: 'rgba(26,22,18,0.65)', marginTop: 2 },
 });

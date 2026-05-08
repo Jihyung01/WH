@@ -139,7 +139,7 @@ export default function CharacterCustomizeScreen() {
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <Header coins={coins} onBack={() => router.back()} onShop={() => router.push('/shop')} />
         <View style={styles.loading}>
-          <ActivityIndicator size="large" color={BRAND.primary} />
+          <ActivityIndicator size="large" color={'#FF4757'} />
         </View>
       </View>
     );
@@ -195,7 +195,7 @@ function Header({ coins, onBack, onShop }: { coins: number; onBack: () => void; 
   return (
     <View style={styles.header}>
       <Pressable onPress={onBack} hitSlop={12}>
-        <Ionicons name="chevron-back" size={24} color={COLORS.textPrimary} />
+        <Ionicons name="chevron-back" size={24} color={'#1A1612'} />
       </Pressable>
       <Text style={styles.headerTitle}>꾸미기</Text>
       <View style={styles.headerRight}>
@@ -203,7 +203,7 @@ function Header({ coins, onBack, onShop }: { coins: number; onBack: () => void; 
           <Text style={styles.coinText}>🪙 {coins.toLocaleString()}</Text>
         </View>
         <Pressable onPress={onShop} hitSlop={8}>
-          <Ionicons name="storefront-outline" size={22} color={COLORS.textPrimary} />
+          <Ionicons name="storefront-outline" size={22} color={'#1A1612'} />
         </Pressable>
       </View>
     </View>
@@ -213,7 +213,7 @@ function Header({ coins, onBack, onShop }: { coins: number; onBack: () => void; 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#FFF5DC',
   },
   loading: {
     flex: 1,
@@ -227,12 +227,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: '#1A1612',
   },
   headerTitle: {
     fontSize: FONT_SIZE.lg,
     fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
   },
   headerRight: {
     flexDirection: 'row',
@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
     gap: SPACING.md,
   },
   coinBadge: {
-    backgroundColor: `${BRAND.gold}20`,
+    backgroundColor: `${'#FFD93D'}20`,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.xs,
     borderRadius: BORDER_RADIUS.full,
@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
   coinText: {
     fontSize: FONT_SIZE.sm,
     fontWeight: FONT_WEIGHT.bold,
-    color: BRAND.gold,
+    color: '#FFD93D',
   },
   gridArea: {
     flex: 1,

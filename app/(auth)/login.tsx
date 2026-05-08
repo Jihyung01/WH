@@ -217,7 +217,7 @@ export default function LoginScreen() {
       >
       <Animated.View style={[styles.backgroundMap, mapAnimatedStyle]}>
         <LinearGradient
-          colors={[BRAND.primary, BRAND.primaryLight, '#48DBFB']}
+          colors={['#FF4757', '#FF6F7A', '#48DBFB']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.gradient}
@@ -390,7 +390,7 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.md,
   },
   emailSubmit: {
-    backgroundColor: BRAND.primary,
+    backgroundColor: '#FF4757',
     paddingVertical: 14,
     borderRadius: BORDER_RADIUS.md,
     alignItems: 'center',

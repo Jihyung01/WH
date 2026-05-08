@@ -325,18 +325,18 @@ export default function EventDetailScreen() {
         {/* ── Hero ── */}
         <View style={styles.hero}>
           <LinearGradient
-            colors={[...meta.gradient, COLORS.background] as [string, string, string]}
+            colors={[...meta.gradient, '#FFF5DC'] as [string, string, string]}
             style={styles.heroGradient}
           >
             <Text style={styles.heroEmoji}>{meta.emoji}</Text>
           </LinearGradient>
 
           <Pressable style={styles.backBtn} onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={24} color={COLORS.textPrimary} />
+            <Ionicons name="chevron-back" size={24} color={'#1A1612'} />
           </Pressable>
           {showUgcSafety ? (
             <Pressable style={styles.flagBtn} onPress={openUgcSafetyMenu} accessibilityLabel="신고 및 차단">
-              <Ionicons name="flag-outline" size={22} color={COLORS.textPrimary} />
+              <Ionicons name="flag-outline" size={22} color={'#1A1612'} />
             </Pressable>
           ) : null}
         </View>
@@ -358,13 +358,13 @@ export default function EventDetailScreen() {
 
           <View style={styles.metaRow}>
             <View style={styles.metaItem}>
-              <Ionicons name="location-outline" size={16} color={COLORS.textSecondary} />
+              <Ionicons name="location-outline" size={16} color={'rgba(26,22,18,0.65)'} />
               <Text style={styles.metaText}>{event.address}</Text>
             </View>
             {distance !== null && (
               <View style={styles.metaItem}>
-                <Ionicons name="walk-outline" size={16} color={COLORS.info} />
-                <Text style={[styles.metaText, { color: COLORS.info }]}>
+                <Ionicons name="walk-outline" size={16} color={'#4FBDFF'} />
+                <Text style={[styles.metaText, { color: '#4FBDFF' }]}>
                   {formatDistance(distance)} · 도보 {walkMinutes}분
                 </Text>
               </View>
@@ -380,7 +380,7 @@ export default function EventDetailScreen() {
                     key={i}
                     name="star"
                     size={16}
-                    color={i < event.difficulty ? COLORS.warning : COLORS.surfaceHighlight}
+                    color={i < event.difficulty ? '#FFD93D' : '#F0E5C0'}
                   />
                 ))}
               </View>
@@ -428,7 +428,7 @@ export default function EventDetailScreen() {
                 <View style={styles.placesMetaRow}>
                   {typeof placeDetails.rating === 'number' ? (
                     <View style={styles.placesChip}>
-                      <Ionicons name="star" size={14} color={BRAND.gold} />
+                      <Ionicons name="star" size={14} color={'#FFD93D'} />
                       <Text style={styles.placesChipText}>
                         {placeDetails.rating.toFixed(1)}
                         {placeDetails.userRatingCount ? ` (${placeDetails.userRatingCount.toLocaleString()})` : ''}
@@ -441,7 +441,7 @@ export default function EventDetailScreen() {
                       <Ionicons
                         name="time-outline"
                         size={14}
-                        color={placeDetails.regularOpeningHours.openNow ? BRAND.primary : COLORS.textMuted}
+                        color={placeDetails.regularOpeningHours.openNow ? '#FF4757' : 'rgba(26,22,18,0.5)'}
                       />
                       <Text style={styles.placesChipText}>
                         {placeDetails.regularOpeningHours.openNow ? '영업 중' : '영업 종료'}
@@ -455,7 +455,7 @@ export default function EventDetailScreen() {
                     style={styles.placesLinkBtn}
                     onPress={() => void Linking.openURL(placeDetails.googleMapsUri!)}
                   >
-                    <Ionicons name="map-outline" size={16} color={BRAND.primary} />
+                    <Ionicons name="map-outline" size={16} color={'#FF4757'} />
                     <Text style={styles.placesLinkText}>구글맵에서 보기</Text>
                   </Pressable>
                 ) : null}
@@ -464,7 +464,7 @@ export default function EventDetailScreen() {
           ) : placeLoading ? (
             <View style={styles.placesCard}>
               <View style={styles.placesBody}>
-                <ActivityIndicator size="small" color={BRAND.primary} />
+                <ActivityIndicator size="small" color={'#FF4757'} />
                 <Text style={styles.placesLoadingText}>장소 정보를 불러오는 중…</Text>
               </View>
             </View>
@@ -484,7 +484,7 @@ export default function EventDetailScreen() {
 
         {narrativeStatus === 'error' && (
           <Animated.View entering={FadeIn} style={[styles.narrativeCard, styles.narrativeError]}>
-            <Ionicons name="cloud-offline-outline" size={22} color={COLORS.textMuted} />
+            <Ionicons name="cloud-offline-outline" size={22} color={'rgba(26,22,18,0.5)'} />
             <Text style={styles.errorText}>서사를 불러오지 못했어요</Text>
             <Pressable style={styles.retryBtn} onPress={retryNarrative}>
               <Ionicons name="refresh" size={16} color={COLORS.primary} />
@@ -495,7 +495,7 @@ export default function EventDetailScreen() {
 
         {narrativeStatus === 'offline' && (
           <Animated.View entering={FadeIn} style={[styles.narrativeCard, styles.narrativeOffline]}>
-            <Ionicons name="wifi-outline" size={18} color={COLORS.textMuted} />
+            <Ionicons name="wifi-outline" size={18} color={'rgba(26,22,18,0.5)'} />
             <Text style={styles.offlineText}>오프라인 모드 — 서사는 온라인에서 확인하세요</Text>
           </Animated.View>
         )}
@@ -664,10 +664,10 @@ export default function EventDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+  container: { flex: 1, backgroundColor: '#FFF5DC' },
   loadingContainer: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#FFF5DC',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -715,7 +715,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   badge: {
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
     paddingHorizontal: SPACING.sm,
     paddingVertical: 4,
     borderRadius: BORDER_RADIUS.sm,
@@ -723,12 +723,12 @@ const styles = StyleSheet.create({
   badgeText: {
     fontSize: FONT_SIZE.xs,
     fontWeight: FONT_WEIGHT.semibold,
-    color: COLORS.textSecondary,
+    color: 'rgba(26,22,18,0.65)',
   },
   title: {
     fontSize: FONT_SIZE.xxl,
     fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     marginBottom: SPACING.md,
   },
   metaRow: { gap: SPACING.sm, marginBottom: SPACING.lg },
@@ -739,11 +739,11 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+    color: 'rgba(26,22,18,0.65)',
   },
   statsRow: {
     flexDirection: 'row',
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.lg,
     marginBottom: SPACING.lg,
@@ -752,7 +752,7 @@ const styles = StyleSheet.create({
   stat: { gap: 6 },
   statLabel: {
     fontSize: FONT_SIZE.xs,
-    color: COLORS.textMuted,
+    color: 'rgba(26,22,18,0.5)',
     fontWeight: FONT_WEIGHT.medium,
   },
   stars: { flexDirection: 'row', gap: 2 },
@@ -760,34 +760,34 @@ const styles = StyleSheet.create({
   rewardText: {
     fontSize: FONT_SIZE.sm,
     fontWeight: FONT_WEIGHT.semibold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
   },
   timeLimitText: {
     fontSize: FONT_SIZE.sm,
     fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.warning,
+    color: '#FFD93D',
   },
   description: {
     fontSize: FONT_SIZE.md,
-    color: COLORS.textSecondary,
+    color: 'rgba(26,22,18,0.65)',
     lineHeight: 24,
     marginBottom: SPACING.xl,
   },
 
   // ── Places (Google) ──
   placesCard: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#FFFEF5',
     borderRadius: BORDER_RADIUS.lg,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: '#1A1612',
     marginBottom: SPACING.xl,
     ...SHADOWS.sm,
   },
   placesHero: {
     width: '100%',
     height: 180,
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
   },
   placesBody: {
     padding: SPACING.lg,
@@ -802,17 +802,17 @@ const styles = StyleSheet.create({
     minWidth: 0,
     fontSize: FONT_SIZE.md,
     fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
   },
   placesSource: {
     fontSize: 10,
     fontWeight: FONT_WEIGHT.semibold,
-    color: COLORS.textMuted,
+    color: 'rgba(26,22,18,0.5)',
   },
   placesAddr: {
     marginTop: 6,
     fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+    color: 'rgba(26,22,18,0.65)',
     lineHeight: 20,
   },
   placesMetaRow: {
@@ -828,14 +828,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.sm,
     paddingVertical: 6,
     borderRadius: BORDER_RADIUS.full,
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: '#1A1612',
   },
   placesChipText: {
     fontSize: FONT_SIZE.xs,
     fontWeight: FONT_WEIGHT.semibold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
   },
   placesLinkBtn: {
     marginTop: SPACING.md,
@@ -845,26 +845,26 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: SPACING.sm,
     borderRadius: BORDER_RADIUS.md,
-    backgroundColor: `${BRAND.primary}12`,
+    backgroundColor: `${'#FF4757'}12`,
     borderWidth: 1,
-    borderColor: `${BRAND.primary}35`,
+    borderColor: `${'#FF4757'}35`,
   },
   placesLinkText: {
     fontSize: FONT_SIZE.sm,
     fontWeight: FONT_WEIGHT.bold,
-    color: BRAND.primary,
+    color: '#FF4757',
   },
   placesLoadingText: {
     marginTop: SPACING.sm,
     fontSize: FONT_SIZE.sm,
-    color: COLORS.textMuted,
+    color: 'rgba(26,22,18,0.5)',
     textAlign: 'center',
   },
 
   // ── Narrative ──
   narrativeCard: {
     marginHorizontal: SPACING.xl,
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
     borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.xl,
     marginBottom: SPACING.xl,
@@ -872,29 +872,29 @@ const styles = StyleSheet.create({
     borderLeftColor: COLORS.primaryLight,
   },
   narrativeShimmer: {
-    borderLeftColor: COLORS.surfaceHighlight,
+    borderLeftColor: '#F0E5C0',
   },
   shimmerLine: {
     height: 12,
     borderRadius: 6,
-    backgroundColor: COLORS.surfaceHighlight,
+    backgroundColor: '#F0E5C0',
     marginBottom: SPACING.sm,
     width: '100%',
   },
   shimmerLabel: {
     fontSize: FONT_SIZE.sm,
-    color: COLORS.textMuted,
+    color: 'rgba(26,22,18,0.5)',
     marginTop: SPACING.sm,
     textAlign: 'center',
   },
   narrativeError: {
     alignItems: 'center',
     gap: SPACING.sm,
-    borderLeftColor: COLORS.error + '40',
+    borderLeftColor: '#FF4757' + '40',
   },
   errorText: {
     fontSize: FONT_SIZE.sm,
-    color: COLORS.textMuted,
+    color: 'rgba(26,22,18,0.5)',
   },
   retryBtn: {
     flexDirection: 'row',
@@ -903,7 +903,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.sm,
     borderRadius: BORDER_RADIUS.sm,
-    backgroundColor: COLORS.surfaceHighlight,
+    backgroundColor: '#F0E5C0',
     marginTop: SPACING.xs,
   },
   retryText: {
@@ -915,11 +915,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.sm,
-    borderLeftColor: COLORS.textMuted,
+    borderLeftColor: 'rgba(26,22,18,0.5)',
   },
   offlineText: {
     fontSize: FONT_SIZE.sm,
-    color: COLORS.textMuted,
+    color: 'rgba(26,22,18,0.5)',
     flex: 1,
   },
   narrativeQuote: {
@@ -930,7 +930,7 @@ const styles = StyleSheet.create({
   },
   narrativeText: {
     fontSize: FONT_SIZE.md,
-    color: COLORS.textSecondary,
+    color: 'rgba(26,22,18,0.65)',
     lineHeight: 24,
     fontStyle: 'italic',
   },
@@ -970,7 +970,7 @@ const styles = StyleSheet.create({
   missionTitle: {
     fontSize: FONT_SIZE.lg,
     fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
   },
   missionProgress: {
     fontSize: FONT_SIZE.md,
@@ -979,7 +979,7 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: 4,
-    backgroundColor: COLORS.surfaceHighlight,
+    backgroundColor: '#F0E5C0',
     borderRadius: 2,
     marginBottom: SPACING.lg,
     overflow: 'hidden',
@@ -1000,9 +1000,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.xl,
     paddingTop: SPACING.lg,
     paddingBottom: 40,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#FFF5DC',
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopColor: '#1A1612',
   },
   ctaBtn: {
     backgroundColor: COLORS.primary,
@@ -1012,18 +1012,18 @@ const styles = StyleSheet.create({
     ...SHADOWS.glow,
   },
   ctaBtnDisabled: {
-    backgroundColor: COLORS.surfaceHighlight,
+    backgroundColor: '#F0E5C0',
     shadowOpacity: 0,
   },
   ctaBtnText: {
     fontSize: FONT_SIZE.lg,
     fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
   },
   ctaProgress: { gap: SPACING.sm },
   ctaProgressBar: {
     height: 8,
-    backgroundColor: COLORS.surfaceHighlight,
+    backgroundColor: '#F0E5C0',
     borderRadius: 4,
     overflow: 'hidden',
   },
@@ -1035,7 +1035,7 @@ const styles = StyleSheet.create({
   ctaProgressText: {
     fontSize: FONT_SIZE.sm,
     fontWeight: FONT_WEIGHT.semibold,
-    color: COLORS.textSecondary,
+    color: 'rgba(26,22,18,0.65)',
     textAlign: 'center',
   },
 });

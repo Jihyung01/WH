@@ -166,7 +166,7 @@ export default function QuestsScreen({ embedded }: { embedded?: boolean }) {
               setShowFilterModal(true);
             }}
           >
-            <Ionicons name="options-outline" size={20} color={COLORS.textPrimary} />
+            <Ionicons name="options-outline" size={20} color={'#1A1612'} />
           </Pressable>
         </View>
       )}
@@ -179,8 +179,8 @@ export default function QuestsScreen({ embedded }: { embedded?: boolean }) {
               setShowFilterModal(true);
             }}
           >
-            <Ionicons name="options-outline" size={20} color={COLORS.textPrimary} />
-            <Text style={{ fontSize: 12, color: COLORS.textMuted, marginLeft: 4 }}>필터</Text>
+            <Ionicons name="options-outline" size={20} color={'#1A1612'} />
+            <Text style={{ fontSize: 12, color: 'rgba(26,22,18,0.5)', marginLeft: 4 }}>필터</Text>
           </Pressable>
         </View>
       )}
@@ -188,18 +188,18 @@ export default function QuestsScreen({ embedded }: { embedded?: boolean }) {
       {/* ── Search Bar ── */}
       <View style={styles.searchRow}>
         <View style={styles.searchBar}>
-          <Ionicons name="search" size={16} color={COLORS.textMuted} />
+          <Ionicons name="search" size={16} color={'rgba(26,22,18,0.5)'} />
           <TextInput
             style={styles.searchInput}
             placeholder="이벤트, 장소 검색..."
-            placeholderTextColor={COLORS.textMuted}
+            placeholderTextColor={'rgba(26,22,18,0.5)'}
             value={searchQuery}
             onChangeText={setSearchQuery}
             returnKeyType="search"
           />
           {searchQuery.length > 0 && (
             <Pressable onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={16} color={COLORS.textMuted} />
+              <Ionicons name="close-circle" size={16} color={'rgba(26,22,18,0.5)'} />
             </Pressable>
           )}
         </View>
@@ -247,7 +247,7 @@ export default function QuestsScreen({ embedded }: { embedded?: boolean }) {
               <Ionicons
                 name={tab.icon as any}
                 size={16}
-                color={isActive ? COLORS.primary : COLORS.textMuted}
+                color={isActive ? COLORS.primary : 'rgba(26,22,18,0.5)'}
               />
               <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
                 {tab.label}
@@ -521,19 +521,19 @@ function EmptyState({ emoji, title, subtitle }: { emoji: string; title: string; 
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+  container: { flex: 1, backgroundColor: '#FFF5DC' },
 
   // ── Header ──
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: SPACING.xl, paddingBottom: SPACING.sm,
   },
-  headerTitle: { fontSize: FONT_SIZE.xxl, fontWeight: FONT_WEIGHT.bold, color: COLORS.textPrimary },
+  headerTitle: { fontSize: FONT_SIZE.xxl, fontWeight: FONT_WEIGHT.bold, color: '#1A1612' },
   filterBtn: {
     flexDirection: 'row',
     height: 36, borderRadius: 18,
     paddingHorizontal: SPACING.md,
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
     alignItems: 'center', justifyContent: 'center',
   },
   embeddedHeader: {
@@ -545,13 +545,13 @@ const styles = StyleSheet.create({
   searchRow: { paddingHorizontal: SPACING.xl, marginBottom: SPACING.sm },
   searchBar: {
     flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
     borderRadius: BORDER_RADIUS.md,
     paddingHorizontal: SPACING.md,
     height: 40,
   },
   searchInput: {
-    flex: 1, fontSize: FONT_SIZE.sm, color: COLORS.textPrimary,
+    flex: 1, fontSize: FONT_SIZE.sm, color: '#1A1612',
     paddingVertical: 0,
   },
 
@@ -561,11 +561,11 @@ const styles = StyleSheet.create({
   chip: {
     paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm,
     borderRadius: BORDER_RADIUS.full,
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
   },
   chipActive: { backgroundColor: COLORS.primary },
-  chipText: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.medium, color: COLORS.textMuted },
-  chipTextActive: { color: COLORS.textPrimary },
+  chipText: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.medium, color: 'rgba(26,22,18,0.5)' },
+  chipTextActive: { color: '#1A1612' },
 
   // ── Tab Bar ──
   tabBar: {
@@ -579,18 +579,18 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingVertical: SPACING.sm,
     borderRadius: BORDER_RADIUS.sm,
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
   },
-  tabActive: { backgroundColor: COLORS.surfaceHighlight, borderBottomWidth: 2, borderBottomColor: COLORS.primary },
-  tabLabel: { fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.semibold, color: COLORS.textMuted },
-  tabLabelActive: { color: COLORS.textPrimary },
+  tabActive: { backgroundColor: '#F0E5C0', borderBottomWidth: 2, borderBottomColor: COLORS.primary },
+  tabLabel: { fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.semibold, color: 'rgba(26,22,18,0.5)' },
+  tabLabelActive: { color: '#1A1612' },
   badge: {
     minWidth: 16, height: 16, borderRadius: 8,
-    backgroundColor: COLORS.error,
+    backgroundColor: '#FF4757',
     alignItems: 'center', justifyContent: 'center',
     paddingHorizontal: 4,
   },
-  badgeText: { fontSize: 9, fontWeight: FONT_WEIGHT.bold, color: COLORS.textPrimary },
+  badgeText: { fontSize: 9, fontWeight: FONT_WEIGHT.bold, color: '#1A1612' },
 
   // ── Scroll content ──
   scrollContent: { flex: 1, paddingHorizontal: SPACING.xl },
@@ -602,7 +602,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.lg,
   },
   dailyHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.md },
-  dailyTitle: { fontSize: FONT_SIZE.lg, fontWeight: FONT_WEIGHT.bold, color: COLORS.textPrimary },
+  dailyTitle: { fontSize: FONT_SIZE.lg, fontWeight: FONT_WEIGHT.bold, color: '#1A1612' },
   streakBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: 'rgba(255,255,255,0.15)',
@@ -610,15 +610,15 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.full,
   },
   streakEmoji: { fontSize: 13 },
-  streakText: { fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.bold, color: COLORS.textPrimary },
+  streakText: { fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.bold, color: '#1A1612' },
   dailyProgressRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, marginBottom: SPACING.sm },
   dailyProgressTrack: {
     flex: 1, height: 8, borderRadius: 4,
     backgroundColor: 'rgba(255,255,255,0.15)',
     overflow: 'hidden',
   },
-  dailyProgressFill: { height: '100%', borderRadius: 4, backgroundColor: COLORS.textPrimary },
-  dailyProgressText: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.bold, color: COLORS.textPrimary },
+  dailyProgressFill: { height: '100%', borderRadius: 4, backgroundColor: '#1A1612' },
+  dailyProgressText: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.bold, color: '#1A1612' },
   dailyFooter: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dailyCountdown: { fontSize: FONT_SIZE.xs, color: 'rgba(255,255,255,0.7)' },
 
@@ -643,14 +643,14 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#FFB7C540',
   },
   seasonEmoji: { fontSize: 36 },
-  seasonTitle: { fontSize: FONT_SIZE.lg, fontWeight: FONT_WEIGHT.bold, color: COLORS.textPrimary },
-  seasonSubtitle: { fontSize: FONT_SIZE.sm, color: COLORS.textSecondary },
+  seasonTitle: { fontSize: FONT_SIZE.lg, fontWeight: FONT_WEIGHT.bold, color: '#1A1612' },
+  seasonSubtitle: { fontSize: FONT_SIZE.sm, color: 'rgba(26,22,18,0.65)' },
 
   // ── Empty State ──
   emptyState: { alignItems: 'center', paddingVertical: SPACING.xxxl },
   emptyEmoji: { fontSize: 48, marginBottom: SPACING.md },
-  emptyTitle: { fontSize: FONT_SIZE.lg, fontWeight: FONT_WEIGHT.bold, color: COLORS.textPrimary, marginBottom: SPACING.sm },
-  emptySubtitle: { fontSize: FONT_SIZE.sm, color: COLORS.textMuted, textAlign: 'center' },
+  emptyTitle: { fontSize: FONT_SIZE.lg, fontWeight: FONT_WEIGHT.bold, color: '#1A1612', marginBottom: SPACING.sm },
+  emptySubtitle: { fontSize: FONT_SIZE.sm, color: 'rgba(26,22,18,0.5)', textAlign: 'center' },
 
   // ── Filter Modal ──
   modalOverlay: {
@@ -658,7 +658,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
   filterSheet: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#FFFEF5',
     borderTopLeftRadius: BORDER_RADIUS.xl,
     borderTopRightRadius: BORDER_RADIUS.xl,
     padding: SPACING.xl,
@@ -666,16 +666,16 @@ const styles = StyleSheet.create({
   },
   filterHandle: {
     width: 40, height: 4, borderRadius: 2,
-    backgroundColor: COLORS.surfaceHighlight,
+    backgroundColor: '#F0E5C0',
     alignSelf: 'center', marginBottom: SPACING.xl,
   },
   filterSheetTitle: {
     fontSize: FONT_SIZE.xl, fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary, marginBottom: SPACING.xl,
+    color: '#1A1612', marginBottom: SPACING.xl,
   },
   filterLabel: {
     fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.semibold,
-    color: COLORS.textSecondary, marginBottom: SPACING.md,
+    color: 'rgba(26,22,18,0.65)', marginBottom: SPACING.md,
   },
   filterOptionRow: {
     flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm,
@@ -684,24 +684,24 @@ const styles = StyleSheet.create({
   filterOption: {
     paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm,
     borderRadius: BORDER_RADIUS.full,
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
   },
   filterOptionActive: { backgroundColor: COLORS.primary },
-  filterOptionText: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.medium, color: COLORS.textMuted },
-  filterOptionTextActive: { color: COLORS.textPrimary },
+  filterOptionText: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.medium, color: 'rgba(26,22,18,0.5)' },
+  filterOptionTextActive: { color: '#1A1612' },
   filterActions: { flexDirection: 'row', gap: SPACING.md, marginTop: SPACING.md },
   filterResetBtn: {
     flex: 1, alignItems: 'center',
     paddingVertical: SPACING.md,
     borderRadius: BORDER_RADIUS.md,
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
   },
-  filterResetText: { fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.semibold, color: COLORS.textSecondary },
+  filterResetText: { fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.semibold, color: 'rgba(26,22,18,0.65)' },
   filterApplyBtn: {
     flex: 2, alignItems: 'center',
     paddingVertical: SPACING.md,
     borderRadius: BORDER_RADIUS.md,
     backgroundColor: COLORS.primary,
   },
-  filterApplyText: { fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.bold, color: COLORS.textPrimary },
+  filterApplyText: { fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.bold, color: '#1A1612' },
 });

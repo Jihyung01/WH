@@ -279,7 +279,7 @@ export default function RewardRevealScreen() {
       {/* Error */}
       {error && phase === 'done' && (
         <View style={styles.errorContainer}>
-          <Ionicons name="warning-outline" size={48} color={COLORS.warning} />
+          <Ionicons name="warning-outline" size={48} color={'#FFD93D'} />
           <Text style={styles.errorText}>{error}</Text>
           <Pressable style={styles.ctaBtn} onPress={() => router.replace('/(tabs)/map')}>
             <Text style={styles.ctaBtnText}>돌아가기</Text>
@@ -400,7 +400,7 @@ export default function RewardRevealScreen() {
                 showLoadoutOverlay={false}
                 interactive={false}
                 borderColor={COLORS.primary}
-                backgroundColor={COLORS.surface}
+                backgroundColor={'#FFFEF5'}
               />
             </View>
             <Text style={styles.personalityTitle}>
@@ -432,7 +432,7 @@ export default function RewardRevealScreen() {
                 showLoadoutOverlay={false}
                 interactive={false}
                 borderColor={COLORS.primary}
-                backgroundColor={COLORS.surface}
+                backgroundColor={'#FFFEF5'}
               />
             </View>
             <Text style={styles.levelUpTitle}>레벨 업!</Text>
@@ -522,7 +522,7 @@ const CARD_H = CARD_W * 1.4;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#FFF5DC',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -537,7 +537,7 @@ const styles = StyleSheet.create({
 
   // ── Error ──
   errorContainer: { zIndex: 5, alignItems: 'center', gap: SPACING.lg, paddingHorizontal: SPACING.xl },
-  errorText: { fontSize: FONT_SIZE.md, color: COLORS.textSecondary, textAlign: 'center' },
+  errorText: { fontSize: FONT_SIZE.md, color: 'rgba(26,22,18,0.65)', textAlign: 'center' },
 
   // ── Card ──
   cardCenter: { zIndex: 2, alignItems: 'center' },
@@ -567,7 +567,7 @@ const styles = StyleSheet.create({
   cardName: {
     fontSize: FONT_SIZE.xxl,
     fontWeight: FONT_WEIGHT.extrabold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     textAlign: 'center',
     marginBottom: SPACING.sm,
   },
@@ -580,7 +580,7 @@ const styles = StyleSheet.create({
   cardAcquired: {
     fontSize: FONT_SIZE.lg,
     fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     backgroundColor: 'rgba(255,255,255,0.2)',
     paddingHorizontal: SPACING.xl,
     paddingVertical: SPACING.sm,
@@ -715,7 +715,7 @@ const styles = StyleSheet.create({
   titleName: {
     fontSize: FONT_SIZE.xxl,
     fontWeight: FONT_WEIGHT.extrabold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     marginBottom: SPACING.sm,
   },
   titleRarityBadge: {
@@ -750,7 +750,7 @@ const styles = StyleSheet.create({
   personalityTitle: {
     fontSize: FONT_SIZE.lg,
     fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     marginBottom: SPACING.xl,
     textAlign: 'center',
   },
@@ -771,7 +771,7 @@ const styles = StyleSheet.create({
   traitText: {
     fontSize: FONT_SIZE.md,
     fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
   },
 
   // ── Level Up ──
@@ -787,18 +787,18 @@ const styles = StyleSheet.create({
   levelUpTitle: {
     fontSize: 48,
     fontWeight: FONT_WEIGHT.extrabold,
-    color: COLORS.warning,
+    color: '#FFD93D',
     marginBottom: SPACING.sm,
   },
   levelUpLevel: {
     fontSize: FONT_SIZE.xxl,
     fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     marginBottom: SPACING.sm,
   },
   levelUpSubtitle: {
     fontSize: FONT_SIZE.lg,
-    color: COLORS.textSecondary,
+    color: 'rgba(26,22,18,0.65)',
   },
 
   // ── Footer ──
@@ -818,7 +818,7 @@ const styles = StyleSheet.create({
   summaryItem: {
     fontSize: FONT_SIZE.md,
     fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textSecondary,
+    color: 'rgba(26,22,18,0.65)',
   },
   equipCtaBtn: {
     flexDirection: 'row',
@@ -860,6 +860,6 @@ const styles = StyleSheet.create({
   ctaBtnText: {
     fontSize: FONT_SIZE.lg,
     fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
   },
 });

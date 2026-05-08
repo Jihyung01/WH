@@ -72,7 +72,7 @@ const STARTER_CHARACTERS: StarterCharacterDef[] = [
     koreanName: '별찌',
     description: '별을 모으는 신비한 여행자',
     emoji: '⭐',
-    colors: ['#7EE8CA', '#2DD4A8'],
+    colors: ['#FF6F7A', '#FF4757'],
     element: '🌙',
   },
 ];
@@ -247,7 +247,7 @@ export default function OnboardingScreen() {
           showLoadoutOverlay={false}
           interactive={false}
           borderColor={COLORS.primary}
-          backgroundColor={COLORS.surfaceLight}
+          backgroundColor={'#FFF5DC'}
         />
       </Animated.View>
 
@@ -260,7 +260,7 @@ export default function OnboardingScreen() {
             checkUsernameAvailability(text);
           }}
           placeholder="닉네임 (2-10자)"
-          placeholderTextColor={COLORS.textMuted}
+          placeholderTextColor={'rgba(26,22,18,0.5)'}
           maxLength={10}
           autoFocus
         />
@@ -307,7 +307,7 @@ export default function OnboardingScreen() {
                 colors={
                   (isSelected
                     ? character.colors
-                    : [COLORS.surfaceLight, COLORS.surfaceLight]) as [string, string]
+                    : ['#FFF5DC', '#FFF5DC']) as [string, string]
                 }
                 style={[
                   styles.characterCard,
@@ -325,8 +325,8 @@ export default function OnboardingScreen() {
                     size={72}
                     showLoadoutOverlay={false}
                     interactive={false}
-                    borderColor={isSelected ? COLORS.textPrimary : COLORS.border}
-                    backgroundColor={COLORS.surface}
+                    borderColor={isSelected ? '#1A1612' : '#1A1612'}
+                    backgroundColor={'#FFFEF5'}
                   />
                 </View>
                 <Text style={styles.characterCardName}>{character.koreanName}</Text>
@@ -376,7 +376,7 @@ export default function OnboardingScreen() {
                 size={96}
                 showLoadoutOverlay={false}
                 interactive={false}
-                borderColor={COLORS.textPrimary}
+                borderColor={'#1A1612'}
                 backgroundColor="rgba(255,255,255,0.25)"
               />
             </View>
@@ -394,7 +394,7 @@ export default function OnboardingScreen() {
         disabled={isCreating}
       >
         {isCreating ? (
-          <ActivityIndicator size="small" color={COLORS.textPrimary} />
+          <ActivityIndicator size="small" color={'#1A1612'} />
         ) : (
           <Text style={styles.completeButtonText}>탐험 시작하기</Text>
         )}
@@ -430,7 +430,7 @@ export default function OnboardingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#FFF5DC',
     paddingTop: 60,
   },
   progressBar: {
@@ -444,7 +444,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
   },
   progressDotActive: {
     backgroundColor: COLORS.primary,
@@ -458,13 +458,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FONT_SIZE.xxl,
     fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     textAlign: 'center',
     marginBottom: SPACING.sm,
   },
   subtitle: {
     fontSize: FONT_SIZE.md,
-    color: COLORS.textSecondary,
+    color: 'rgba(26,22,18,0.65)',
     textAlign: 'center',
     marginBottom: SPACING.xxxl,
   },
@@ -472,7 +472,7 @@ const styles = StyleSheet.create({
     width: 140,
     height: 140,
     borderRadius: 70,
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',
@@ -484,18 +484,18 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xxxl,
   },
   input: {
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
     borderRadius: BORDER_RADIUS.md,
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.lg,
     fontSize: FONT_SIZE.lg,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     borderWidth: 2,
-    borderColor: COLORS.borderLight,
+    borderColor: 'rgba(26,22,18,0.3)',
     textAlign: 'center',
   },
   inputError: {
-    borderColor: COLORS.error,
+    borderColor: '#FF4757',
   },
   inputSpinner: {
     position: 'absolute',
@@ -503,13 +503,13 @@ const styles = StyleSheet.create({
     top: 18,
   },
   errorText: {
-    color: COLORS.error,
+    color: '#FF4757',
     fontSize: FONT_SIZE.sm,
     marginTop: SPACING.sm,
     textAlign: 'center',
   },
   successText: {
-    color: COLORS.success,
+    color: '#3DDC97',
     fontSize: FONT_SIZE.sm,
     marginTop: SPACING.sm,
     textAlign: 'center',
@@ -533,7 +533,7 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   characterCardSelected: {
-    borderColor: COLORS.textPrimary,
+    borderColor: '#1A1612',
     shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
@@ -555,17 +555,17 @@ const styles = StyleSheet.create({
   characterCardName: {
     fontSize: FONT_SIZE.xl,
     fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     marginBottom: SPACING.xs,
   },
   characterCardSubname: {
     fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+    color: 'rgba(26,22,18,0.65)',
     marginBottom: SPACING.sm,
   },
   characterCardDescription: {
     fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+    color: 'rgba(26,22,18,0.65)',
     textAlign: 'center',
   },
   selectedBadge: {
@@ -575,7 +575,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: COLORS.textPrimary,
+    backgroundColor: '#1A1612',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -607,12 +607,12 @@ const styles = StyleSheet.create({
   summaryName: {
     fontSize: FONT_SIZE.xxl,
     fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     marginBottom: SPACING.sm,
   },
   summaryCharacter: {
     fontSize: FONT_SIZE.md,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     opacity: 0.9,
   },
   nextButton: {
@@ -626,7 +626,7 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   nextButtonText: {
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     fontSize: FONT_SIZE.lg,
     fontWeight: FONT_WEIGHT.bold,
   },
@@ -646,7 +646,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   completeButtonText: {
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     fontSize: FONT_SIZE.lg,
     fontWeight: FONT_WEIGHT.bold,
   },

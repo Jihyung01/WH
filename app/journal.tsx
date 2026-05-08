@@ -101,7 +101,7 @@ function SkeletonBlock({
           width: width as any,
           height,
           borderRadius: BORDER_RADIUS.sm,
-          backgroundColor: COLORS.surfaceLight,
+          backgroundColor: '#FFF5DC',
         },
         style,
       ]}
@@ -134,7 +134,7 @@ function TimelineRow({
           <Text style={styles.tlTime}>{item.time}</Text>
           {item.has_music && item.music_title ? (
             <View style={styles.tlMusic}>
-              <Ionicons name="musical-note" size={12} color={BRAND.primary} />
+              <Ionicons name="musical-note" size={12} color={'#FF4757'} />
               <Text style={styles.tlMusicText} numberOfLines={1}>
                 {item.music_title}
               </Text>
@@ -181,7 +181,7 @@ function TimelineView({
       </View>
 
       <View style={styles.tlOutroCard}>
-        <Ionicons name="sparkles" size={14} color={BRAND.primary} />
+        <Ionicons name="sparkles" size={14} color={'#FF4757'} />
         <Text style={styles.tlOutroText}>{data.outro}</Text>
       </View>
 
@@ -400,7 +400,7 @@ export default function JournalScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Pressable style={styles.backBtn} onPress={() => router.back()} hitSlop={12}>
-          <Ionicons name="chevron-back" size={24} color={COLORS.textPrimary} />
+          <Ionicons name="chevron-back" size={24} color={'#1A1612'} />
         </Pressable>
         <Text style={styles.headerTitle}>탐험 일지</Text>
         <View style={styles.headerSpacer} />
@@ -417,13 +417,13 @@ export default function JournalScreen() {
         {/* Month Navigation */}
         <Animated.View entering={FadeInDown.duration(300)} style={styles.monthNav}>
           <Pressable onPress={() => navigateMonth(-1)} hitSlop={12} style={styles.navArrow}>
-            <Ionicons name="chevron-back" size={20} color={COLORS.textSecondary} />
+            <Ionicons name="chevron-back" size={20} color={'rgba(26,22,18,0.65)'} />
           </Pressable>
           <Text style={styles.monthLabel}>
             {viewYear}년 {MONTH_NAMES[viewMonth]}
           </Text>
           <Pressable onPress={() => navigateMonth(1)} hitSlop={12} style={styles.navArrow}>
-            <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
+            <Ionicons name="chevron-forward" size={20} color={'rgba(26,22,18,0.65)'} />
           </Pressable>
         </Animated.View>
 
@@ -459,7 +459,7 @@ export default function JournalScreen() {
                     backgroundColor:
                       heatLevel > 0
                         ? `rgba(45, 212, 168, ${HEAT_OPACITY[heatLevel]})`
-                        : COLORS.surface,
+                        : '#FFFEF5',
                   },
                   isSelected && styles.heatCellSelected,
                 ]}
@@ -488,7 +488,7 @@ export default function JournalScreen() {
 
           {isGenerating ? (
             <Animated.View entering={FadeIn.duration(300)} style={styles.generatingBox}>
-              <ActivityIndicator size="small" color={BRAND.primary} />
+              <ActivityIndicator size="small" color={'#FF4757'} />
               <Text style={styles.generatingText}>AI가 오늘을 정리하고 있어요...</Text>
             </Animated.View>
           ) : isLoadingDay ? (
@@ -528,8 +528,8 @@ export default function JournalScreen() {
                           showLoadoutOverlay={false}
                           interactive={false}
                           favoriteDistrict={character?.favorite_district ?? null}
-                          borderColor={BRAND.primary}
-                          backgroundColor={`${BRAND.primary}20`}
+                          borderColor={'#FF4757'}
+                          backgroundColor={`${'#FF4757'}20`}
                         />
                       </View>
                       <Text style={styles.speechName}>{characterName}</Text>
@@ -543,7 +543,7 @@ export default function JournalScreen() {
                   {(selectedJournal.share_card?.places_visited ?? []).length > 0 && (
                     <View style={styles.placesSection}>
                       <View style={styles.placesSectionHeader}>
-                        <Ionicons name="location-outline" size={14} color={COLORS.textSecondary} />
+                        <Ionicons name="location-outline" size={14} color={'rgba(26,22,18,0.65)'} />
                         <Text style={styles.placesSectionTitle}>방문한 장소</Text>
                       </View>
                       <ScrollView
@@ -553,7 +553,7 @@ export default function JournalScreen() {
                       >
                         {selectedJournal.share_card.places_visited.map((place, i) => (
                           <View key={i} style={styles.placeChip}>
-                            <Ionicons name="pin" size={12} color={BRAND.primary} />
+                            <Ionicons name="pin" size={12} color={'#FF4757'} />
                             <Text style={styles.placeChipText}>{place}</Text>
                           </View>
                         ))}
@@ -579,7 +579,7 @@ export default function JournalScreen() {
                     </View>
                     <View style={styles.statDivider} />
                     <View style={styles.statItem}>
-                      <Ionicons name="footsteps-outline" size={18} color={BRAND.primary} />
+                      <Ionicons name="footsteps-outline" size={18} color={'#FF4757'} />
                       <Text style={styles.statValue}>
                         {(selectedJournal.share_card?.places_visited ?? []).length}
                       </Text>
@@ -604,7 +604,7 @@ export default function JournalScreen() {
           ) : (
             <Animated.View entering={FadeIn.duration(300)} style={styles.emptyState}>
               <View style={styles.emptyIcon}>
-                <Ionicons name="book-outline" size={36} color={COLORS.textMuted} />
+                <Ionicons name="book-outline" size={36} color={'rgba(26,22,18,0.5)'} />
               </View>
               <Text style={styles.emptyText}>
                 {isFuture
@@ -649,7 +649,7 @@ const GRID_PADDING = SPACING.lg;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#FFF5DC',
   },
 
   // Header
@@ -660,21 +660,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-    backgroundColor: COLORS.surface,
+    borderBottomColor: '#1A1612',
+    backgroundColor: '#FFFEF5',
   },
   backBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerTitle: {
     fontSize: FONT_SIZE.lg,
     fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
   },
   headerSpacer: {
     width: 36,
@@ -698,14 +698,14 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#FFFEF5',
     alignItems: 'center',
     justifyContent: 'center',
   },
   monthLabel: {
     fontSize: FONT_SIZE.lg,
     fontWeight: FONT_WEIGHT.semibold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     minWidth: 100,
     textAlign: 'center',
   },
@@ -722,7 +722,7 @@ const styles = StyleSheet.create({
   },
   dayLabelText: {
     fontSize: FONT_SIZE.xs,
-    color: COLORS.textMuted,
+    color: 'rgba(26,22,18,0.5)',
     fontWeight: FONT_WEIGHT.medium,
   },
 
@@ -741,26 +741,26 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.sm,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#FFFEF5',
   },
   heatCellSelected: {
     borderWidth: 2,
-    borderColor: BRAND.primary,
+    borderColor: '#FF4757',
   },
   heatCellText: {
     fontSize: FONT_SIZE.xs,
-    color: COLORS.textSecondary,
+    color: 'rgba(26,22,18,0.65)',
     fontWeight: FONT_WEIGHT.medium,
   },
   heatCellTextSelected: {
-    color: BRAND.primary,
+    color: '#FF4757',
     fontWeight: FONT_WEIGHT.bold,
   },
   todayDot: {
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: BRAND.primary,
+    backgroundColor: '#FF4757',
     position: 'absolute',
     bottom: 4,
   },
@@ -770,7 +770,7 @@ const styles = StyleSheet.create({
   selectedDateLabel: {
     fontSize: FONT_SIZE.md,
     fontWeight: FONT_WEIGHT.semibold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     marginBottom: SPACING.lg,
   },
 
@@ -781,19 +781,19 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
     paddingVertical: SPACING.lg,
     paddingHorizontal: SPACING.lg,
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#FFFEF5',
     borderRadius: BORDER_RADIUS.lg,
     marginBottom: SPACING.md,
   },
   generatingText: {
     fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+    color: 'rgba(26,22,18,0.65)',
     fontWeight: FONT_WEIGHT.medium,
   },
 
   // Timeline
   tlIntroCard: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#FFFEF5',
     borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.lg,
     marginBottom: SPACING.lg,
@@ -801,13 +801,13 @@ const styles = StyleSheet.create({
   },
   tlIntroLabel: {
     fontSize: FONT_SIZE.xs,
-    color: COLORS.textMuted,
+    color: 'rgba(26,22,18,0.5)',
     fontWeight: FONT_WEIGHT.medium,
     marginBottom: 4,
   },
   tlIntroText: {
     fontSize: FONT_SIZE.md,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     lineHeight: FONT_SIZE.md * 1.5,
     fontWeight: FONT_WEIGHT.semibold,
   },
@@ -826,7 +826,7 @@ const styles = StyleSheet.create({
   tlLine: {
     flex: 1,
     width: 2,
-    backgroundColor: COLORS.border,
+    backgroundColor: '#1A1612',
     minHeight: 8,
   },
   tlLineTopHidden: { backgroundColor: 'transparent' },
@@ -835,7 +835,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: `${BRAND.primary}22`,
+    backgroundColor: `${'#FF4757'}22`,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -844,7 +844,7 @@ const styles = StyleSheet.create({
   },
   tlCard: {
     flex: 1,
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#FFFEF5',
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
     marginVertical: 4,
@@ -859,7 +859,7 @@ const styles = StyleSheet.create({
   tlTime: {
     fontSize: FONT_SIZE.xs,
     fontWeight: FONT_WEIGHT.bold,
-    color: BRAND.primary,
+    color: '#FF4757',
   },
   tlMusic: {
     flexDirection: 'row',
@@ -869,13 +869,13 @@ const styles = StyleSheet.create({
   },
   tlMusicText: {
     fontSize: FONT_SIZE.xs,
-    color: COLORS.textSecondary,
+    color: 'rgba(26,22,18,0.65)',
     fontWeight: FONT_WEIGHT.medium,
     flexShrink: 1,
   },
   tlSummary: {
     fontSize: FONT_SIZE.sm,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     lineHeight: FONT_SIZE.sm * 1.5,
   },
   tlPhoto: {
@@ -883,13 +883,13 @@ const styles = StyleSheet.create({
     height: 140,
     borderRadius: BORDER_RADIUS.sm,
     marginTop: SPACING.sm,
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
   },
   tlOutroCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.sm,
-    backgroundColor: `${BRAND.primary}10`,
+    backgroundColor: `${'#FF4757'}10`,
     borderRadius: BORDER_RADIUS.md,
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.lg,
@@ -898,14 +898,14 @@ const styles = StyleSheet.create({
   tlOutroText: {
     flex: 1,
     fontSize: FONT_SIZE.sm,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     fontWeight: FONT_WEIGHT.medium,
     lineHeight: FONT_SIZE.sm * 1.5,
   },
   tlSummaryRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#FFFEF5',
     borderRadius: BORDER_RADIUS.lg,
     paddingVertical: SPACING.md,
     marginBottom: SPACING.lg,
@@ -918,17 +918,17 @@ const styles = StyleSheet.create({
   tlSummaryValue: {
     fontSize: FONT_SIZE.lg,
     fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
   },
   tlSummaryLabel: {
     fontSize: FONT_SIZE.xs,
-    color: COLORS.textSecondary,
+    color: 'rgba(26,22,18,0.65)',
     marginTop: 2,
   },
   tlSummaryDivider: {
     width: 1,
     height: 28,
-    backgroundColor: COLORS.border,
+    backgroundColor: '#1A1612',
   },
 
   // Speech Bubble (narrative)
@@ -945,7 +945,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: `${BRAND.primary}15`,
+    backgroundColor: `${'#FF4757'}15`,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -953,10 +953,10 @@ const styles = StyleSheet.create({
   speechName: {
     fontSize: FONT_SIZE.sm,
     fontWeight: FONT_WEIGHT.semibold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
   },
   speechBubble: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#FFFEF5',
     borderRadius: BORDER_RADIUS.lg,
     borderTopLeftRadius: BORDER_RADIUS.sm / 2,
     padding: SPACING.lg,
@@ -975,11 +975,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 6,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
-    borderBottomColor: COLORS.surface,
+    borderBottomColor: '#FFFEF5',
   },
   speechText: {
     fontSize: FONT_SIZE.md,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     lineHeight: FONT_SIZE.md * 1.6,
   },
 
@@ -993,7 +993,7 @@ const styles = StyleSheet.create({
   },
   placesSectionTitle: {
     fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+    color: 'rgba(26,22,18,0.65)',
     fontWeight: FONT_WEIGHT.medium,
   },
   placeChipsScroll: { gap: SPACING.sm },
@@ -1001,16 +1001,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#FFFEF5',
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
     borderRadius: BORDER_RADIUS.full,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: '#1A1612',
   },
   placeChipText: {
     fontSize: FONT_SIZE.sm,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     fontWeight: FONT_WEIGHT.medium,
   },
 
@@ -1018,7 +1018,7 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#FFFEF5',
     borderRadius: BORDER_RADIUS.lg,
     paddingVertical: SPACING.lg,
     paddingHorizontal: SPACING.md,
@@ -1033,16 +1033,16 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: FONT_SIZE.lg,
     fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
   },
   statLabel: {
     fontSize: FONT_SIZE.xs,
-    color: COLORS.textSecondary,
+    color: 'rgba(26,22,18,0.65)',
   },
   statDivider: {
     width: 1,
     height: 32,
-    backgroundColor: COLORS.border,
+    backgroundColor: '#1A1612',
   },
 
   // Share Button
@@ -1050,7 +1050,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: BRAND.primary,
+    backgroundColor: '#FF4757',
     paddingVertical: SPACING.lg,
     borderRadius: BORDER_RADIUS.lg,
     gap: SPACING.sm,
@@ -1071,21 +1071,21 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#FFFEF5',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: SPACING.lg,
   },
   emptyText: {
     fontSize: FONT_SIZE.md,
-    color: COLORS.textSecondary,
+    color: 'rgba(26,22,18,0.65)',
     marginBottom: SPACING.xl,
   },
   generateButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: BRAND.primary,
+    backgroundColor: '#FF4757',
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.xl,
     borderRadius: BORDER_RADIUS.full,
@@ -1101,7 +1101,7 @@ const styles = StyleSheet.create({
   // Skeleton
   skeletonContainer: { paddingVertical: SPACING.md },
   skeletonBubble: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#FFFEF5',
     borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.lg,
   },

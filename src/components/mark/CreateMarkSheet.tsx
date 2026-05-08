@@ -312,8 +312,8 @@ export const CreateMarkSheet = forwardRef<CreateMarkSheetHandle, Props>(
                       style={[
                         styles.emojiBtn,
                         {
-                          backgroundColor: selected ? BRAND.primary + '22' : colors.surfaceLight,
-                          borderColor: selected ? BRAND.primary : colors.border,
+                          backgroundColor: selected ? '#FF4757' + '22' : colors.surfaceLight,
+                          borderColor: selected ? '#FF4757' : colors.border,
                         },
                       ]}
                     >
@@ -369,7 +369,7 @@ export const CreateMarkSheet = forwardRef<CreateMarkSheetHandle, Props>(
                   ]}
                   onPress={() => setMusicPickerOpen(true)}
                 >
-                  <Ionicons name="musical-notes-outline" size={18} color={BRAND.primary} />
+                  <Ionicons name="musical-notes-outline" size={18} color={'#FF4757'} />
                   <Text style={[styles.musicAddText, { color: colors.textPrimary }]}>
                     Apple Music에서 곡 찾기
                   </Text>
@@ -393,20 +393,20 @@ export const CreateMarkSheet = forwardRef<CreateMarkSheetHandle, Props>(
                       style={[
                         styles.visibilityBtn,
                         {
-                          backgroundColor: selected ? BRAND.primary + '22' : colors.surfaceLight,
-                          borderColor: selected ? BRAND.primary : colors.border,
+                          backgroundColor: selected ? '#FF4757' + '22' : colors.surfaceLight,
+                          borderColor: selected ? '#FF4757' : colors.border,
                         },
                       ]}
                     >
                       <Ionicons
                         name={opt.icon}
                         size={16}
-                        color={selected ? BRAND.primary : colors.textSecondary}
+                        color={selected ? '#FF4757' : colors.textSecondary}
                       />
                       <Text
                         style={[
                           styles.visibilityText,
-                          { color: selected ? BRAND.primary : colors.textPrimary },
+                          { color: selected ? '#FF4757' : colors.textPrimary },
                         ]}
                       >
                         {opt.label}
@@ -424,7 +424,7 @@ export const CreateMarkSheet = forwardRef<CreateMarkSheetHandle, Props>(
               style={[
                 styles.submitBtn,
                 {
-                  backgroundColor: canSubmit ? BRAND.primary : colors.surfaceHighlight,
+                  backgroundColor: canSubmit ? '#FF4757' : colors.surfaceHighlight,
                   opacity: canSubmit ? 1 : 0.6,
                 },
               ]}
@@ -516,12 +516,12 @@ function MusicPickerModal({
               onSubmitEditing={() => void runSearch()}
             />
             <Pressable onPress={() => void runSearch()} hitSlop={6}>
-              <Text style={{ color: BRAND.primary, fontWeight: FONT_WEIGHT.semibold }}>검색</Text>
+              <Text style={{ color: '#FF4757', fontWeight: FONT_WEIGHT.semibold }}>검색</Text>
             </Pressable>
           </View>
 
           {loading ? (
-            <ActivityIndicator color={BRAND.primary} style={{ marginTop: SPACING.lg }} />
+            <ActivityIndicator color={'#FF4757'} style={{ marginTop: SPACING.lg }} />
           ) : (
             <FlatList
               data={results}

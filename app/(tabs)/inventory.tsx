@@ -312,7 +312,7 @@ export default function InventoryScreen({ embedded }: { embedded?: boolean }) {
                           styles.collectionDot,
                           earnedBadgeIds.has(badge.id)
                             ? { backgroundColor: RARITY_COLORS[badge.rarity] }
-                            : { backgroundColor: COLORS.surfaceHighlight },
+                            : { backgroundColor: '#F0E5C0' },
                         ]}
                       />
                     ))}
@@ -330,9 +330,9 @@ export default function InventoryScreen({ embedded }: { embedded?: boolean }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+  container: { flex: 1, backgroundColor: '#FFF5DC' },
   header: { paddingHorizontal: SPACING.xl, paddingBottom: SPACING.lg },
-  headerTitle: { fontSize: FONT_SIZE.xxl, fontWeight: FONT_WEIGHT.bold, color: COLORS.textPrimary },
+  headerTitle: { fontSize: FONT_SIZE.xxl, fontWeight: FONT_WEIGHT.bold, color: '#1A1612' },
 
   // ── Tabs ──
   tabBar: {
@@ -343,13 +343,13 @@ const styles = StyleSheet.create({
     flex: 1, alignItems: 'center',
     paddingVertical: SPACING.md,
     borderRadius: BORDER_RADIUS.md,
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
   },
   tabActive: { backgroundColor: COLORS.primary },
-  tabLabel: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.semibold, color: COLORS.textMuted },
-  tabLabelActive: { color: COLORS.textPrimary },
-  tabCount: { fontSize: FONT_SIZE.xs, color: COLORS.textMuted, marginTop: 2 },
-  tabCountActive: { color: COLORS.textPrimary },
+  tabLabel: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.semibold, color: 'rgba(26,22,18,0.5)' },
+  tabLabelActive: { color: '#1A1612' },
+  tabCount: { fontSize: FONT_SIZE.xs, color: 'rgba(26,22,18,0.5)', marginTop: 2 },
+  tabCountActive: { color: '#1A1612' },
 
   content: { flex: 1, paddingHorizontal: SPACING.xl },
 
@@ -358,25 +358,25 @@ const styles = StyleSheet.create({
   badgeCardWrapper: { width: '47%' },
   badgeCard: {
     alignItems: 'center', padding: SPACING.lg,
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
     borderRadius: BORDER_RADIUS.md,
     borderWidth: 2,
   },
   badgeCardLocked: {
-    borderColor: COLORS.surfaceHighlight, opacity: 0.5,
+    borderColor: '#F0E5C0', opacity: 0.5,
   },
   badgeEmoji: { fontSize: 36, marginBottom: SPACING.sm },
-  badgeName: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.semibold, color: COLORS.textPrimary, textAlign: 'center' },
+  badgeName: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.semibold, color: '#1A1612', textAlign: 'center' },
   badgeRarity: { fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.medium, marginTop: 4 },
-  badgeLockedIcon: { fontSize: 36, marginBottom: SPACING.sm, color: COLORS.textMuted, fontWeight: FONT_WEIGHT.bold },
-  badgeLockedName: { fontSize: FONT_SIZE.sm, color: COLORS.textMuted, textAlign: 'center' },
-  badgeLockedRarity: { fontSize: FONT_SIZE.xs, color: COLORS.textMuted, marginTop: 4 },
+  badgeLockedIcon: { fontSize: 36, marginBottom: SPACING.sm, color: 'rgba(26,22,18,0.5)', fontWeight: FONT_WEIGHT.bold },
+  badgeLockedName: { fontSize: FONT_SIZE.sm, color: 'rgba(26,22,18,0.5)', textAlign: 'center' },
+  badgeLockedRarity: { fontSize: FONT_SIZE.xs, color: 'rgba(26,22,18,0.5)', marginTop: 4 },
 
   // ── Items ──
   itemList: { gap: SPACING.md },
   itemCard: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.lg, gap: SPACING.md,
     borderWidth: 1,
@@ -388,28 +388,28 @@ const styles = StyleSheet.create({
   itemEmoji: { fontSize: 24 },
   itemInfo: { flex: 1 },
   itemHeader: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
-  itemName: { fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.semibold, color: COLORS.textPrimary },
+  itemName: { fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.semibold, color: '#1A1612' },
   itemRarity: { fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.semibold },
-  itemQty: { fontSize: FONT_SIZE.xs, color: COLORS.textSecondary, marginTop: 4 },
+  itemQty: { fontSize: FONT_SIZE.xs, color: 'rgba(26,22,18,0.65)', marginTop: 4 },
   useBtn: {
     backgroundColor: COLORS.primary,
     paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm,
     borderRadius: BORDER_RADIUS.sm,
   },
-  useBtnText: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.bold, color: COLORS.textPrimary },
+  useBtnText: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.bold, color: '#1A1612' },
 
   // ── Empty ──
   emptyState: { alignItems: 'center', paddingVertical: SPACING.xxxl },
   emptyEmoji: { fontSize: 48, marginBottom: SPACING.md },
-  emptyText: { fontSize: FONT_SIZE.md, color: COLORS.textMuted },
+  emptyText: { fontSize: FONT_SIZE.md, color: 'rgba(26,22,18,0.5)' },
 
   // ── Cosmetics ──
   cosmeticSlotSection: { marginBottom: SPACING.xl },
-  cosmeticSlotTitle: { fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.semibold, color: COLORS.textPrimary, marginBottom: SPACING.md },
+  cosmeticSlotTitle: { fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.semibold, color: '#1A1612', marginBottom: SPACING.md },
   cosmeticRow: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.md },
   cosmeticItem: {
     width: '30%', alignItems: 'center', padding: SPACING.sm,
-    backgroundColor: COLORS.surfaceLight, borderRadius: BORDER_RADIUS.md, borderWidth: 2,
+    backgroundColor: '#FFF5DC', borderRadius: BORDER_RADIUS.md, borderWidth: 2,
   },
   cosmeticEquipped: {
     position: 'absolute', top: 4, right: 4,
@@ -417,15 +417,15 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   cosmeticEmoji: { fontSize: 28, marginBottom: SPACING.xs },
-  cosmeticName: { fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.semibold, color: COLORS.textPrimary, textAlign: 'center' },
+  cosmeticName: { fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.semibold, color: '#1A1612', textAlign: 'center' },
   cosmeticRarity: { fontSize: 10, fontWeight: FONT_WEIGHT.bold, marginTop: 2 },
   shopBtn: {
     alignSelf: 'center', marginTop: SPACING.lg,
     paddingHorizontal: SPACING.xl, paddingVertical: SPACING.md,
     borderRadius: BORDER_RADIUS.full,
-    borderWidth: 1, borderColor: BRAND.primary,
+    borderWidth: 1, borderColor: '#FF4757',
   },
-  shopBtnText: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.bold, color: BRAND.primary },
+  shopBtnText: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.bold, color: '#FF4757' },
 
   // ── Collection ──
   collectionProgress: { marginBottom: SPACING.xl },
@@ -433,11 +433,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between',
     marginBottom: SPACING.sm,
   },
-  collectionProgressTitle: { fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.semibold, color: COLORS.textPrimary },
+  collectionProgressTitle: { fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.semibold, color: '#1A1612' },
   collectionProgressValue: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.bold, color: COLORS.primary },
   collectionBar: {
     height: 10, borderRadius: 5,
-    backgroundColor: COLORS.surfaceHighlight, overflow: 'hidden',
+    backgroundColor: '#F0E5C0', overflow: 'hidden',
   },
   collectionBarFill: {
     height: '100%', borderRadius: 5,
@@ -450,8 +450,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between',
     marginBottom: SPACING.md,
   },
-  collectionCatTitle: { fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.semibold, color: COLORS.textPrimary },
-  collectionCatCount: { fontSize: FONT_SIZE.sm, color: COLORS.textSecondary },
+  collectionCatTitle: { fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.semibold, color: '#1A1612' },
+  collectionCatCount: { fontSize: FONT_SIZE.sm, color: 'rgba(26,22,18,0.65)' },
   collectionCatGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },
   collectionDot: {
     width: 28, height: 28, borderRadius: 14,

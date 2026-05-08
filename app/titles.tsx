@@ -124,7 +124,7 @@ export default function TitlesScreen() {
         <Pressable
           style={[
             styles.card,
-            { borderColor: earned ? rarityColor : COLORS.surfaceHighlight },
+            { borderColor: earned ? rarityColor : '#F0E5C0' },
             !earned && styles.cardLocked,
           ]}
           onPress={() => handleTitlePress(item)}
@@ -153,7 +153,7 @@ export default function TitlesScreen() {
             </Text>
             {!earned && condition && (
               <View style={styles.conditionRow}>
-                <Ionicons name="lock-closed" size={12} color={COLORS.textMuted} />
+                <Ionicons name="lock-closed" size={12} color={'rgba(26,22,18,0.5)'} />
                 <Text style={styles.conditionText}>{condition}</Text>
               </View>
             )}
@@ -168,7 +168,7 @@ export default function TitlesScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Ionicons name="chevron-back" size={24} color={COLORS.textPrimary} />
+          <Ionicons name="chevron-back" size={24} color={'#1A1612'} />
         </Pressable>
         <Text style={styles.headerTitle}>칭호</Text>
         <View style={{ width: 24 }} />
@@ -176,7 +176,7 @@ export default function TitlesScreen() {
 
       {isLoading ? (
         <View style={styles.loading}>
-          <ActivityIndicator size="large" color={BRAND.primary} />
+          <ActivityIndicator size="large" color={'#FF4757'} />
         </View>
       ) : (
         <FlatList
@@ -231,7 +231,7 @@ function formatCondition(condition: Record<string, unknown>): string | null {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+  container: { flex: 1, backgroundColor: '#FFF5DC' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -239,12 +239,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: '#1A1612',
   },
   headerTitle: {
     fontSize: FONT_SIZE.lg,
     fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
   },
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   listContent: { padding: SPACING.lg, gap: SPACING.md },
@@ -252,7 +252,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: SPACING.lg,
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
     borderRadius: BORDER_RADIUS.md,
     borderWidth: 2,
     gap: SPACING.md,
@@ -262,7 +262,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: COLORS.surfaceHighlight,
+    backgroundColor: '#F0E5C0',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -276,12 +276,12 @@ const styles = StyleSheet.create({
   cardName: {
     fontSize: FONT_SIZE.md,
     fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     flexShrink: 1,
   },
-  cardNameLocked: { color: COLORS.textMuted },
+  cardNameLocked: { color: 'rgba(26,22,18,0.5)' },
   activeBadge: {
-    backgroundColor: BRAND.primary,
+    backgroundColor: '#FF4757',
     paddingHorizontal: SPACING.sm,
     paddingVertical: 2,
     borderRadius: BORDER_RADIUS.full,
@@ -293,7 +293,7 @@ const styles = StyleSheet.create({
   },
   cardDesc: {
     fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+    color: 'rgba(26,22,18,0.65)',
     marginTop: 2,
   },
   cardRarity: {
@@ -309,9 +309,9 @@ const styles = StyleSheet.create({
   },
   conditionText: {
     fontSize: FONT_SIZE.xs,
-    color: COLORS.textMuted,
+    color: 'rgba(26,22,18,0.5)',
   },
   empty: { alignItems: 'center', paddingVertical: SPACING.xxxl },
   emptyEmoji: { fontSize: 48, marginBottom: SPACING.md },
-  emptyText: { fontSize: FONT_SIZE.md, color: COLORS.textMuted },
+  emptyText: { fontSize: FONT_SIZE.md, color: 'rgba(26,22,18,0.5)' },
 });

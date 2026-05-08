@@ -66,7 +66,7 @@ export default function CharacterScreen() {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={MANGA.ink} />
         }
-        contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 140 }}
       >
         {/* ── 헤더: 캐릭터 + 코인 칩 + 뒤로가기 ── */}
         <View style={styles.header}>
@@ -413,30 +413,33 @@ const styles = StyleSheet.create({
     fontFamily: FONT_FAMILY.primaryBold,
     letterSpacing: -0.2,
   },
-  // slots
+  // slots — 5개 슬롯 화면 폭에 맞춰 균등
   slotsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingHorizontal: 12,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
     marginTop: 16,
+    gap: 6,
   },
   slotItem: {
     alignItems: 'center',
     gap: 6,
-    width: 60,
+    flex: 1,         // 5 슬롯 균등 분배
     position: 'relative',
   },
   slotShadow: {
     position: 'absolute',
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    top: 0,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     backgroundColor: MANGA.ink,
+    alignSelf: 'center',
   },
   slotCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     backgroundColor: MANGA.paper,
     borderWidth: MANGA_BORDER.width,
     borderColor: MANGA_BORDER.color,
@@ -470,13 +473,14 @@ const styles = StyleSheet.create({
   actionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: 10,
     paddingHorizontal: 16,
     marginTop: 16,
+    marginBottom: 24,
   },
   actionTile: {
-    width: '47.5%',
-    aspectRatio: 1.6,
+    width: '48%',
+    aspectRatio: 1.7,
     position: 'relative',
   },
   actionShadow: {

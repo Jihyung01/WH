@@ -86,7 +86,7 @@ const toastStyles = StyleSheet.create({
     top: 8,
     left: SPACING.lg,
     right: SPACING.lg,
-    backgroundColor: BRAND.primary,
+    backgroundColor: '#FF4757',
     borderRadius: BORDER_RADIUS.md,
     flexDirection: 'row',
     alignItems: 'center',
@@ -96,7 +96,7 @@ const toastStyles = StyleSheet.create({
     zIndex: 100,
     ...SHADOWS.md,
   },
-  error: { backgroundColor: COLORS.error },
+  error: { backgroundColor: '#FF4757' },
   text: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.medium, color: '#FFF', flex: 1 },
 });
 
@@ -193,7 +193,7 @@ function FriendsTab({
   if (loading && !data) {
     return (
       <View style={s.centered}>
-        <ActivityIndicator size="large" color={BRAND.primary} />
+        <ActivityIndicator size="large" color={'#FF4757'} />
       </View>
     );
   }
@@ -206,7 +206,7 @@ function FriendsTab({
       style={s.tabContent}
       contentContainerStyle={s.tabContentInner}
       showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={BRAND.primary} colors={[BRAND.primary]} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={'#FF4757'} colors={['#FF4757']} />}
       keyboardShouldPersistTaps="handled"
     >
       {/* Location sharing toggle */}
@@ -226,7 +226,7 @@ function FriendsTab({
           <Switch
             value={locationSharingEnabled}
             onValueChange={handleLocationToggle}
-            trackColor={{ false: COLORS.surfaceLight, true: BRAND.primary }}
+            trackColor={{ false: '#FFF5DC', true: '#FF4757' }}
             thumbColor="#FFF"
           />
         </View>
@@ -239,7 +239,7 @@ function FriendsTab({
           value={searchText}
           onChangeText={setSearchText}
           placeholder="닉네임으로 친구 추가"
-          placeholderTextColor={COLORS.textMuted}
+          placeholderTextColor={'rgba(26,22,18,0.5)'}
           autoCapitalize="none"
           autoCorrect={false}
           returnKeyType="send"
@@ -283,7 +283,7 @@ function FriendsTab({
                   onPress={() => handleRespond(req.friendship_id, false)}
                   disabled={respondingIds.has(req.friendship_id)}
                 >
-                  <Ionicons name="close" size={18} color={COLORS.error} />
+                  <Ionicons name="close" size={18} color={'#FF4757'} />
                 </Pressable>
               </View>
             </View>
@@ -346,7 +346,7 @@ function CrewTab({
   if (loading && !data) {
     return (
       <View style={s.centered}>
-        <ActivityIndicator size="large" color={BRAND.primary} />
+        <ActivityIndicator size="large" color={'#FF4757'} />
       </View>
     );
   }
@@ -427,7 +427,7 @@ function NoCrewView({
             value={joinCode}
             onChangeText={setJoinCode}
             placeholder="초대 코드 입력"
-            placeholderTextColor={COLORS.textMuted}
+            placeholderTextColor={'rgba(26,22,18,0.5)'}
             autoCapitalize="none"
             autoCorrect={false}
           />
@@ -511,7 +511,7 @@ function CreateCrewModal({
             <View style={modalStyles.header}>
               <Text style={modalStyles.title}>크루 만들기</Text>
               <Pressable onPress={onClose} hitSlop={12}>
-                <Ionicons name="close" size={24} color={COLORS.textSecondary} />
+                <Ionicons name="close" size={24} color={'rgba(26,22,18,0.65)'} />
               </Pressable>
             </View>
 
@@ -539,7 +539,7 @@ function CreateCrewModal({
                 value={name}
                 onChangeText={setName}
                 placeholder="예: 서울 탐험대"
-                placeholderTextColor={COLORS.textMuted}
+                placeholderTextColor={'rgba(26,22,18,0.5)'}
                 maxLength={20}
               />
 
@@ -549,7 +549,7 @@ function CreateCrewModal({
                 value={description}
                 onChangeText={setDescription}
                 placeholder="크루를 소개해주세요"
-                placeholderTextColor={COLORS.textMuted}
+                placeholderTextColor={'rgba(26,22,18,0.5)'}
                 multiline
                 maxLength={100}
               />
@@ -559,7 +559,7 @@ function CreateCrewModal({
                 <Text style={district ? modalStyles.districtText : modalStyles.districtPlaceholder}>
                   {district || '지역 선택 (선택사항)'}
                 </Text>
-                <Ionicons name={showDistrictPicker ? 'chevron-up' : 'chevron-down'} size={18} color={COLORS.textSecondary} />
+                <Ionicons name={showDistrictPicker ? 'chevron-up' : 'chevron-down'} size={18} color={'rgba(26,22,18,0.65)'} />
               </Pressable>
               {showDistrictPicker && (
                 <ScrollView style={modalStyles.districtList} nestedScrollEnabled>
@@ -603,7 +603,7 @@ const modalStyles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   kav: { justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#FFFEF5',
     borderTopLeftRadius: BORDER_RADIUS.xl,
     borderTopRightRadius: BORDER_RADIUS.xl,
     padding: SPACING.xl,
@@ -613,7 +613,7 @@ const modalStyles = StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
     alignSelf: 'center',
     marginBottom: SPACING.lg,
   },
@@ -623,17 +623,17 @@ const modalStyles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: SPACING.xl,
   },
-  title: { fontSize: FONT_SIZE.xl, fontWeight: FONT_WEIGHT.bold, color: COLORS.textPrimary },
-  label: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.semibold, color: COLORS.textSecondary, marginBottom: SPACING.sm, marginTop: SPACING.lg },
+  title: { fontSize: FONT_SIZE.xl, fontWeight: FONT_WEIGHT.bold, color: '#1A1612' },
+  label: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.semibold, color: 'rgba(26,22,18,0.65)', marginBottom: SPACING.sm, marginTop: SPACING.lg },
   input: {
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
     borderRadius: BORDER_RADIUS.md,
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
     fontSize: FONT_SIZE.md,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: '#1A1612',
   },
   inputMulti: { minHeight: 72, textAlignVertical: 'top' },
   emojiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },
@@ -641,34 +641,34 @@ const modalStyles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: BORDER_RADIUS.md,
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: 'transparent',
   },
-  emojiBtnActive: { borderColor: BRAND.primary, backgroundColor: `${BRAND.primary}15` },
+  emojiBtnActive: { borderColor: '#FF4757', backgroundColor: `${'#FF4757'}15` },
   emojiText: { fontSize: 22 },
   districtBtn: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
     borderRadius: BORDER_RADIUS.md,
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: '#1A1612',
   },
-  districtText: { fontSize: FONT_SIZE.md, color: COLORS.textPrimary },
-  districtPlaceholder: { fontSize: FONT_SIZE.md, color: COLORS.textMuted },
-  districtList: { maxHeight: 180, backgroundColor: COLORS.surfaceLight, borderRadius: BORDER_RADIUS.md, marginTop: SPACING.sm },
+  districtText: { fontSize: FONT_SIZE.md, color: '#1A1612' },
+  districtPlaceholder: { fontSize: FONT_SIZE.md, color: 'rgba(26,22,18,0.5)' },
+  districtList: { maxHeight: 180, backgroundColor: '#FFF5DC', borderRadius: BORDER_RADIUS.md, marginTop: SPACING.sm },
   districtItem: { paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md },
-  districtItemActive: { backgroundColor: `${BRAND.primary}15` },
-  districtItemText: { fontSize: FONT_SIZE.md, color: COLORS.textPrimary },
-  districtItemTextActive: { color: BRAND.primary, fontWeight: FONT_WEIGHT.semibold },
+  districtItemActive: { backgroundColor: `${'#FF4757'}15` },
+  districtItemText: { fontSize: FONT_SIZE.md, color: '#1A1612' },
+  districtItemTextActive: { color: '#FF4757', fontWeight: FONT_WEIGHT.semibold },
   createBtn: {
-    backgroundColor: BRAND.primary,
+    backgroundColor: '#FF4757',
     borderRadius: BORDER_RADIUS.lg,
     paddingVertical: SPACING.lg,
     alignItems: 'center',
@@ -738,7 +738,7 @@ function HasCrewView({
       style={s.tabContent}
       contentContainerStyle={[s.tabContentInner, { paddingBottom: bottomInset + SPACING.xxl }]}
       showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={BRAND.primary} colors={[BRAND.primary]} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={'#FF4757'} colors={['#FF4757']} />}
     >
       {/* Crew header */}
       <Animated.View entering={FadeInUp.duration(300)} style={s.crewHeader}>
@@ -756,7 +756,7 @@ function HasCrewView({
         </View>
         <View style={s.statDivider} />
         <View style={s.statItem}>
-          <Ionicons name="trending-up" size={18} color={BRAND.primary} />
+          <Ionicons name="trending-up" size={18} color={'#FF4757'} />
           <Text style={s.statValue}>{(crew.weekly_xp ?? 0).toLocaleString()}</Text>
           <Text style={s.statLabel}>주간 XP</Text>
         </View>
@@ -775,7 +775,7 @@ function HasCrewView({
           <Text style={s.inviteCode}>{crew.invite_code}</Text>
         </View>
         <Pressable style={s.copyBtn} onPress={handleCopyCode}>
-          <Ionicons name="copy-outline" size={18} color={BRAND.primary} />
+          <Ionicons name="copy-outline" size={18} color={'#FF4757'} />
           <Text style={s.copyBtnText}>복사</Text>
         </Pressable>
       </Animated.View>
@@ -794,10 +794,10 @@ function HasCrewView({
       <Animated.View entering={FadeInUp.duration(300).delay(400)}>
         <Pressable style={s.leaveBtn} onPress={handleLeave} disabled={leaving}>
           {leaving ? (
-            <ActivityIndicator size="small" color={COLORS.error} />
+            <ActivityIndicator size="small" color={'#FF4757'} />
           ) : (
             <>
-              <Ionicons name="exit-outline" size={18} color={COLORS.error} />
+              <Ionicons name="exit-outline" size={18} color={'#FF4757'} />
               <Text style={s.leaveBtnText}>크루 탈퇴</Text>
             </>
           )}
@@ -811,7 +811,7 @@ function MemberRow({ member }: { member: CrewMember }) {
   const roleLabels: Record<string, { text: string; color: string; icon?: string }> = {
     leader: { text: '리더', color: '#FBBF24', icon: '👑' },
     officer: { text: '부관', color: '#818CF8' },
-    member: { text: '멤버', color: COLORS.textMuted },
+    member: { text: '멤버', color: 'rgba(26,22,18,0.5)' },
   };
   const role = roleLabels[member.role] ?? roleLabels.member;
 
@@ -908,7 +908,7 @@ export default function SocialScreen() {
       {/* Header */}
       <View style={s.header}>
         <Pressable style={s.backBtn} onPress={() => router.back()} hitSlop={12}>
-          <Ionicons name="chevron-back" size={24} color={COLORS.textPrimary} />
+          <Ionicons name="chevron-back" size={24} color={'#1A1612'} />
         </Pressable>
         <Text style={s.headerTitle}>소셜</Text>
         <View style={s.headerSpacer} />
@@ -966,7 +966,7 @@ export default function SocialScreen() {
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+  container: { flex: 1, backgroundColor: '#FFF5DC' },
 
   // Header
   header: {
@@ -976,30 +976,30 @@ const s = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-    backgroundColor: COLORS.surface,
+    borderBottomColor: '#1A1612',
+    backgroundColor: '#FFFEF5',
   },
   backBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerTitle: {
     fontSize: FONT_SIZE.lg,
     fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
   },
   headerSpacer: { width: 36 },
 
   // Tabs
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#FFFEF5',
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: '#1A1612',
     paddingHorizontal: SPACING.lg,
   },
   tab: {
@@ -1012,15 +1012,15 @@ const s = StyleSheet.create({
     borderBottomColor: 'transparent',
     gap: SPACING.xs,
   },
-  tabActive: { borderBottomColor: BRAND.primary },
+  tabActive: { borderBottomColor: '#FF4757' },
   tabText: {
     fontSize: FONT_SIZE.md,
     fontWeight: FONT_WEIGHT.semibold,
-    color: COLORS.textMuted,
+    color: 'rgba(26,22,18,0.5)',
   },
-  tabTextActive: { color: BRAND.primary },
+  tabTextActive: { color: '#FF4757' },
   badge: {
-    backgroundColor: COLORS.error,
+    backgroundColor: '#FF4757',
     borderRadius: 10,
     minWidth: 20,
     height: 20,
@@ -1037,7 +1037,7 @@ const s = StyleSheet.create({
   sectionTitle: {
     fontSize: FONT_SIZE.md,
     fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     marginBottom: SPACING.md,
     marginTop: SPACING.lg,
   },
@@ -1048,12 +1048,12 @@ const s = StyleSheet.create({
     alignItems: 'center',
     width: '100%',
     alignSelf: 'stretch',
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#FFFEF5',
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.lg,
     marginBottom: SPACING.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: '#1A1612',
     overflow: 'visible',
   },
   locationShareTextCol: {
@@ -1076,11 +1076,11 @@ const s = StyleSheet.create({
   locationShareLabel: {
     fontSize: FONT_SIZE.md,
     fontWeight: FONT_WEIGHT.semibold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
   },
   locationShareDesc: {
     fontSize: FONT_SIZE.xs,
-    color: COLORS.textSecondary,
+    color: 'rgba(26,22,18,0.65)',
     marginTop: 2,
   },
 
@@ -1091,17 +1091,17 @@ const s = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
     borderRadius: BORDER_RADIUS.md,
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
     fontSize: FONT_SIZE.md,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: '#1A1612',
   },
   searchBtn: {
-    backgroundColor: BRAND.primary,
+    backgroundColor: '#FF4757',
     borderRadius: BORDER_RADIUS.md,
     paddingHorizontal: SPACING.xl,
     alignItems: 'center',
@@ -1114,7 +1114,7 @@ const s = StyleSheet.create({
   friendRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#FFFEF5',
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
     marginBottom: SPACING.sm,
@@ -1124,17 +1124,17 @@ const s = StyleSheet.create({
   friendName: {
     fontSize: FONT_SIZE.md,
     fontWeight: FONT_WEIGHT.semibold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     flex: 1,
   },
   friendMeta: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginTop: 2 },
   levelBadge: {
-    backgroundColor: `${BRAND.primary}20`,
+    backgroundColor: `${'#FF4757'}20`,
     paddingHorizontal: SPACING.sm,
     paddingVertical: 2,
     borderRadius: BORDER_RADIUS.sm,
   },
-  levelBadgeText: { fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.semibold, color: BRAND.primary },
+  levelBadgeText: { fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.semibold, color: '#FF4757' },
   charIcon: { fontSize: 16 },
 
   // Pending actions
@@ -1143,7 +1143,7 @@ const s = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: BRAND.primary,
+    backgroundColor: '#FF4757',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1151,24 +1151,24 @@ const s = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: `${COLORS.error}15`,
+    backgroundColor: `${'#FF4757'}15`,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: `${COLORS.error}30`,
+    borderColor: `${'#FF4757'}30`,
   },
 
   // Empty state
   emptyBox: {
     alignItems: 'center',
     paddingVertical: SPACING.xxxl,
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#FFFEF5',
     borderRadius: BORDER_RADIUS.lg,
   },
   emptyEmoji: { fontSize: 48, marginBottom: SPACING.lg },
   emptyText: {
     fontSize: FONT_SIZE.md,
-    color: COLORS.textSecondary,
+    color: 'rgba(26,22,18,0.65)',
     textAlign: 'center',
     lineHeight: FONT_SIZE.md * 1.6,
   },
@@ -1176,13 +1176,13 @@ const s = StyleSheet.create({
   // No crew
   noCrewContainer: { alignItems: 'center', paddingVertical: SPACING.xxl },
   noCrewEmoji: { fontSize: 56, marginBottom: SPACING.lg },
-  noCrewTitle: { fontSize: FONT_SIZE.xl, fontWeight: FONT_WEIGHT.bold, color: COLORS.textPrimary, marginBottom: SPACING.sm },
-  noCrewDesc: { fontSize: FONT_SIZE.md, color: COLORS.textSecondary, marginBottom: SPACING.xl },
+  noCrewTitle: { fontSize: FONT_SIZE.xl, fontWeight: FONT_WEIGHT.bold, color: '#1A1612', marginBottom: SPACING.sm },
+  noCrewDesc: { fontSize: FONT_SIZE.md, color: 'rgba(26,22,18,0.65)', marginBottom: SPACING.xl },
   ctaPrimary: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.sm,
-    backgroundColor: BRAND.primary,
+    backgroundColor: '#FF4757',
     paddingVertical: SPACING.lg,
     paddingHorizontal: SPACING.xxl,
     borderRadius: BORDER_RADIUS.lg,
@@ -1193,17 +1193,17 @@ const s = StyleSheet.create({
   joinRow: { flexDirection: 'row', gap: SPACING.sm, width: '100%' },
   joinInput: {
     flex: 1,
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
     borderRadius: BORDER_RADIUS.md,
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
     fontSize: FONT_SIZE.md,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: '#1A1612',
   },
   joinBtn: {
-    backgroundColor: BRAND.primary,
+    backgroundColor: '#FF4757',
     borderRadius: BORDER_RADIUS.md,
     paddingHorizontal: SPACING.xl,
     alignItems: 'center',
@@ -1214,63 +1214,63 @@ const s = StyleSheet.create({
   // Crew view
   crewHeader: {
     alignItems: 'center',
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#FFFEF5',
     borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.xl,
     ...SHADOWS.sm,
   },
   crewEmoji: { fontSize: 48, marginBottom: SPACING.md },
-  crewName: { fontSize: FONT_SIZE.xxl, fontWeight: FONT_WEIGHT.bold, color: COLORS.textPrimary, marginBottom: SPACING.xs },
-  crewDesc: { fontSize: FONT_SIZE.md, color: COLORS.textSecondary, textAlign: 'center' },
+  crewName: { fontSize: FONT_SIZE.xxl, fontWeight: FONT_WEIGHT.bold, color: '#1A1612', marginBottom: SPACING.xs },
+  crewDesc: { fontSize: FONT_SIZE.md, color: 'rgba(26,22,18,0.65)', textAlign: 'center' },
 
   // Stats bar
   statsBar: {
     flexDirection: 'row',
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#FFFEF5',
     borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.lg,
     marginTop: SPACING.md,
     ...SHADOWS.sm,
   },
   statItem: { flex: 1, alignItems: 'center', gap: 2 },
-  statDivider: { width: 1, backgroundColor: COLORS.border, marginVertical: SPACING.xs },
-  statValue: { fontSize: FONT_SIZE.lg, fontWeight: FONT_WEIGHT.bold, color: COLORS.textPrimary },
-  statLabel: { fontSize: FONT_SIZE.xs, color: COLORS.textSecondary },
+  statDivider: { width: 1, backgroundColor: '#1A1612', marginVertical: SPACING.xs },
+  statValue: { fontSize: FONT_SIZE.lg, fontWeight: FONT_WEIGHT.bold, color: '#1A1612' },
+  statLabel: { fontSize: FONT_SIZE.xs, color: 'rgba(26,22,18,0.65)' },
 
   // Invite card
   inviteCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#FFFEF5',
     borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.lg,
     marginTop: SPACING.md,
     borderWidth: 1,
-    borderColor: `${BRAND.primary}30`,
+    borderColor: `${'#FF4757'}30`,
     ...SHADOWS.sm,
   },
   inviteLeft: {},
-  inviteLabel: { fontSize: FONT_SIZE.xs, color: COLORS.textSecondary, marginBottom: SPACING.xs },
-  inviteCode: { fontSize: FONT_SIZE.xl, fontWeight: FONT_WEIGHT.bold, color: BRAND.primary, letterSpacing: 2 },
+  inviteLabel: { fontSize: FONT_SIZE.xs, color: 'rgba(26,22,18,0.65)', marginBottom: SPACING.xs },
+  inviteCode: { fontSize: FONT_SIZE.xl, fontWeight: FONT_WEIGHT.bold, color: '#FF4757', letterSpacing: 2 },
   copyBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.xs,
-    backgroundColor: `${BRAND.primary}15`,
+    backgroundColor: `${'#FF4757'}15`,
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.sm,
     borderRadius: BORDER_RADIUS.full,
     borderWidth: 1,
-    borderColor: `${BRAND.primary}30`,
+    borderColor: `${'#FF4757'}30`,
   },
-  copyBtnText: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.semibold, color: BRAND.primary },
+  copyBtnText: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.semibold, color: '#FF4757' },
 
   // Member row
   memberRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#FFFEF5',
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
     marginBottom: SPACING.sm,
@@ -1279,7 +1279,7 @@ const s = StyleSheet.create({
   memberInfo: { flex: 1 },
   memberNameRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs },
   crownIcon: { fontSize: 14 },
-  memberName: { fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.semibold, color: COLORS.textPrimary, flexShrink: 1 },
+  memberName: { fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.semibold, color: '#1A1612', flexShrink: 1 },
   roleBadge: {
     paddingHorizontal: SPACING.sm,
     paddingVertical: 1,
@@ -1288,8 +1288,8 @@ const s = StyleSheet.create({
   },
   roleBadgeText: { fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.semibold },
   memberMeta: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, marginTop: 2 },
-  memberLevel: { fontSize: FONT_SIZE.xs, color: COLORS.textSecondary },
-  memberXp: { fontSize: FONT_SIZE.xs, color: COLORS.textSecondary },
+  memberLevel: { fontSize: FONT_SIZE.xs, color: 'rgba(26,22,18,0.65)' },
+  memberXp: { fontSize: FONT_SIZE.xs, color: 'rgba(26,22,18,0.65)' },
 
   // Leave button
   leaveBtn: {
@@ -1301,8 +1301,8 @@ const s = StyleSheet.create({
     marginTop: SPACING.xxl,
     borderRadius: BORDER_RADIUS.lg,
     borderWidth: 1,
-    borderColor: `${COLORS.error}30`,
-    backgroundColor: `${COLORS.error}08`,
+    borderColor: `${'#FF4757'}30`,
+    backgroundColor: `${'#FF4757'}08`,
   },
-  leaveBtnText: { fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.semibold, color: COLORS.error },
+  leaveBtnText: { fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.semibold, color: '#FF4757' },
 });

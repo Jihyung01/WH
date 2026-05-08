@@ -196,7 +196,7 @@ export default function PremiumScreen() {
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.header}>
           <Pressable style={styles.closeBtn} onPress={() => router.back()} hitSlop={12}>
-            <Ionicons name="close" size={24} color={COLORS.textPrimary} />
+            <Ionicons name="close" size={24} color={'#1A1612'} />
           </Pressable>
           <Text style={styles.headerTitle}>프리미엄</Text>
           <View style={{ width: 36 }} />
@@ -205,7 +205,7 @@ export default function PremiumScreen() {
         <View style={styles.premiumActiveContainer}>
           <Animated.View entering={FadeIn.duration(500)} style={styles.premiumActiveContent}>
             <View style={styles.checkCircle}>
-              <Ionicons name="checkmark-circle" size={72} color={BRAND.primary} />
+              <Ionicons name="checkmark-circle" size={72} color={'#FF4757'} />
             </View>
             <Text style={styles.premiumActiveTitle}>프리미엄 회원입니다</Text>
             <Text style={styles.premiumActiveDesc}>
@@ -234,7 +234,7 @@ export default function PremiumScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <Pressable style={styles.closeBtn} onPress={() => router.back()} hitSlop={12}>
-          <Ionicons name="close" size={24} color={COLORS.textPrimary} />
+          <Ionicons name="close" size={24} color={'#1A1612'} />
         </Pressable>
         <Text style={styles.headerTitle}>프리미엄</Text>
         <View style={{ width: 36 }} />
@@ -248,7 +248,7 @@ export default function PremiumScreen() {
         {/* Hero */}
         <Animated.View entering={FadeInUp.duration(500).delay(100)}>
           <LinearGradient
-            colors={[BRAND.primary, '#1AAD8A', COLORS.surface]}
+            colors={['#FF4757', '#D32B3C', '#FFFEF5']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.heroGradient}
@@ -297,7 +297,7 @@ export default function PremiumScreen() {
             >
               {selectedPlan === 'monthly' && (
                 <View style={styles.selectedDot}>
-                  <Ionicons name="checkmark-circle" size={20} color={BRAND.primary} />
+                  <Ionicons name="checkmark-circle" size={20} color={'#FF4757'} />
                 </View>
               )}
               <Text style={styles.pricingLabel}>월간</Text>
@@ -321,7 +321,7 @@ export default function PremiumScreen() {
               </View>
               {selectedPlan === 'annual' && (
                 <View style={styles.selectedDot}>
-                  <Ionicons name="checkmark-circle" size={20} color={BRAND.primary} />
+                  <Ionicons name="checkmark-circle" size={20} color={'#FF4757'} />
                 </View>
               )}
               <Text style={styles.pricingLabel}>연간</Text>
@@ -368,7 +368,7 @@ export default function PremiumScreen() {
             disabled={restoring}
           >
             {restoring ? (
-              <ActivityIndicator size="small" color={COLORS.textSecondary} />
+              <ActivityIndicator size="small" color={'rgba(26,22,18,0.65)'} />
             ) : (
               <Text style={styles.restoreText}>구매 복원</Text>
             )}
@@ -407,18 +407,18 @@ export default function PremiumScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+  container: { flex: 1, backgroundColor: '#FFF5DC' },
 
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md,
-    borderBottomWidth: 1, borderBottomColor: COLORS.border, backgroundColor: COLORS.surface,
+    borderBottomWidth: 1, borderBottomColor: '#1A1612', backgroundColor: '#FFFEF5',
   },
   closeBtn: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: COLORS.surfaceLight, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#FFF5DC', alignItems: 'center', justifyContent: 'center',
   },
-  headerTitle: { fontSize: FONT_SIZE.lg, fontWeight: FONT_WEIGHT.bold, color: COLORS.textPrimary },
+  headerTitle: { fontSize: FONT_SIZE.lg, fontWeight: FONT_WEIGHT.bold, color: '#1A1612' },
 
   scrollView: { flex: 1 },
   scrollContent: { paddingHorizontal: SPACING.lg, paddingTop: SPACING.lg },
@@ -436,79 +436,79 @@ const styles = StyleSheet.create({
   heroTitle: { fontSize: FONT_SIZE.xxl, fontWeight: FONT_WEIGHT.extrabold, color: '#FFF', marginBottom: SPACING.sm },
   heroSubtitle: { fontSize: FONT_SIZE.md, color: 'rgba(255,255,255,0.85)' },
 
-  sectionTitle: { fontSize: FONT_SIZE.lg, fontWeight: FONT_WEIGHT.bold, color: COLORS.textPrimary, marginBottom: SPACING.lg },
+  sectionTitle: { fontSize: FONT_SIZE.lg, fontWeight: FONT_WEIGHT.bold, color: '#1A1612', marginBottom: SPACING.lg },
   benefitsList: { gap: SPACING.md, marginBottom: SPACING.xl },
   benefitCard: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surface,
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFEF5',
     borderRadius: BORDER_RADIUS.md, padding: SPACING.lg, gap: SPACING.lg, ...SHADOWS.sm,
   },
   benefitEmoji: { fontSize: 28, width: 40, textAlign: 'center' },
   benefitTextContainer: { flex: 1 },
-  benefitTitle: { fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.semibold, color: COLORS.textPrimary, marginBottom: 2 },
-  benefitDesc: { fontSize: FONT_SIZE.sm, color: COLORS.textSecondary },
+  benefitTitle: { fontSize: FONT_SIZE.md, fontWeight: FONT_WEIGHT.semibold, color: '#1A1612', marginBottom: 2 },
+  benefitDesc: { fontSize: FONT_SIZE.sm, color: 'rgba(26,22,18,0.65)' },
 
   pricingRow: { flexDirection: 'row', gap: SPACING.md, marginBottom: SPACING.xl },
   pricingCard: {
-    flex: 1, backgroundColor: COLORS.surface, borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.xl, alignItems: 'center', borderWidth: 2, borderColor: COLORS.border,
+    flex: 1, backgroundColor: '#FFFEF5', borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.xl, alignItems: 'center', borderWidth: 2, borderColor: '#1A1612',
     position: 'relative', overflow: 'visible',
   },
   pricingCardDisabled: {
     opacity: 0.45,
   },
-  pricingCardSelected: { borderColor: BRAND.primary, backgroundColor: `${BRAND.primary}08`, ...SHADOWS.glow },
+  pricingCardSelected: { borderColor: '#FF4757', backgroundColor: `${'#FF4757'}08`, ...SHADOWS.glow },
   selectedDot: { position: 'absolute', top: SPACING.md, right: SPACING.md },
-  pricingLabel: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.semibold, color: COLORS.textSecondary, marginBottom: SPACING.sm },
-  pricingPrice: { fontSize: FONT_SIZE.xxl, fontWeight: FONT_WEIGHT.extrabold, color: COLORS.textPrimary },
-  pricingPeriod: { fontSize: FONT_SIZE.sm, color: COLORS.textMuted, marginTop: 2 },
-  pricingMonthly: { fontSize: FONT_SIZE.xs, color: BRAND.primary, fontWeight: FONT_WEIGHT.medium, marginTop: SPACING.sm },
+  pricingLabel: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.semibold, color: 'rgba(26,22,18,0.65)', marginBottom: SPACING.sm },
+  pricingPrice: { fontSize: FONT_SIZE.xxl, fontWeight: FONT_WEIGHT.extrabold, color: '#1A1612' },
+  pricingPeriod: { fontSize: FONT_SIZE.sm, color: 'rgba(26,22,18,0.5)', marginTop: 2 },
+  pricingMonthly: { fontSize: FONT_SIZE.xs, color: '#FF4757', fontWeight: FONT_WEIGHT.medium, marginTop: SPACING.sm },
   pricingUnavailable: {
     marginTop: SPACING.xs,
     fontSize: FONT_SIZE.xs,
-    color: COLORS.textMuted,
+    color: 'rgba(26,22,18,0.5)',
   },
   discountBadge: {
     position: 'absolute', top: -10, right: -4,
-    backgroundColor: BRAND.coral, paddingHorizontal: SPACING.sm, paddingVertical: 3,
+    backgroundColor: '#FF4757', paddingHorizontal: SPACING.sm, paddingVertical: 3,
     borderRadius: BORDER_RADIUS.sm,
   },
   discountText: { fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.bold, color: '#FFF' },
 
   purchaseButton: {
-    backgroundColor: BRAND.primary, paddingVertical: SPACING.lg,
+    backgroundColor: '#FF4757', paddingVertical: SPACING.lg,
     borderRadius: BORDER_RADIUS.lg, alignItems: 'center', marginBottom: SPACING.lg, ...SHADOWS.glow,
   },
   purchaseButtonDisabled: { opacity: 0.7 },
   purchaseButtonText: { fontSize: FONT_SIZE.lg, fontWeight: FONT_WEIGHT.bold, color: '#FFF' },
 
   restoreButton: { alignItems: 'center', paddingVertical: SPACING.md, marginBottom: SPACING.md },
-  restoreText: { fontSize: FONT_SIZE.sm, color: COLORS.textSecondary, textDecorationLine: 'underline' },
+  restoreText: { fontSize: FONT_SIZE.sm, color: 'rgba(26,22,18,0.65)', textDecorationLine: 'underline' },
 
   legalSection: {
     marginTop: SPACING.md, marginBottom: SPACING.xl,
-    padding: SPACING.lg, backgroundColor: COLORS.surface,
+    padding: SPACING.lg, backgroundColor: '#FFFEF5',
     borderRadius: BORDER_RADIUS.md,
   },
-  legalText: { fontSize: FONT_SIZE.xs, color: COLORS.textMuted, lineHeight: 18 },
+  legalText: { fontSize: FONT_SIZE.xs, color: 'rgba(26,22,18,0.5)', lineHeight: 18 },
   legalLinks: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     marginTop: SPACING.md, gap: SPACING.sm,
   },
-  legalLink: { fontSize: FONT_SIZE.xs, color: BRAND.primary, textDecorationLine: 'underline' },
-  legalDivider: { fontSize: FONT_SIZE.xs, color: COLORS.textMuted },
+  legalLink: { fontSize: FONT_SIZE.xs, color: '#FF4757', textDecorationLine: 'underline' },
+  legalDivider: { fontSize: FONT_SIZE.xs, color: 'rgba(26,22,18,0.5)' },
 
   premiumActiveContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: SPACING.xxl },
   premiumActiveContent: { alignItems: 'center' },
   checkCircle: { marginBottom: SPACING.xl },
-  premiumActiveTitle: { fontSize: FONT_SIZE.xxl, fontWeight: FONT_WEIGHT.extrabold, color: COLORS.textPrimary, marginBottom: SPACING.sm },
-  premiumActiveDesc: { fontSize: FONT_SIZE.md, color: COLORS.textSecondary, marginBottom: SPACING.xxl },
+  premiumActiveTitle: { fontSize: FONT_SIZE.xxl, fontWeight: FONT_WEIGHT.extrabold, color: '#1A1612', marginBottom: SPACING.sm },
+  premiumActiveDesc: { fontSize: FONT_SIZE.md, color: 'rgba(26,22,18,0.65)', marginBottom: SPACING.xxl },
   activeBenefitsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: SPACING.lg },
   activeBenefitItem: { alignItems: 'center', width: 90, gap: SPACING.xs },
   activeBenefitEmoji: { fontSize: 28 },
-  activeBenefitTitle: { fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.medium, color: COLORS.textSecondary, textAlign: 'center' },
+  activeBenefitTitle: { fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.medium, color: 'rgba(26,22,18,0.65)', textAlign: 'center' },
   manageBtn: {
     marginTop: SPACING.xxl, paddingHorizontal: SPACING.xl, paddingVertical: SPACING.md,
-    borderRadius: BORDER_RADIUS.md, borderWidth: 1, borderColor: BRAND.primary,
+    borderRadius: BORDER_RADIUS.md, borderWidth: 1, borderColor: '#FF4757',
   },
-  manageBtnText: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.semibold, color: BRAND.primary },
+  manageBtnText: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.semibold, color: '#FF4757' },
 });

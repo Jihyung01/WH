@@ -146,7 +146,7 @@ export default function ARPhotoScreen() {
   if (!permission) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color={BRAND.primary} />
+        <ActivityIndicator size="large" color={'#FF4757'} />
       </View>
     );
   }
@@ -154,7 +154,7 @@ export default function ARPhotoScreen() {
   if (!permission.granted) {
     return (
       <SafeAreaView style={styles.centered}>
-        <Ionicons name="camera-outline" size={64} color={COLORS.textMuted} />
+        <Ionicons name="camera-outline" size={64} color={'rgba(26,22,18,0.5)'} />
         <Text style={styles.permTitle}>카메라 권한이 필요합니다</Text>
         <Text style={styles.permSub}>AR 포토 미션을 위해 카메라 접근을 허용해주세요</Text>
         <Pressable style={styles.permBtn} onPress={requestPermission}>
@@ -189,13 +189,13 @@ export default function ARPhotoScreen() {
         {/* Action buttons */}
         <SafeAreaView style={styles.previewActions}>
           <Pressable style={styles.retakeBtn} onPress={handleRetake}>
-            <Ionicons name="refresh" size={22} color={COLORS.textPrimary} />
+            <Ionicons name="refresh" size={22} color={'#1A1612'} />
             <Text style={styles.retakeBtnText}>다시 찍기</Text>
           </Pressable>
 
           <Pressable style={styles.usePhotoBtn} onPress={handleUsePhoto}>
             <Text style={styles.usePhotoBtnText}>이 사진 사용</Text>
-            <Ionicons name="checkmark-circle" size={22} color={COLORS.background} />
+            <Ionicons name="checkmark-circle" size={22} color={'#FFF5DC'} />
           </Pressable>
         </SafeAreaView>
       </View>
@@ -256,9 +256,9 @@ export default function ARPhotoScreen() {
         {/* Tips panel */}
         <View style={styles.tipsArea}>
           <Pressable style={styles.tipToggle} onPress={() => setTipsOpen((v) => !v)}>
-            <Ionicons name="bulb-outline" size={16} color={BRAND.primary} />
+            <Ionicons name="bulb-outline" size={16} color={'#FF4757'} />
             <Text style={styles.tipToggleText}>촬영 팁</Text>
-            <Ionicons name={tipsOpen ? 'chevron-down' : 'chevron-up'} size={14} color={COLORS.textMuted} />
+            <Ionicons name={tipsOpen ? 'chevron-down' : 'chevron-up'} size={14} color={'rgba(26,22,18,0.5)'} />
           </Pressable>
           {tipsOpen && (
             <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(150)} style={styles.tipsPanel}>
@@ -282,7 +282,7 @@ export default function ARPhotoScreen() {
           <Animated.View style={captureAnimStyle}>
             <Pressable style={styles.captureBtn} onPress={handleCapture} disabled={capturing}>
               <View style={styles.captureInner}>
-                {capturing && <ActivityIndicator size="small" color={BRAND.primary} />}
+                {capturing && <ActivityIndicator size="small" color={'#FF4757'} />}
               </View>
             </Pressable>
           </Animated.View>
@@ -301,7 +301,7 @@ const styles = StyleSheet.create({
   },
   centered: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#FFF5DC',
     alignItems: 'center',
     justifyContent: 'center',
     padding: SPACING.xl,
@@ -312,18 +312,18 @@ const styles = StyleSheet.create({
   permTitle: {
     fontSize: FONT_SIZE.xl,
     fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     marginTop: SPACING.lg,
     textAlign: 'center',
   },
   permSub: {
     fontSize: FONT_SIZE.md,
-    color: COLORS.textSecondary,
+    color: 'rgba(26,22,18,0.65)',
     textAlign: 'center',
     marginBottom: SPACING.lg,
   },
   permBtn: {
-    backgroundColor: BRAND.primary,
+    backgroundColor: '#FF4757',
     paddingHorizontal: SPACING.xl,
     paddingVertical: SPACING.md,
     borderRadius: BORDER_RADIUS.md,
@@ -333,14 +333,14 @@ const styles = StyleSheet.create({
   permBtnText: {
     fontSize: FONT_SIZE.lg,
     fontWeight: FONT_WEIGHT.semibold,
-    color: COLORS.background,
+    color: '#FFF5DC',
   },
   permBtnSecondary: {
     paddingVertical: SPACING.md,
   },
   permBtnSecondaryText: {
     fontSize: FONT_SIZE.md,
-    color: COLORS.textMuted,
+    color: 'rgba(26,22,18,0.5)',
   },
 
   /* Top bar */
@@ -418,7 +418,7 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.lg,
     borderLeftWidth: 3,
-    borderLeftColor: BRAND.primary,
+    borderLeftColor: '#FF4757',
     ...SHADOWS.md,
   },
   promptText: {
@@ -462,7 +462,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   tipDot: {
-    color: BRAND.primary,
+    color: '#FF4757',
     fontSize: FONT_SIZE.sm,
     lineHeight: FONT_SIZE.sm * 1.5,
   },
@@ -511,7 +511,7 @@ const styles = StyleSheet.create({
   brandedFrame: {
     ...StyleSheet.absoluteFillObject,
     borderWidth: 4,
-    borderColor: BRAND.primary,
+    borderColor: '#FF4757',
     borderRadius: 2,
   },
   watermark: {
@@ -545,14 +545,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: SPACING.sm,
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
     paddingVertical: SPACING.lg,
     borderRadius: BORDER_RADIUS.md,
   },
   retakeBtnText: {
     fontSize: FONT_SIZE.md,
     fontWeight: FONT_WEIGHT.semibold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
   },
   usePhotoBtn: {
     flex: 1,
@@ -560,13 +560,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: SPACING.sm,
-    backgroundColor: BRAND.primary,
+    backgroundColor: '#FF4757',
     paddingVertical: SPACING.lg,
     borderRadius: BORDER_RADIUS.md,
   },
   usePhotoBtnText: {
     fontSize: FONT_SIZE.md,
     fontWeight: FONT_WEIGHT.semibold,
-    color: COLORS.background,
+    color: '#FFF5DC',
   },
 });

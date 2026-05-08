@@ -374,7 +374,7 @@ export default function CreateEventScreen() {
             <Ionicons
               name={n <= editDifficulty ? 'star' : 'star-outline'}
               size={28}
-              color={n <= editDifficulty ? BRAND.gold : COLORS.textMuted}
+              color={n <= editDifficulty ? '#FFD93D' : 'rgba(26,22,18,0.5)'}
             />
           </Pressable>
         ))}
@@ -395,9 +395,9 @@ export default function CreateEventScreen() {
           disabled={loadingLocation}
         >
           {loadingLocation ? (
-            <ActivityIndicator size="small" color={BRAND.primary} />
+            <ActivityIndicator size="small" color={'#FF4757'} />
           ) : (
-            <Ionicons name="navigate" size={20} color={BRAND.primary} />
+            <Ionicons name="navigate" size={20} color={'#FF4757'} />
           )}
           <Text style={styles.locationBtnText}>
             {loadingLocation ? '위치 가져오는 중...' : '현재 위치 사용'}
@@ -406,7 +406,7 @@ export default function CreateEventScreen() {
 
         {lat != null && lng != null && (
           <Animated.View entering={FadeInUp.duration(200)} style={styles.coordsCard}>
-            <Ionicons name="location" size={16} color={BRAND.primary} />
+            <Ionicons name="location" size={16} color={'#FF4757'} />
             <Text style={styles.coordsText}>
               {lat.toFixed(5)}, {lng.toFixed(5)}
             </Text>
@@ -422,7 +422,7 @@ export default function CreateEventScreen() {
             setPlaceQuery(t);
           }}
           placeholder="예: 경복궁, 홍대 놀이터..."
-          placeholderTextColor={COLORS.textMuted}
+          placeholderTextColor={'rgba(26,22,18,0.5)'}
           maxLength={50}
         />
 
@@ -430,7 +430,7 @@ export default function CreateEventScreen() {
           <View style={styles.placesDropdown}>
             {placesLoading ? (
               <View style={styles.placesLoadingRow}>
-                <ActivityIndicator size="small" color={BRAND.primary} />
+                <ActivityIndicator size="small" color={'#FF4757'} />
                 <Text style={styles.placesLoadingText}>장소 검색 중…</Text>
               </View>
             ) : placeSuggestions.length > 0 ? (
@@ -464,7 +464,7 @@ export default function CreateEventScreen() {
           value={address}
           onChangeText={setAddress}
           placeholder="서울시 종로구..."
-          placeholderTextColor={COLORS.textMuted}
+          placeholderTextColor={'rgba(26,22,18,0.5)'}
           maxLength={100}
         />
       </Animated.View>
@@ -491,7 +491,7 @@ export default function CreateEventScreen() {
                 <Ionicons
                   name={cat.icon}
                   size={24}
-                  color={selected ? BRAND.primary : COLORS.textSecondary}
+                  color={selected ? '#FF4757' : 'rgba(26,22,18,0.65)'}
                 />
                 <Text
                   style={[
@@ -512,7 +512,7 @@ export default function CreateEventScreen() {
           value={description}
           onChangeText={setDescription}
           placeholder="이 장소의 특별한 점이 있나요?"
-          placeholderTextColor={COLORS.textMuted}
+          placeholderTextColor={'rgba(26,22,18,0.5)'}
           multiline
           numberOfLines={4}
           maxLength={300}
@@ -534,7 +534,7 @@ export default function CreateEventScreen() {
             </Text>
             <ActivityIndicator
               size="large"
-              color={BRAND.primary}
+              color={'#FF4757'}
               style={{ marginTop: SPACING.lg }}
             />
           </Animated.View>
@@ -602,7 +602,7 @@ export default function CreateEventScreen() {
 
         <Text style={styles.inputLabel}>보상 XP</Text>
         <View style={styles.xpRow}>
-          <Ionicons name="sparkles" size={20} color={BRAND.gold} />
+          <Ionicons name="sparkles" size={20} color={'#FFD93D'} />
           <Text style={styles.xpValue}>{editRewardXp} XP</Text>
         </View>
 
@@ -618,12 +618,12 @@ export default function CreateEventScreen() {
               onPress={() => setCoverImageUri(null)}
               hitSlop={8}
             >
-              <Ionicons name="close-circle" size={28} color={COLORS.textMuted} />
+              <Ionicons name="close-circle" size={28} color={'rgba(26,22,18,0.5)'} />
             </Pressable>
           </View>
         ) : (
           <Pressable style={styles.coverPickBtn} onPress={() => void handlePickCoverImage()}>
-            <Ionicons name="image-outline" size={22} color={BRAND.primary} />
+            <Ionicons name="image-outline" size={22} color={'#FF4757'} />
             <Text style={styles.coverPickText}>갤러리에서 선택</Text>
           </Pressable>
         )}
@@ -637,7 +637,7 @@ export default function CreateEventScreen() {
       <View style={styles.successContainer}>
         <Animated.View entering={FadeIn.duration(500)} style={styles.successInner}>
           <View style={styles.successIcon}>
-            <Ionicons name="checkmark-circle" size={72} color={BRAND.primary} />
+            <Ionicons name="checkmark-circle" size={72} color={'#FF4757'} />
           </View>
           <Text style={styles.successTitle}>이벤트가 등록되었어요!</Text>
           <Text style={styles.successSubtitle}>
@@ -706,7 +706,7 @@ export default function CreateEventScreen() {
   if (ugcGate === 'loading') {
     return (
       <View style={[styles.container, styles.termsLoadingWrap, { paddingTop: insets.top }]}>
-        <ActivityIndicator size="large" color={BRAND.primary} />
+        <ActivityIndicator size="large" color={'#FF4757'} />
         <Text style={styles.termsLoadingText}>약관 확인 중…</Text>
       </View>
     );
@@ -753,7 +753,7 @@ export default function CreateEventScreen() {
             <Ionicons
               name={step === 1 ? 'close' : 'chevron-back'}
               size={24}
-              color={COLORS.textPrimary}
+              color={'#1A1612'}
             />
           </Pressable>
           <Text style={styles.headerTitle}>이벤트 만들기</Text>
@@ -803,14 +803,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: '#1A1612',
     backgroundColor: '#FFFEF5' /* manga paper */,
   },
   headerBackBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -818,7 +818,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: FONT_SIZE.lg,
     fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     marginLeft: SPACING.md,
   },
 
@@ -832,10 +832,10 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
   },
   stepDotActive: {
-    backgroundColor: BRAND.primary,
+    backgroundColor: '#FF4757',
   },
   stepDotCurrent: {
     width: 20,
@@ -843,7 +843,7 @@ const styles = StyleSheet.create({
   },
   stepLabel: {
     fontSize: FONT_SIZE.xs,
-    color: COLORS.textMuted,
+    color: 'rgba(26,22,18,0.5)',
     marginLeft: 4,
   },
 
@@ -862,12 +862,12 @@ const styles = StyleSheet.create({
   stepTitle: {
     fontSize: FONT_SIZE.xxl,
     fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     marginBottom: SPACING.xs,
   },
   stepSubtitle: {
     fontSize: FONT_SIZE.md,
-    color: COLORS.textSecondary,
+    color: 'rgba(26,22,18,0.65)',
     marginBottom: SPACING.lg,
   },
 
@@ -877,9 +877,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: SPACING.sm,
-    backgroundColor: `${BRAND.primary}15`,
+    backgroundColor: `${'#FF4757'}15`,
     borderWidth: 1,
-    borderColor: BRAND.primary,
+    borderColor: '#FF4757',
     borderRadius: BORDER_RADIUS.lg,
     paddingVertical: SPACING.lg,
     marginBottom: SPACING.lg,
@@ -890,14 +890,14 @@ const styles = StyleSheet.create({
   locationBtnText: {
     fontSize: FONT_SIZE.md,
     fontWeight: FONT_WEIGHT.semibold,
-    color: BRAND.primary,
+    color: '#FF4757',
   },
 
   coordsCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.sm,
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
     borderRadius: BORDER_RADIUS.md,
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
@@ -905,7 +905,7 @@ const styles = StyleSheet.create({
   },
   coordsText: {
     fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+    color: 'rgba(26,22,18,0.65)',
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
 
@@ -913,26 +913,26 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: FONT_SIZE.sm,
     fontWeight: FONT_WEIGHT.semibold,
-    color: COLORS.textSecondary,
+    color: 'rgba(26,22,18,0.65)',
     marginTop: SPACING.md,
     marginBottom: SPACING.sm,
   },
   textInput: {
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
     borderRadius: BORDER_RADIUS.md,
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
     fontSize: FONT_SIZE.md,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: '#1A1612',
   },
   placesDropdown: {
     marginTop: SPACING.sm,
     backgroundColor: '#FFFEF5' /* manga paper */,
     borderRadius: BORDER_RADIUS.lg,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: '#1A1612',
     overflow: 'hidden',
   },
   placesLoadingRow: {
@@ -944,39 +944,39 @@ const styles = StyleSheet.create({
   },
   placesLoadingText: {
     fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+    color: 'rgba(26,22,18,0.65)',
     fontWeight: FONT_WEIGHT.semibold,
   },
   placesRow: {
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: '#1A1612',
   },
   placesPrimary: {
     fontSize: FONT_SIZE.sm,
     fontWeight: FONT_WEIGHT.semibold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
   },
   placesSecondary: {
     marginTop: 2,
     fontSize: FONT_SIZE.xs,
-    color: COLORS.textMuted,
+    color: 'rgba(26,22,18,0.5)',
   },
   placesEmpty: {
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.lg,
     textAlign: 'center',
     fontSize: FONT_SIZE.sm,
-    color: COLORS.textMuted,
+    color: 'rgba(26,22,18,0.5)',
   },
   placePhotoWrap: {
     marginTop: SPACING.md,
     borderRadius: BORDER_RADIUS.lg,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.surfaceLight,
+    borderColor: '#1A1612',
+    backgroundColor: '#FFF5DC',
   },
   placePhoto: {
     width: '100%',
@@ -999,22 +999,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: SPACING.sm,
     paddingVertical: SPACING.lg,
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
     borderRadius: BORDER_RADIUS.lg,
     borderWidth: 1.5,
     borderColor: 'transparent',
   },
   categoryBtnSelected: {
-    borderColor: BRAND.primary,
-    backgroundColor: `${BRAND.primary}15`,
+    borderColor: '#FF4757',
+    backgroundColor: `${'#FF4757'}15`,
   },
   categoryLabel: {
     fontSize: FONT_SIZE.sm,
     fontWeight: FONT_WEIGHT.medium,
-    color: COLORS.textSecondary,
+    color: 'rgba(26,22,18,0.65)',
   },
   categoryLabelSelected: {
-    color: BRAND.primary,
+    color: '#FF4757',
     fontWeight: FONT_WEIGHT.bold,
   },
 
@@ -1035,12 +1035,12 @@ const styles = StyleSheet.create({
   generatingText: {
     fontSize: FONT_SIZE.lg,
     fontWeight: FONT_WEIGHT.semibold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     textAlign: 'center',
   },
   retryBtn: {
     marginTop: SPACING.xl,
-    backgroundColor: BRAND.primary,
+    backgroundColor: '#FF4757',
     paddingHorizontal: SPACING.xl,
     paddingVertical: SPACING.md,
     borderRadius: BORDER_RADIUS.full,
@@ -1058,7 +1058,7 @@ const styles = StyleSheet.create({
     padding: SPACING.lg,
     marginBottom: SPACING.sm,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: '#1A1612',
   },
   missionHeader: {
     flexDirection: 'row',
@@ -1070,7 +1070,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: BRAND.primary,
+    backgroundColor: '#FF4757',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1080,25 +1080,25 @@ const styles = StyleSheet.create({
     color: '#FFF',
   },
   missionTypeBadge: {
-    backgroundColor: `${BRAND.primary}20`,
+    backgroundColor: `${'#FF4757'}20`,
     paddingHorizontal: SPACING.sm,
     paddingVertical: 2,
     borderRadius: BORDER_RADIUS.sm,
   },
   missionTypeText: {
     fontSize: FONT_SIZE.xs,
-    color: BRAND.primary,
+    color: '#FF4757',
     fontWeight: FONT_WEIGHT.medium,
   },
   missionTitle: {
     fontSize: FONT_SIZE.md,
     fontWeight: FONT_WEIGHT.semibold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     marginBottom: 4,
   },
   missionDesc: {
     fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+    color: 'rgba(26,22,18,0.65)',
     lineHeight: FONT_SIZE.sm * 1.5,
   },
 
@@ -1119,12 +1119,12 @@ const styles = StyleSheet.create({
   xpValue: {
     fontSize: FONT_SIZE.xl,
     fontWeight: FONT_WEIGHT.bold,
-    color: BRAND.gold,
+    color: '#FFD93D',
   },
 
   coverHint: {
     fontSize: FONT_SIZE.sm,
-    color: COLORS.textMuted,
+    color: 'rgba(26,22,18,0.5)',
     marginBottom: SPACING.sm,
     marginTop: -SPACING.xs,
   },
@@ -1136,14 +1136,14 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.lg,
     borderRadius: BORDER_RADIUS.lg,
     borderWidth: 1.5,
-    borderColor: BRAND.primary,
+    borderColor: '#FF4757',
     borderStyle: 'dashed',
-    backgroundColor: `${BRAND.primary}08`,
+    backgroundColor: `${'#FF4757'}08`,
   },
   coverPickText: {
     fontSize: FONT_SIZE.md,
     fontWeight: FONT_WEIGHT.semibold,
-    color: BRAND.primary,
+    color: '#FF4757',
   },
   coverPreviewWrap: {
     position: 'relative',
@@ -1153,7 +1153,7 @@ const styles = StyleSheet.create({
   coverPreview: {
     width: '100%',
     aspectRatio: 16 / 9,
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
   },
   coverRemoveBtn: {
     position: 'absolute',
@@ -1180,18 +1180,18 @@ const styles = StyleSheet.create({
   successTitle: {
     fontSize: FONT_SIZE.xxl,
     fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     marginBottom: SPACING.sm,
   },
   successSubtitle: {
     fontSize: FONT_SIZE.lg,
     fontWeight: FONT_WEIGHT.semibold,
-    color: BRAND.primary,
+    color: '#FF4757',
     marginBottom: SPACING.lg,
   },
   successDetail: {
     fontSize: FONT_SIZE.md,
-    color: COLORS.textSecondary,
+    color: 'rgba(26,22,18,0.65)',
     textAlign: 'center',
     lineHeight: FONT_SIZE.md * 1.6,
     marginBottom: SPACING.xxl,
@@ -1200,7 +1200,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.sm,
-    backgroundColor: BRAND.primary,
+    backgroundColor: '#FF4757',
     paddingHorizontal: SPACING.xxl,
     paddingVertical: SPACING.lg,
     borderRadius: BORDER_RADIUS.full,
@@ -1217,7 +1217,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.md,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopColor: '#1A1612',
     backgroundColor: '#FFFEF5' /* manga paper */,
   },
   nextBtn: {
@@ -1225,13 +1225,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: SPACING.sm,
-    backgroundColor: BRAND.primary,
+    backgroundColor: '#FF4757',
     paddingVertical: SPACING.lg,
     borderRadius: BORDER_RADIUS.xl,
     ...SHADOWS.md,
   },
   nextBtnDisabled: {
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
   },
   nextBtnText: {
     fontSize: FONT_SIZE.md,
@@ -1246,7 +1246,7 @@ const styles = StyleSheet.create({
   },
   termsLoadingText: {
     marginTop: SPACING.md,
-    color: COLORS.textSecondary,
+    color: 'rgba(26,22,18,0.65)',
     fontSize: FONT_SIZE.md,
   },
   termsModalRoot: {
@@ -1257,18 +1257,18 @@ const styles = StyleSheet.create({
   termsTitle: {
     fontSize: FONT_SIZE.lg,
     fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     marginBottom: SPACING.md,
   },
   termsScroll: { flex: 1 },
   termsScrollContent: { paddingBottom: SPACING.xl },
   termsBody: {
     fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+    color: 'rgba(26,22,18,0.65)',
     lineHeight: FONT_SIZE.sm * 1.55,
   },
   termsAgreeBtn: {
-    backgroundColor: BRAND.primary,
+    backgroundColor: '#FF4757',
     paddingVertical: SPACING.lg,
     borderRadius: BORDER_RADIUS.lg,
     alignItems: 'center',
@@ -1285,7 +1285,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xl,
   },
   termsDeclineText: {
-    color: COLORS.textMuted,
+    color: 'rgba(26,22,18,0.5)',
     fontSize: FONT_SIZE.sm,
   },
 });

@@ -115,61 +115,39 @@ export const RARITY = {
 } as const;
 
 // ── Color Palettes ──
+// ⚠️ Phase 4 통합 패스: DARK_PALETTE 와 LIGHT_PALETTE 둘 다 manga paper 톤으로
+// 통합. useTheme().colors 를 사용하는 모든 화면(채팅 sheet, CreateMarkSheet,
+// 친구 프로필, etc.) 이 자동으로 manga 톤이 되어 톤 끊김 0.
 const DARK_PALETTE = {
   ...BRAND,
 
-  background: '#0F172A',
-  surface: '#1E293B',
-  surfaceLight: '#273449',
-  surfaceHighlight: '#334155',
+  background: '#FFF5DC',         // manga paper2
+  surface: '#FFFEF5',            // manga paper
+  surfaceLight: '#FFF5DC',
+  surfaceHighlight: '#F0E5C0',   // 베이지 강조 (선택된 슬롯 등)
 
-  textPrimary: '#F1F5F9',
-  textSecondary: '#94A3B8',
-  textMuted: '#64748B',
-  textDisabled: '#475569',
+  textPrimary: '#1A1612',        // manga ink
+  textSecondary: 'rgba(26,22,18,0.65)',
+  textMuted: 'rgba(26,22,18,0.5)',
+  textDisabled: 'rgba(26,22,18,0.35)',
 
-  success: '#10B981',
-  warning: '#F59E0B',
-  error: '#EF4444',
-  info: '#3B82F6',
-
-  ...RARITY,
-
-  border: '#334155',
-  borderLight: '#475569',
-
-  tabBar: '#0F172A',
-  tabBarBorder: '#1E293B',
-  statusBar: 'light' as const,
-} as const;
-
-const LIGHT_PALETTE = {
-  ...BRAND,
-
-  background: '#FAFBFC',
-  surface: '#FFFFFF',
-  surfaceLight: '#F1F5F9',
-  surfaceHighlight: '#E2E8F0',
-
-  textPrimary: '#1A1A2E',
-  textSecondary: '#6B7280',
-  textMuted: '#9CA3AF',
-  textDisabled: '#D1D5DB',
-
-  success: '#10B981',
-  warning: '#F59E0B',
-  error: '#EF4444',
-  info: '#3B82F6',
+  success: '#3DDC97',
+  warning: '#FFD93D',
+  error: '#FF4757',
+  info: '#4FBDFF',
 
   ...RARITY,
 
-  border: '#E5E7EB',
-  borderLight: '#F3F4F6',
+  border: '#1A1612',
+  borderLight: 'rgba(26,22,18,0.3)',
 
-  tabBar: '#FFFFFF',
-  tabBarBorder: '#E5E7EB',
-  statusBar: 'dark' as const,
+  tabBar: '#FFFEF5',
+  tabBarBorder: '#1A1612',
+  statusBar: 'dark' as const,    // paper bg → dark status bar
 } as const;
+
+// 라이트 팔레트도 동일 manga (system 설정과 무관하게 같은 톤 유지)
+const LIGHT_PALETTE = DARK_PALETTE;
 
 export type ThemeColors = typeof DARK_PALETTE;
 export type ColorMode = 'light' | 'dark';

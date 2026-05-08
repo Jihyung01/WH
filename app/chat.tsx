@@ -215,8 +215,8 @@ export default function ChatScreen() {
             size={32}
             showLoadoutOverlay={false}
             interactive={false}
-            borderColor={BRAND.primary}
-            backgroundColor={COLORS.surface}
+            borderColor={'#FF4757'}
+            backgroundColor={'#FFFEF5'}
           />
         </View>
         <View style={styles.aiBubble}>
@@ -244,8 +244,8 @@ export default function ChatScreen() {
               size={40}
               showLoadoutOverlay={false}
               interactive={false}
-              borderColor={BRAND.primary}
-              backgroundColor={COLORS.surface}
+              borderColor={'#FF4757'}
+              backgroundColor={'#FFFEF5'}
             />
           </View>
           <View>
@@ -258,14 +258,14 @@ export default function ChatScreen() {
           onPress={() => router.back()}
           hitSlop={12}
         >
-          <Ionicons name="close" size={24} color={COLORS.textSecondary} />
+          <Ionicons name="close" size={24} color={'rgba(26,22,18,0.65)'} />
         </Pressable>
       </View>
 
       {/* Messages */}
       {isLoading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="small" color={BRAND.primary} />
+          <ActivityIndicator size="small" color={'#FF4757'} />
         </View>
       ) : (
         <FlatList
@@ -293,8 +293,8 @@ export default function ChatScreen() {
                   size={88}
                   showLoadoutOverlay={false}
                   interactive={false}
-                  borderColor={BRAND.primary}
-                  backgroundColor={COLORS.surface}
+                  borderColor={'#FF4757'}
+                  backgroundColor={'#FFFEF5'}
                 />
               </View>
               <Text style={styles.emptyTitle}>
@@ -333,7 +333,7 @@ export default function ChatScreen() {
             value={inputText}
             onChangeText={setInputText}
             placeholder="메시지를 입력하세요..."
-            placeholderTextColor={COLORS.textMuted}
+            placeholderTextColor={'rgba(26,22,18,0.5)'}
             multiline
             maxLength={500}
             returnKeyType="default"
@@ -349,7 +349,7 @@ export default function ChatScreen() {
             <Ionicons
               name="send"
               size={20}
-              color={inputText.trim() ? '#FFF' : COLORS.textMuted}
+              color={inputText.trim() ? '#FFF' : 'rgba(26,22,18,0.5)'}
             />
           </Pressable>
         </View>
@@ -361,7 +361,7 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#FFF5DC',
   },
   messageListFlex: {
     flex: 1,
@@ -375,8 +375,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-    backgroundColor: COLORS.surface,
+    borderBottomColor: '#1A1612',
+    backgroundColor: '#FFFEF5',
   },
   headerLeft: {
     flexDirection: 'row',
@@ -387,24 +387,24 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerName: {
     fontSize: FONT_SIZE.md,
     fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
   },
   headerSub: {
     fontSize: FONT_SIZE.xs,
-    color: COLORS.textSecondary,
+    color: 'rgba(26,22,18,0.65)',
   },
   closeBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -434,7 +434,7 @@ const styles = StyleSheet.create({
   },
   userBubble: {
     maxWidth: '75%',
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
     borderRadius: BORDER_RADIUS.lg,
@@ -442,7 +442,7 @@ const styles = StyleSheet.create({
   },
   userText: {
     fontSize: FONT_SIZE.md,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     lineHeight: FONT_SIZE.md * 1.5,
   },
 
@@ -457,14 +457,14 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: `${BRAND.primary}20`,
+    backgroundColor: `${'#FF4757'}20`,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 2,
   },
   aiBubble: {
     maxWidth: '70%',
-    backgroundColor: `${BRAND.primary}15`,
+    backgroundColor: `${'#FF4757'}15`,
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
     borderRadius: BORDER_RADIUS.lg,
@@ -472,7 +472,7 @@ const styles = StyleSheet.create({
   },
   aiText: {
     fontSize: FONT_SIZE.md,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     lineHeight: FONT_SIZE.md * 1.5,
   },
 
@@ -485,7 +485,7 @@ const styles = StyleSheet.create({
   },
   typingBubble: {
     flexDirection: 'row',
-    backgroundColor: `${BRAND.primary}15`,
+    backgroundColor: `${'#FF4757'}15`,
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
     borderRadius: BORDER_RADIUS.lg,
@@ -498,7 +498,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: BRAND.primary,
+    backgroundColor: '#FF4757',
     opacity: 0.6,
   },
 
@@ -511,7 +511,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: `${BRAND.primary}15`,
+    backgroundColor: `${'#FF4757'}15`,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: SPACING.lg,
@@ -519,12 +519,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: FONT_SIZE.lg,
     fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     marginBottom: SPACING.sm,
   },
   emptySubtitle: {
     fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+    color: 'rgba(26,22,18,0.65)',
     textAlign: 'center',
     lineHeight: FONT_SIZE.sm * 1.6,
     marginBottom: SPACING.xl,
@@ -536,30 +536,30 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   chip: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#FFFEF5',
     borderWidth: 1,
-    borderColor: BRAND.primary,
+    borderColor: '#FF4757',
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.sm,
     borderRadius: BORDER_RADIUS.full,
   },
   chipText: {
     fontSize: FONT_SIZE.sm,
-    color: BRAND.primary,
+    color: '#FF4757',
     fontWeight: FONT_WEIGHT.medium,
   },
 
   // Input bar
   inputBar: {
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    backgroundColor: COLORS.surface,
+    borderTopColor: '#1A1612',
+    backgroundColor: '#FFFEF5',
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.sm,
   },
   remainingLabel: {
     fontSize: FONT_SIZE.xs,
-    color: COLORS.textMuted,
+    color: 'rgba(26,22,18,0.5)',
     textAlign: 'center',
     marginBottom: SPACING.xs,
   },
@@ -570,24 +570,24 @@ const styles = StyleSheet.create({
   },
   textInput: {
     flex: 1,
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
     borderRadius: BORDER_RADIUS.xl,
     paddingHorizontal: SPACING.lg,
     paddingVertical: Platform.OS === 'ios' ? SPACING.md : SPACING.sm,
     fontSize: FONT_SIZE.md,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     maxHeight: 100,
   },
   sendBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: BRAND.primary,
+    backgroundColor: '#FF4757',
     alignItems: 'center',
     justifyContent: 'center',
     ...SHADOWS.sm,
   },
   sendBtnDisabled: {
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
   },
 });

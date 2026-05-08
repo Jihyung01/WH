@@ -8,9 +8,7 @@ import {
   type ImageRequireSource,
 } from 'react-native';
 import { Marker } from 'react-native-maps';
-import { COLORS, BRAND } from '../../config/theme';
 import type { FriendLocation } from '../../services/friendLocation';
-import { CharacterAvatar } from '../character/CharacterAvatar';
 
 const IS_ANDROID = Platform.OS === 'android';
 const ANDROID_FRIEND_MARKER_RECENT = require('../../../assets/map-markers/friend-marker-recent.png');
@@ -100,6 +98,12 @@ function FriendMarkerContent({
     );
   }
 
+  // iOS: manga 톤 친구 마커 — 한글 이니셜 + 자동 색 + 잉크 외곽선 + 종이 이름태그.
+  // Android 는 위 PNG 로 처리되어 이 분기 안 탐.
+  const initial = (friend.username ?? '?')[0]?.toUpperCase() ?? '?';
+  const cp = friend.username ? friend.username.codePointAt(0) ?? 0 : 0;
+  const accent = MANGA_FRIEND_PALETTE[cp % MANGA_FRIEND_PALETTE.length];
+
   return (
     <MarkerComponent
       coordinate={coordinate}
@@ -110,27 +114,38 @@ function FriendMarkerContent({
       tracksViewChanges={tracksViewChanges}
     >
       <View style={styles.container} collapsable={false}>
-        <View style={[styles.avatar, isRecent && styles.avatarRecent]}>
-          <CharacterAvatar
-            characterType={characterType}
-            level={characterLevel}
-            size={32}
-            showLoadoutOverlay={false}
-            interactive={false}
-            borderColor={isRecent ? BRAND.primary : COLORS.surfaceLight}
-            backgroundColor={COLORS.surface}
-          />
+        {/* avatar — 컬러 원 + 잉크 외곽선 + hard shadow */}
+        <View style={styles.avatarWrap}>
+          <View style={[styles.avatarShadow, { top: 2, left: 2 }]} />
+          <View style={[styles.avatarBody, { backgroundColor: accent }]}>
+            <Text style={styles.avatarInitial} allowFontScaling={false} numberOfLines={1}>
+              {initial}
+            </Text>
+          </View>
         </View>
+
+        {/* 이름 태그 — 잉크 + 종이 글씨 */}
         <View style={styles.nameTag}>
-          <Text style={styles.name} numberOfLines={1}>
+          <Text style={styles.name} allowFontScaling={false} numberOfLines={1}>
             {friend.username}
           </Text>
         </View>
-        <View style={[styles.onlineDot, !isRecent && styles.onlineDotHidden]} />
+
+        {/* 온라인 dot */}
+        {isRecent ? (
+          <View style={styles.onlineDot} />
+        ) : null}
       </View>
     </MarkerComponent>
   );
 }
+
+// 한글 이니셜 → 컬러 매핑 (manga 7색)
+const MANGA_FRIEND_PALETTE = [
+  '#FFD93D', '#3DDC97', '#FF6B9A',
+  '#4FBDFF', '#FFB84D', '#C5A6FF',
+  '#FF6B6B',
+];
 
 export default memo(FriendMarkerInner, (prev, next) => {
   if (prev.onPress !== next.onPress) return false;
@@ -152,51 +167,65 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     overflow: 'visible',
     minWidth: IS_ANDROID ? 88 : 82,
-    minHeight: IS_ANDROID ? 56 : 52,
+    minHeight: IS_ANDROID ? 56 : 60,
     paddingBottom: IS_ANDROID ? 4 : 2,
   },
-  avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'transparent',
-    justifyContent: 'center',
+  // ── manga avatar (iOS) ──
+  avatarWrap: {
+    width: 38,
+    height: 38,
+    position: 'relative',
+  },
+  avatarShadow: {
+    position: 'absolute',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#1A1612',
+  },
+  avatarBody: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 2.5,
+    borderColor: '#1A1612',
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  avatarRecent: {
-    shadowColor: BRAND.primary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 6,
-    elevation: 4,
+  avatarInitial: {
+    color: '#1A1612',
+    fontSize: 16,
+    fontWeight: '900',
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
+  // ── manga 이름 태그 ──
   nameTag: {
-    backgroundColor: 'rgba(15, 23, 42, 0.85)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    marginTop: 2,
-    maxWidth: 80,
+    backgroundColor: '#1A1612',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    marginTop: 4,
+    maxWidth: 96,
   },
   name: {
-    color: COLORS.textPrimary,
-    fontSize: 10,
-    fontWeight: '600',
+    color: '#FFD93D',     // 노랑 manga
+    fontSize: 11,
+    fontWeight: '900',
     textAlign: 'center',
+    letterSpacing: -0.2,
     ...(IS_ANDROID ? { includeFontPadding: false } : {}),
   },
+  // ── 온라인 dot (manga 초록 + 잉크 외곽선) ──
   onlineDot: {
     position: 'absolute',
-    top: 0,
+    top: -2,
     right: -2,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#22C55E',
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#3DDC97',
     borderWidth: 2,
-    borderColor: COLORS.surface,
-  },
-  onlineDotHidden: {
-    opacity: 0,
+    borderColor: '#1A1612',
   },
 });

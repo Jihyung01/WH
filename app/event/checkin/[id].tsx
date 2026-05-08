@@ -123,16 +123,16 @@ export default function CheckInScreen() {
   }));
 
   const distanceColor = distance !== null
-    ? distance <= 50 ? COLORS.success
-    : distance <= 150 ? COLORS.warning
-    : COLORS.error
-    : COLORS.textMuted;
+    ? distance <= 50 ? '#3DDC97'
+    : distance <= 150 ? '#FFD93D'
+    : '#FF4757'
+    : 'rgba(26,22,18,0.5)';
 
   return (
     <View style={styles.container}>
       {/* Back button */}
       <Pressable style={styles.backBtn} onPress={() => router.back()}>
-        <Ionicons name="close" size={24} color={COLORS.textPrimary} />
+        <Ionicons name="close" size={24} color={'#1A1612'} />
       </Pressable>
 
       {state === 'approaching' && (
@@ -174,7 +174,7 @@ export default function CheckInScreen() {
         <View style={styles.content}>
           <Animated.View style={[styles.successCircle, successAnimStyle]}>
             <Animated.View style={checkAnimStyle}>
-              <Ionicons name="checkmark" size={72} color={COLORS.success} />
+              <Ionicons name="checkmark" size={72} color={'#3DDC97'} />
             </Animated.View>
           </Animated.View>
 
@@ -190,7 +190,7 @@ export default function CheckInScreen() {
       {state === 'error' && (
         <View style={styles.content}>
           <View style={styles.errorCircle}>
-            <Ionicons name="close" size={72} color={COLORS.error} />
+            <Ionicons name="close" size={72} color={'#FF4757'} />
           </View>
           <Text style={styles.errorTitle}>인증 실패</Text>
           <Text style={styles.errorSubtitle}>목적지에 더 가까이 이동해주세요</Text>
@@ -212,7 +212,7 @@ const RADAR_SIZE = 260;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#FFF5DC',
   },
   backBtn: {
     position: 'absolute',
@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 10,
@@ -235,12 +235,12 @@ const styles = StyleSheet.create({
   heading: {
     fontSize: FONT_SIZE.xxl,
     fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     marginBottom: SPACING.sm,
   },
   subheading: {
     fontSize: FONT_SIZE.md,
-    color: COLORS.textSecondary,
+    color: 'rgba(26,22,18,0.65)',
     textAlign: 'center',
     marginBottom: SPACING.xxxl,
   },
@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
@@ -302,7 +302,7 @@ const styles = StyleSheet.create({
 
   // ── Distance ──
   distanceCard: {
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFF5DC',
     borderRadius: BORDER_RADIUS.lg,
     paddingHorizontal: SPACING.xxxl,
     paddingVertical: SPACING.xl,
@@ -316,7 +316,7 @@ const styles = StyleSheet.create({
   },
   distanceLabel: {
     fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+    color: 'rgba(26,22,18,0.65)',
   },
 
   // ── Success ──
@@ -328,18 +328,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
-    borderColor: COLORS.success,
+    borderColor: '#3DDC97',
     marginBottom: SPACING.xxl,
   },
   successTitle: {
     fontSize: FONT_SIZE.xxxl,
     fontWeight: FONT_WEIGHT.extrabold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     marginBottom: SPACING.sm,
   },
   successSubtitle: {
     fontSize: FONT_SIZE.lg,
-    color: COLORS.textSecondary,
+    color: 'rgba(26,22,18,0.65)',
   },
 
   // ── Error ──
@@ -351,18 +351,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
-    borderColor: COLORS.error,
+    borderColor: '#FF4757',
     marginBottom: SPACING.xxl,
   },
   errorTitle: {
     fontSize: FONT_SIZE.xxl,
     fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
     marginBottom: SPACING.sm,
   },
   errorSubtitle: {
     fontSize: FONT_SIZE.md,
-    color: COLORS.textSecondary,
+    color: 'rgba(26,22,18,0.65)',
     marginBottom: SPACING.xxl,
   },
   retryBtn: {
@@ -374,6 +374,6 @@ const styles = StyleSheet.create({
   retryBtnText: {
     fontSize: FONT_SIZE.lg,
     fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary,
+    color: '#1A1612',
   },
 });

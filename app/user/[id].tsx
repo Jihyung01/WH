@@ -166,7 +166,7 @@ export default function PublicUserProfileScreen() {
   if (loading && !profile) {
     return (
       <View style={[styles.centered, { paddingTop: insets.top }]}>
-        <ActivityIndicator size="large" color={BRAND.primary} />
+        <ActivityIndicator size="large" color={'#FF4757'} />
       </View>
     );
   }
@@ -204,7 +204,7 @@ export default function PublicUserProfileScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={BRAND.primary} />
+          <RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={'#FF4757'} />
         }
         contentContainerStyle={{ paddingBottom: insets.bottom + SPACING.xxl }}
       >
@@ -234,7 +234,7 @@ export default function PublicUserProfileScreen() {
               </View>
             ) : null}
             {explorer?.type_name ? (
-              <Text style={[styles.explorerLine, { color: BRAND.primary }]}>🧭 {explorer.type_name}</Text>
+              <Text style={[styles.explorerLine, { color: '#FF4757' }]}>🧭 {explorer.type_name}</Text>
             ) : null}
             {p.location && districtLabel ? (
               <Text style={[styles.locLine, { color: colors.textMuted }]}>
@@ -250,7 +250,7 @@ export default function PublicUserProfileScreen() {
               size={72}
               showLoadoutOverlay={false}
               interactive={false}
-              borderColor={BRAND.primary}
+              borderColor={'#FF4757'}
               backgroundColor={colors.surface}
             />
           ) : null}
@@ -285,7 +285,7 @@ export default function PublicUserProfileScreen() {
                 key={`${a.event_id}-${a.completed_at}-${idx}`}
                 style={[styles.actRow, { borderBottomColor: colors.border, backgroundColor: colors.surface }]}
               >
-                <Ionicons name="checkmark-circle" size={18} color={BRAND.primary} />
+                <Ionicons name="checkmark-circle" size={18} color={'#FF4757'} />
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.actTitle, { color: colors.textPrimary }]} numberOfLines={1}>
                     {a.event_title}
@@ -320,7 +320,7 @@ export default function PublicUserProfileScreen() {
 
         <View style={styles.btnRow}>
           <Pressable
-            style={[styles.btnPrimary, { backgroundColor: BRAND.primary }]}
+            style={[styles.btnPrimary, { backgroundColor: '#FF4757' }]}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               router.push({
@@ -388,9 +388,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.sm,
     paddingVertical: 2,
     borderRadius: BORDER_RADIUS.sm,
-    backgroundColor: `${BRAND.gold}18`,
+    backgroundColor: `${'#FFD93D'}18`,
   },
-  titleBadgeText: { fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.semibold, color: BRAND.gold },
+  titleBadgeText: { fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.semibold, color: '#FFD93D' },
   explorerLine: { fontSize: FONT_SIZE.xs, marginTop: 4, fontWeight: FONT_WEIGHT.medium },
   locLine: { fontSize: FONT_SIZE.xs, marginTop: 4 },
   statGrid: {
