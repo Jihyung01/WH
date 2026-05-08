@@ -588,14 +588,8 @@ export default function MapScreen() {
         </ClusteredMapView>
       )}
 
-      {isFocused && mapCharacter ? (
-        <CharacterBubble
-          situation="app_open"
-          preferEnvironmentalLine
-          topOffset={overlayTop + 52}
-        />
-      ) : null}
-
+      {/* CharacterBubble 은 옛 스타일 말풍선이라 manga 톤에서 일단 숨김.
+          Phase 4 (소셜) 또는 향후 manga 톤으로 재작성 예정. */}
       {/* (avatar btn 제거 — manga 디자인엔 없음. 프로필 진입은 탭바로) */}
 
       {/* ── 상단: 만화 톤 검색바 + 알림 종 (Phase 2) ── */}
@@ -633,32 +627,7 @@ export default function MapScreen() {
         />
       </View>
 
-      {/* ── 우측 FAB 스택: 레이어/이벤트/흔적/내위치 (Phase 2) ── */}
-      <View
-        style={{
-          position: 'absolute',
-          right: SPACING.lg,
-          bottom: recenterBottom,
-          zIndex: 250,
-        }}
-      >
-        <MapFabStack
-          onLayerPress={() => {
-            // TODO Phase 2.5: 카테고리 필터 sheet 오픈
-          }}
-          onCreateEventPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            router.push('/create-event');
-          }}
-          onCreateTracePress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            createMarkSheetRef.current?.open();
-          }}
-          onLocationPress={handleRecenter}
-        />
-      </View>
-
-      {/* ── 하단 근처 탐험지 carousel (Phase 2) ── */}
+      {/* ── 하단 근처 탐험지 carousel (Phase 2) — 탭바 바로 위 ── */}
       <View
         style={{
           position: 'absolute',
@@ -677,6 +646,33 @@ export default function MapScreen() {
             const ev = sortedEvents.find((e) => e.id === p.id);
             if (ev) onMarkerPress(ev);
           }}
+        />
+      </View>
+
+      {/* ── 우측 FAB 스택: 레이어/이벤트/흔적/내위치 (Phase 2) ──
+           carousel 보다 더 위(위쪽)에 위치시켜 겹침 방지. */}
+      <View
+        style={{
+          position: 'absolute',
+          right: SPACING.lg,
+          // carousel(약 180px) 보다 위. 화면 우측 중간 살짝 아래쪽.
+          bottom: recenterBottom + 200,
+          zIndex: 250,
+        }}
+      >
+        <MapFabStack
+          onLayerPress={() => {
+            // TODO Phase 2.5: 카테고리 필터 sheet 오픈
+          }}
+          onCreateEventPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            router.push('/create-event');
+          }}
+          onCreateTracePress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            createMarkSheetRef.current?.open();
+          }}
+          onLocationPress={handleRecenter}
         />
       </View>
 

@@ -33,8 +33,9 @@ import { useMarkStore } from '../../src/stores/markStore';
 import type { Mark } from '../../src/types/models';
 import { shareKakaoFeedCard } from '../../src/services/kakaoShare';
 import { useTheme } from '../../src/providers/ThemeProvider';
-import { FONT_SIZE, FONT_WEIGHT, SPACING, BORDER_RADIUS, BRAND } from '../../src/config/theme';
+import { FONT_SIZE, FONT_WEIGHT, SPACING, BORDER_RADIUS, BRAND, MANGA, MANGA_BORDER, MANGA_RADIUS, MANGA_SHADOW_OFFSET, FONT_FAMILY } from '../../src/config/theme';
 import { formatRelativeDate } from '../../src/utils/format';
+import { MangaFeedCard } from '../../src/components/feed/MangaFeedCard';
 
 const SCREEN_W = Dimensions.get('window').width;
 const POST_IMAGE_RATIO = 4 / 5;
@@ -581,9 +582,8 @@ export default function ExploreScreen() {
 
   const renderItem = useCallback(
     ({ item }: { item: CommunityFeedItem }) => (
-      <FeedPost
+      <MangaFeedCard
         item={item}
-        colors={colors}
         onOpenEvent={openEvent}
         onToggleLike={handleToggleLike}
         onOpenComments={handleOpenComments}
@@ -591,8 +591,11 @@ export default function ExploreScreen() {
         onPressAuthor={onPressAuthor}
       />
     ),
-    [colors, openEvent, handleToggleLike, handleOpenComments, handleShare, onPressAuthor],
+    [openEvent, handleToggleLike, handleOpenComments, handleShare, onPressAuthor],
   );
+
+  // ── Phase 3 — manga 피드 헤더 ──
+  const [feedTab, setFeedTab] = useState<'recommend' | 'following'>('recommend');
 
   const marksHeader = useMemo(() => {
     if (markFeed.length === 0) return null;
@@ -620,12 +623,57 @@ export default function ExploreScreen() {
   }, [markFeed, colors.textPrimary, colors.textMuted, colors.border, onPressAuthor]);
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.background, paddingTop: insets.top }]}>
-      <View style={[styles.header, { borderBottomColor: colors.border, backgroundColor: colors.background }]}>
-        <Text style={[styles.title, { color: colors.textPrimary }]}>피드</Text>
-        <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-          미션 인증 · 이벤트 커버
-        </Text>
+    <View style={[styles.root, { backgroundColor: MANGA.paper2, paddingTop: insets.top }]}>
+      {/* ── Phase 3 manga 헤더: WHEREHERE 브랜드 필 + 알림 종 + 추천/팔로잉 세그먼트 ── */}
+      <View style={mangaStyles.header}>
+        <View style={mangaStyles.headerTopRow}>
+          {/* WHEREHERE 브랜드 필 */}
+          <View style={mangaStyles.brandPillWrap}>
+            <View style={[mangaStyles.brandPillShadow, { top: 2, left: 2 }]} />
+            <View style={mangaStyles.brandPill}>
+              <View style={mangaStyles.brandW}>
+                <Text style={mangaStyles.brandWText} allowFontScaling={false}>W</Text>
+              </View>
+              <Text style={mangaStyles.brandText} allowFontScaling={false}>WHEREHERE</Text>
+            </View>
+          </View>
+
+          {/* 알림 종 */}
+          <View style={mangaStyles.bellWrap}>
+            <View style={[mangaStyles.bellShadow, { top: 2, left: 2 }]} />
+            <View style={mangaStyles.bell}>
+              <Ionicons name="notifications-outline" size={18} color={MANGA.ink} />
+            </View>
+          </View>
+        </View>
+
+        {/* 추천 / 팔로잉 세그먼트 */}
+        <View style={mangaStyles.segmentRow}>
+          <Pressable onPress={() => setFeedTab('recommend')} style={mangaStyles.segmentItem}>
+            <Text
+              allowFontScaling={false}
+              style={[
+                mangaStyles.segmentText,
+                feedTab === 'recommend' ? mangaStyles.segmentTextActive : mangaStyles.segmentTextInactive,
+              ]}
+            >
+              추천
+            </Text>
+            {feedTab === 'recommend' ? <View style={mangaStyles.segmentUnderline} /> : null}
+          </Pressable>
+          <Pressable onPress={() => setFeedTab('following')} style={mangaStyles.segmentItem}>
+            <Text
+              allowFontScaling={false}
+              style={[
+                mangaStyles.segmentText,
+                feedTab === 'following' ? mangaStyles.segmentTextActive : mangaStyles.segmentTextInactive,
+              ]}
+            >
+              팔로잉
+            </Text>
+            {feedTab === 'following' ? <View style={mangaStyles.segmentUnderline} /> : null}
+          </Pressable>
+        </View>
       </View>
 
       {loading && items.length === 0 ? (
@@ -695,6 +743,110 @@ export default function ExploreScreen() {
     </View>
   );
 }
+
+// ── Phase 3 manga 헤더 / 세그먼트 styles ──
+const mangaStyles = StyleSheet.create({
+  header: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 4,
+    backgroundColor: MANGA.paper2,
+  },
+  headerTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+  },
+  // brand pill
+  brandPillWrap: {
+    position: 'relative',
+  },
+  brandPillShadow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: MANGA.ink,
+    borderRadius: 999,
+  },
+  brandPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    paddingRight: 14,
+    backgroundColor: MANGA.paper,
+    borderRadius: 999,
+    borderWidth: MANGA_BORDER.width,
+    borderColor: MANGA_BORDER.color,
+  },
+  brandW: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: MANGA.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  brandWText: {
+    color: MANGA.paper,
+    fontSize: 14,
+    fontFamily: FONT_FAMILY.display,
+    includeFontPadding: false,
+  },
+  brandText: {
+    color: MANGA.ink,
+    fontSize: 16,
+    fontFamily: FONT_FAMILY.display,
+    letterSpacing: -0.5,
+    includeFontPadding: false,
+  },
+  // bell
+  bellWrap: { width: 40, height: 40, position: 'relative' },
+  bellShadow: { position: 'absolute', width: 40, height: 40, borderRadius: 20, backgroundColor: MANGA.ink },
+  bell: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: MANGA.paper,
+    borderWidth: MANGA_BORDER.width,
+    borderColor: MANGA_BORDER.color,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // segment
+  segmentRow: {
+    flexDirection: 'row',
+    gap: 18,
+    paddingVertical: 8,
+    borderBottomWidth: 2.5,
+    borderBottomColor: MANGA.ink,
+  },
+  segmentItem: {
+    paddingBottom: 6,
+    position: 'relative',
+  },
+  segmentText: {
+    fontSize: 15,
+    fontFamily: FONT_FAMILY.primaryBold,
+    letterSpacing: -0.3,
+    includeFontPadding: false,
+  },
+  segmentTextActive: { color: MANGA.ink },
+  segmentTextInactive: { color: MANGA.ink, opacity: 0.4 },
+  segmentUnderline: {
+    position: 'absolute',
+    bottom: -8.5,
+    left: -2,
+    right: -2,
+    height: 4,
+    backgroundColor: MANGA.ink,
+    borderRadius: 2,
+  },
+});
 
 const styles = StyleSheet.create({
   root: { flex: 1 },

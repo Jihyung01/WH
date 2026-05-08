@@ -691,7 +691,7 @@ export default function ShopScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+  container: { flex: 1, backgroundColor: '#FFF5DC' /* manga paper2 */ },
 
   // Header
   header: {
@@ -788,7 +788,7 @@ const styles = StyleSheet.create({
   // Gift modal
   giftModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   giftSheet: {
-    backgroundColor: COLORS.surface, borderTopLeftRadius: BORDER_RADIUS.xl,
+    backgroundColor: '#FFFEF5' /* manga paper */, borderTopLeftRadius: BORDER_RADIUS.xl,
     borderTopRightRadius: BORDER_RADIUS.xl, padding: SPACING.xl, maxHeight: '70%',
   },
   giftSheetTitle: { fontSize: FONT_SIZE.lg, fontWeight: FONT_WEIGHT.bold, color: COLORS.textPrimary },
@@ -830,7 +830,7 @@ const styles = StyleSheet.create({
 
   coinCard: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: COLORS.surface, borderRadius: BORDER_RADIUS.lg,
+    backgroundColor: '#FFFEF5' /* manga paper */, borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.lg, borderWidth: 1, borderColor: COLORS.border,
     position: 'relative', overflow: 'visible',
   },
@@ -854,7 +854,7 @@ const styles = StyleSheet.create({
 
   // Earn section
   earnSection: {
-    marginTop: SPACING.xxl, backgroundColor: COLORS.surface,
+    marginTop: SPACING.xxl, backgroundColor: '#FFFEF5' /* manga paper */,
     borderRadius: BORDER_RADIUS.lg, padding: SPACING.lg, ...SHADOWS.sm,
   },
   earnTitle: {

@@ -66,7 +66,14 @@ CREATE POLICY "place_memories self delete" ON public.place_memories
 -- 탐험 일기장 (Diary)
 -- ========================================
 
-CREATE TYPE IF NOT EXISTS diary_visibility AS ENUM ('public', 'friends', 'private');
+-- ENUM type — idempotent guard (PG 는 CREATE TYPE IF NOT EXISTS 미지원)
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'diary_visibility') THEN
+    CREATE TYPE diary_visibility AS ENUM ('public', 'friends', 'private');
+  END IF;
+END
+$$;
 
 CREATE TABLE IF NOT EXISTS public.diaries (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),

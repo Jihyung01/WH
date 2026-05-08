@@ -289,7 +289,7 @@ const nodeStyles = StyleSheet.create({
     width: NODE_SIZE,
     height: NODE_SIZE,
     borderRadius: NODE_SIZE / 2,
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#FFFEF5' /* manga paper */,
     borderWidth: 2,
     borderColor: COLORS.border,
     alignItems: 'center',
@@ -780,7 +780,7 @@ export default function SeasonPassScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#FFF5DC' /* manga paper2 */,
   },
 
   // Header
@@ -792,7 +792,7 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.md,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#FFFEF5' /* manga paper */,
   },
   backBtn: {
     width: 36,
@@ -872,7 +872,7 @@ const styles = StyleSheet.create({
 
   // Level card
   levelCard: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#FFFEF5' /* manga paper */,
     borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.lg,
     marginBottom: SPACING.xl,
@@ -1034,7 +1034,7 @@ const styles = StyleSheet.create({
 
   // Stats
   statsCard: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#FFFEF5' /* manga paper */,
     borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.xl,
     ...SHADOWS.sm,
@@ -1078,7 +1078,7 @@ const styles = StyleSheet.create({
     width: 88,
     height: 88,
     borderRadius: 44,
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#FFFEF5' /* manga paper */,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: SPACING.xl,

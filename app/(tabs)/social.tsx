@@ -1227,40 +1227,44 @@ export default function SocialScreen() {
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+  // ── manga 톤 (Phase 4 surgical pass) ──
+  container: { flex: 1, backgroundColor: '#FFF5DC' },
 
-  // Header
+  // Header (manga: 종이 + 잉크 라인)
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-    backgroundColor: COLORS.surface,
+    borderBottomWidth: 2.5,
+    borderBottomColor: '#1A1612',
+    backgroundColor: '#FFFEF5',
   },
   backBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: '#FFFEF5',
+    borderWidth: 2,
+    borderColor: '#1A1612',
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: FONT_SIZE.lg,
-    fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary,
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#1A1612',
+    letterSpacing: -0.5,
   },
   headerSpacer: { width: 36 },
 
-  // Tabs
+  // Tabs (manga: 종이 + 빨강 활성 underline)
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: COLORS.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    backgroundColor: '#FFFEF5',
+    borderBottomWidth: 2.5,
+    borderBottomColor: '#1A1612',
     paddingHorizontal: SPACING.lg,
   },
   tab: {
@@ -1269,11 +1273,11 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: SPACING.md,
-    borderBottomWidth: 2,
+    borderBottomWidth: 3,
     borderBottomColor: 'transparent',
     gap: SPACING.xs,
   },
-  tabActive: { borderBottomColor: BRAND.primary },
+  tabActive: { borderBottomColor: '#FF4757' },
   tabText: {
     fontSize: FONT_SIZE.md,
     fontWeight: FONT_WEIGHT.semibold,

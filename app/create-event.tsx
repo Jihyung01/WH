@@ -793,7 +793,7 @@ export default function CreateEventScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#FFF5DC' /* manga paper2 */,
   },
 
   // Header
@@ -804,7 +804,7 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.md,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#FFFEF5' /* manga paper */,
   },
   headerBackBtn: {
     width: 36,
@@ -929,7 +929,7 @@ const styles = StyleSheet.create({
   },
   placesDropdown: {
     marginTop: SPACING.sm,
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#FFFEF5' /* manga paper */,
     borderRadius: BORDER_RADIUS.lg,
     borderWidth: 1,
     borderColor: COLORS.border,
@@ -1053,7 +1053,7 @@ const styles = StyleSheet.create({
 
   // Mission cards
   missionCard: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#FFFEF5' /* manga paper */,
     borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.lg,
     marginBottom: SPACING.sm,
@@ -1218,7 +1218,7 @@ const styles = StyleSheet.create({
     paddingTop: SPACING.md,
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#FFFEF5' /* manga paper */,
   },
   nextBtn: {
     flexDirection: 'row',
@@ -1242,7 +1242,7 @@ const styles = StyleSheet.create({
   termsLoadingWrap: {
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
+    backgroundColor: '#FFF5DC' /* manga paper2 */,
   },
   termsLoadingText: {
     marginTop: SPACING.md,
@@ -1252,7 +1252,7 @@ const styles = StyleSheet.create({
   termsModalRoot: {
     flex: 1,
     paddingHorizontal: SPACING.lg,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#FFF5DC' /* manga paper2 */,
   },
   termsTitle: {
     fontSize: FONT_SIZE.lg,

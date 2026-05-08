@@ -42,6 +42,14 @@ const ROUTE_TO_ICON: Record<string, TabIconKey> = {
   profile: 'profile',
 };
 
+/**
+ * 탭바에 노출할 5개 라우트 화이트리스트.
+ * expo-router 의 href:null 옵션이 일부 환경에서 state.routes 에서 안 빠지는
+ * 케이스가 있어, 이름 매칭으로 한 번 더 가드. 이게 없으면 chara/quests/
+ * inventory/missions 같은 hidden route 가 탭바에 새어 나옴.
+ */
+const VISIBLE_TAB_ROUTES = new Set(Object.keys(ROUTE_TO_ICON));
+
 function MangaTabBarInner({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const offset = MANGA_SHADOW_OFFSET.sm;
@@ -56,6 +64,10 @@ function MangaTabBarInner({ state, descriptors, navigation }: BottomTabBarProps)
       ]}
     >
       {state.routes.map((route, index) => {
+        // 화이트리스트로 1차 가드 — href:null 옵션이 새는 환경에서도 hidden
+        // route(chara/quests/inventory/missions) 가 탭바에 안 나오게.
+        if (!VISIBLE_TAB_ROUTES.has(route.name)) return null;
+
         const { options } = descriptors[route.key];
         const isFocused = state.index === index;
 
