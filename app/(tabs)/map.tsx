@@ -19,7 +19,7 @@ import { useLocationStore } from '../../src/stores/locationStore';
 import { useNotificationStore } from '../../src/stores/notificationStore';
 import { HONGDAE_REGION, getDistance } from '../../src/utils/geo';
 import { MAP_REFETCH_DISTANCE_M } from '../../src/utils/constants';
-import { SPACING, FONT_WEIGHT, SHADOWS, BRAND } from '../../src/config/theme';
+import { SPACING, FONT_WEIGHT, SHADOWS, BRAND, MANGA, FONT_FAMILY } from '../../src/config/theme';
 import { useTheme } from '../../src/providers/ThemeProvider';
 import {
   EventMarker,
@@ -28,6 +28,14 @@ import {
   FriendMarker,
   CharacterBubble,
   MapClusterMarker,
+  MapSearchBar,
+  MapWeatherChip,
+  MapFabStack,
+  NearbyPlacesCarousel,
+  PowEffect,
+  type NearbyPlace,
+  type PowEffectHandle,
+  type WeatherCondition as MangaWeatherCondition,
 } from '../../src/components/map';
 import {
   CreateMarkSheet,
@@ -151,6 +159,33 @@ export default function MapScreen() {
   const holdMarkRefetchUntilRef = useRef(0);
   const nearbyMarks = useMarkStore((s) => s.nearbyMarks);
   const loadNearbyMarks = useMarkStore((s) => s.loadNearbyMarks);
+
+  // ── Phase 2 manga overlays ──
+  /** POW 효과 ref (장소 발견 / 챌린지 클리어 시 발화) */
+  const powRef = useRef<PowEffectHandle>(null);
+  /** 알림 미확인 카운트 (실제로 알림 시스템에서 가져와야 함 — placeholder) */
+  const unreadCount = useNotificationStore(
+    (s) => (s as { unreadCount?: number }).unreadCount ?? 0,
+  );
+  /** weatherStore 의 condition 을 manga chip 의 단순 enum 으로 매핑 */
+  const currentWeather = useWeatherStore((s) => s.currentWeather);
+  const weatherTemperatureC = useWeatherStore((s) => s.temperature);
+  const mangaWeatherCondition: MangaWeatherCondition = useMemo(() => {
+    switch (currentWeather) {
+      case 'clear':
+        return 'sunny';
+      case 'clouds':
+        return 'cloudy';
+      case 'rain':
+      case 'drizzle':
+      case 'thunderstorm':
+        return 'rainy';
+      case 'snow':
+        return 'snowy';
+      default:
+        return 'unknown';
+    }
+  }, [currentWeather]);
 
   // ── Initialise location tracking ──
   useEffect(() => {
@@ -338,6 +373,35 @@ export default function MapScreen() {
       .slice(0, 50);
   }, [visibleEvents, currentPosition, isFocused]);
 
+  /** Phase 2 — 하단 carousel 용 가까운 3개 장소 (이벤트에서 derive) */
+  const nearbyPlaces = useMemo<NearbyPlace[]>(() => {
+    return sortedEvents.slice(0, 3).map((ev, idx) => {
+      const cat = (ev as { category?: string }).category;
+      const emoji =
+        cat === 'food' ? '🍽️' :
+        cat === 'cafe' ? '☕' :
+        cat === 'nature' ? '🌳' :
+        cat === 'culture' ? '🎨' :
+        cat === 'photo' ? '📸' :
+        cat === 'nightlife' ? '🌙' :
+        cat === 'shopping' ? '🛍️' :
+        '📍';
+      const distM = (ev as { distance_meters?: number }).distance_meters ?? 0;
+      const badge: NearbyPlace['badge'] =
+        idx === 0 && distM < 200 ? 'HOT' :
+        (ev as { created_at?: string }).created_at && Date.now() - new Date((ev as { created_at?: string }).created_at!).getTime() < 24 * 60 * 60 * 1000 ? 'NEW' :
+        null;
+      return {
+        id: String(ev.id),
+        emoji,
+        title: (ev as { title?: string }).title ?? '이름 없는 장소',
+        subtitle: (ev as { description?: string; mission_title?: string }).description ?? (ev as { mission_title?: string }).mission_title ?? undefined,
+        distanceM: distM,
+        badge,
+      };
+    });
+  }, [sortedEvents]);
+
   /** Stable element list so GPS / unrelated renders do not rebuild ClusteredMapView children for friends. */
   const friendMarkerNodes = useMemo(
     () =>
@@ -455,7 +519,7 @@ export default function MapScreen() {
           style={styles.map}
           removeClippedSubviews={false}
           provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-          customMapStyle={getMapStyle(mode)}
+          customMapStyle={getMapStyle('manga')}
           initialRegion={initialRegion}
           onRegionChangeComplete={onRegionChangeComplete}
           onMapReady={() => setMapReady(true)}
@@ -532,111 +596,92 @@ export default function MapScreen() {
         />
       ) : null}
 
-      {/* ── Top Left: User avatar ── */}
-      <Pressable
-        style={[styles.avatarBtn, { top: overlayTop }]}
-        onPress={() => router.push('/(tabs)/profile')}
-        accessibilityLabel="프로필 화면으로 이동"
-        accessibilityRole="button"
-      >
-        <View style={[styles.avatarCircle, { backgroundColor: colors.surface, borderColor: BRAND.primary }]}>
-          <CharacterAvatar
-            characterType={mapCharacter?.character_type ?? 'explorer'}
-            level={mapCharacter?.level ?? 1}
-            size={34}
-            showLoadoutOverlay={false}
-            showEvolutionBadge={false}
-            favoriteDistrict={mapCharacter?.favorite_district ?? null}
-            borderColor={BRAND.primary}
-            backgroundColor={colors.surface}
-            interactive={false}
-          />
-        </View>
-        <View style={[styles.levelBadge, { backgroundColor: BRAND.primary, borderColor: colors.surface }]}>
-          <Text style={[styles.levelText, { color: '#FFFFFF' }]}>
-            {mapCharacter?.level ?? 1}
-          </Text>
-        </View>
-      </Pressable>
+      {/* (avatar btn 제거 — manga 디자인엔 없음. 프로필 진입은 탭바로) */}
 
-      {/* ── Top Right: Actions ── */}
-      <View style={[styles.topRight, { top: overlayTop }]}>
-        <Pressable
-          style={[
-            styles.iconBtn,
-            Platform.OS === 'android' && styles.iconBtnAndroid,
-            { backgroundColor: colors.surface + 'E0' },
-          ]}
-          onPress={() => {
+      {/* ── 상단: 만화 톤 검색바 + 알림 종 (Phase 2) ── */}
+      <View
+        style={{
+          position: 'absolute',
+          top: overlayTop,
+          left: SPACING.lg,
+          right: SPACING.lg,
+          zIndex: 200,
+        }}
+      >
+        <MapSearchBar
+          placeholder="오늘 어디로?!"
+          unreadCount={unreadCount}
+          onBellPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            router.push('/(tabs)/social');
+            router.push('/settings/notifications');
           }}
-          accessibilityLabel="소셜 · 친구 위치"
-          accessibilityRole="button"
-        >
-          <Ionicons name="people-outline" size={22} color={colors.textPrimary} />
-        </Pressable>
-        <Pressable
-          style={[
-            styles.iconBtn,
-            Platform.OS === 'android' && styles.iconBtnAndroid,
-            { backgroundColor: colors.surface + 'E0' },
-          ]}
-          onPress={() => router.push('/settings/notifications')}
-          accessibilityLabel="알림 설정"
-          accessibilityRole="button"
-        >
-          <Ionicons name="notifications-outline" size={22} color={colors.textPrimary} />
-        </Pressable>
-        <Pressable
-          style={[
-            styles.iconBtn,
-            styles.iconBtnLast,
-            Platform.OS === 'android' && styles.iconBtnAndroid,
-            { backgroundColor: colors.surface + 'E0' },
-          ]}
-          accessibilityLabel="필터"
-          accessibilityRole="button"
-        >
-          <Ionicons name="filter-outline" size={22} color={colors.textPrimary} />
-        </Pressable>
+        />
       </View>
 
-      {/* ── Recenter button ── */}
-      <AnimatedPressable
-        style={[
-          styles.recenterBtn,
-          { bottom: recenterBottom, backgroundColor: colors.surface + 'E8', borderColor: colors.border },
-          Platform.OS === 'android' && styles.recenterBtnAndroid,
-          recenterAnimStyle,
-        ]}
-        onPress={handleRecenter}
-        accessibilityLabel="현재 위치로 이동"
-        accessibilityRole="button"
-      >
-        <Ionicons
-          name={isFollowingUser ? 'navigate' : 'navigate-outline'}
-          size={22}
-          color={isFollowingUser ? BRAND.primary : colors.textPrimary}
-        />
-      </AnimatedPressable>
-
-      {/* ── FAB: 흔적 남기기 ── */}
-      <Pressable
-        style={[
-          styles.markFab,
-          { bottom: recenterBottom + 56, backgroundColor: BRAND.primary },
-          Platform.OS === 'android' && styles.markFabAndroid,
-        ]}
-        onPress={() => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          createMarkSheetRef.current?.open();
+      {/* ── 좌상단 날씨 chip (Phase 2) ── */}
+      <View
+        style={{
+          position: 'absolute',
+          top: overlayTop + 56,
+          left: SPACING.lg,
+          zIndex: 200,
         }}
-        accessibilityLabel="흔적 남기기"
-        accessibilityRole="button"
       >
-        <Ionicons name="create" size={24} color="#FFFFFF" />
-      </Pressable>
+        <MapWeatherChip
+          condition={mangaWeatherCondition}
+          temperatureC={weatherTemperatureC}
+        />
+      </View>
+
+      {/* ── 우측 FAB 스택: 레이어/이벤트/흔적/내위치 (Phase 2) ── */}
+      <View
+        style={{
+          position: 'absolute',
+          right: SPACING.lg,
+          bottom: recenterBottom,
+          zIndex: 250,
+        }}
+      >
+        <MapFabStack
+          onLayerPress={() => {
+            // TODO Phase 2.5: 카테고리 필터 sheet 오픈
+          }}
+          onCreateEventPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            router.push('/create-event');
+          }}
+          onCreateTracePress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            createMarkSheetRef.current?.open();
+          }}
+          onLocationPress={handleRecenter}
+        />
+      </View>
+
+      {/* ── 하단 근처 탐험지 carousel (Phase 2) ── */}
+      <View
+        style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          bottom: recenterBottom - 8,
+          zIndex: 100,
+        }}
+        pointerEvents="box-none"
+      >
+        <NearbyPlacesCarousel
+          title="근처 탐험지"
+          count={nearbyPlaces.length}
+          places={nearbyPlaces}
+          onPlacePress={(p) => {
+            const ev = sortedEvents.find((e) => e.id === p.id);
+            if (ev) onMarkerPress(ev);
+          }}
+        />
+      </View>
+
+      {/* ── 만화 효과음 오버레이 (Phase 2) ── */}
+      <PowEffect ref={powRef} />
 
       {/* ── Bottom Sheet ── */}
       {isFocused && (

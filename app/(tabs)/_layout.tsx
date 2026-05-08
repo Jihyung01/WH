@@ -1,35 +1,24 @@
 import { Tabs } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet, Platform } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTheme } from '../../src/providers/ThemeProvider';
-import { BRAND, SHADOWS } from '../../src/config/theme';
+import { MangaTabBar } from '../../src/components/ui';
 
-const TAB_CONTENT_HEIGHT = Platform.OS === 'ios' ? 52 : 54;
-
+/**
+ * 5-tab manga 톤 layout (Phase 1).
+ *
+ * 탭 순서: 지도 → 피드 (explore) → 소셜 → 메시지 → 프로필.
+ * 캐릭터 탭은 5탭에서 제외 (스펙·디자인 변경 — 캐릭터 진입은 프로필 허브의
+ * 타일에서). 캐릭터 라우트 자체는 살아있음 (`href: null` 로 탭바에서만 숨김).
+ *
+ * 탭바 시각: docs/design/WhereHere_Manga.html → MangaTabBar 컴포넌트.
+ *   - 종이 배경, 잉크 2.5px 상단 테두리
+ *   - 활성: 노랑 pill + 빨강 라벨, translateY(-3) + hard shadow
+ *   - 비활성: rgba(ink, .42)
+ */
 export default function TabsLayout() {
-  const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
-  const bottomInset = Math.max(insets.bottom, Platform.OS === 'android' ? 12 : 8);
-
   return (
     <Tabs
+      tabBar={(props) => <MangaTabBar {...props} />}
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: BRAND.primary,
-        tabBarInactiveTintColor: colors.textMuted,
-        tabBarStyle: [
-          styles.tabBar,
-          {
-            backgroundColor: colors.tabBar,
-            borderTopColor: colors.tabBarBorder,
-            height: TAB_CONTENT_HEIGHT + bottomInset,
-            paddingBottom: bottomInset,
-          },
-        ],
-        tabBarLabelStyle: styles.tabBarLabel,
-        tabBarItemStyle: styles.tabBarItem,
-        animation: 'shift',
       }}
     >
       <Tabs.Screen
@@ -38,9 +27,6 @@ export default function TabsLayout() {
           title: '지도',
           freezeOnBlur: true,
           tabBarAccessibilityLabel: '지도 화면으로 이동',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'map' : 'map-outline'} size={24} color={color} />
-          ),
         }}
       />
       <Tabs.Screen
@@ -49,9 +35,6 @@ export default function TabsLayout() {
           title: '피드',
           freezeOnBlur: true,
           tabBarAccessibilityLabel: '커뮤니티 피드로 이동',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'images' : 'images-outline'} size={24} color={color} />
-          ),
         }}
       />
       <Tabs.Screen
@@ -59,19 +42,13 @@ export default function TabsLayout() {
         options={{
           title: '소셜',
           tabBarAccessibilityLabel: '소셜 화면으로 이동',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'people' : 'people-outline'} size={24} color={color} />
-          ),
         }}
       />
       <Tabs.Screen
-        name="character"
+        name="messages"
         options={{
-          title: '캐릭터',
-          tabBarAccessibilityLabel: '캐릭터 화면으로 이동',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'sparkles' : 'sparkles-outline'} size={24} color={color} />
-          ),
+          title: '메시지',
+          tabBarAccessibilityLabel: '메시지 화면으로 이동',
         }}
       />
       <Tabs.Screen
@@ -79,30 +56,14 @@ export default function TabsLayout() {
         options={{
           title: '프로필',
           tabBarAccessibilityLabel: '프로필 화면으로 이동',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'person' : 'person-outline'} size={24} color={color} />
-          ),
         }}
       />
+
+      {/* 5탭 구조 외 hidden 라우트들 — 라우팅으로만 진입 가능, 탭바 안 보임 */}
+      <Tabs.Screen name="character" options={{ href: null }} />
       <Tabs.Screen name="quests" options={{ href: null }} />
       <Tabs.Screen name="inventory" options={{ href: null }} />
       <Tabs.Screen name="missions" options={{ href: null }} />
     </Tabs>
   );
 }
-
-const styles = StyleSheet.create({
-  tabBar: {
-    borderTopWidth: 1,
-    paddingTop: 6,
-    ...SHADOWS.sm,
-  },
-  tabBarLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    marginTop: 2,
-  },
-  tabBarItem: {
-    paddingTop: 2,
-  },
-});

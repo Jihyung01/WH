@@ -1912,3 +1912,132 @@ export async function createMark(params: CreateMarkParams): Promise<CreateMarkRe
     should_generate_journal: payload.should_generate_journal === true,
   };
 }
+
+// ──────────────────────────────────────────────────────────────
+// Phase 6 — 장소 메모리 + 탐험 일기장 (Spec §5.2, §5.3)
+// 마이그레이션: 20260508030329_manga_place_memories_diaries.sql
+// ──────────────────────────────────────────────────────────────
+
+export type DiaryVisibility = 'public' | 'friends' | 'private';
+
+export interface PlaceMemory {
+  id: string;
+  place_id: string | null;
+  lat: number | null;
+  lng: number | null;
+  photo_url: string | null;
+  emoji: string | null;
+  title: string;
+  memory_date: string;
+  with_friends: string[];
+  created_at: string;
+}
+
+export interface Diary {
+  id: string;
+  title: string;
+  body: string;
+  place_id: string | null;
+  place_label: string | null;
+  with_friends: string[];
+  visibility: DiaryVisibility;
+  likes_count: number;
+  comments_count: number;
+  photo_urls: string[];
+  diary_date: string;
+  created_at: string;
+}
+
+export interface ExploreSummary {
+  places_visited: number;
+  cities_visited: number;
+  records_count: number;
+  collectibles_count: number;
+}
+
+export async function listMyPlaceMemories(limit = 50): Promise<PlaceMemory[]> {
+  const { data, error } = await supabase.rpc('list_my_place_memories', { p_limit: limit });
+  if (error) throw new AppError(error.message, 'LIST_PLACE_MEMORIES_FAILED');
+  return (data ?? []) as PlaceMemory[];
+}
+
+export interface CreatePlaceMemoryParams {
+  title: string;
+  emoji?: string | null;
+  photo_url?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  place_id?: string | null;
+  with_friends?: string[];
+  memory_date?: string | null;
+}
+
+export async function createPlaceMemory(params: CreatePlaceMemoryParams): Promise<string> {
+  const { data, error } = await supabase.rpc('create_place_memory', {
+    p_title: params.title,
+    p_emoji: params.emoji ?? null,
+    p_photo_url: params.photo_url ?? null,
+    p_lat: params.lat ?? null,
+    p_lng: params.lng ?? null,
+    p_place_id: params.place_id ?? null,
+    p_with_friends: params.with_friends ?? [],
+    p_memory_date: params.memory_date ?? null,
+  });
+  if (error) throw new AppError(error.message, 'CREATE_PLACE_MEMORY_FAILED');
+  return String(data);
+}
+
+export async function listMyDiaries(limit = 30): Promise<Diary[]> {
+  const { data, error } = await supabase.rpc('list_my_diaries', { p_limit: limit });
+  if (error) throw new AppError(error.message, 'LIST_DIARIES_FAILED');
+  return (data ?? []) as Diary[];
+}
+
+export interface CreateDiaryParams {
+  title: string;
+  body: string;
+  visibility?: DiaryVisibility;
+  place_id?: string | null;
+  place_label?: string | null;
+  with_friends?: string[];
+  photo_urls?: string[];
+  diary_date?: string | null;
+}
+
+export async function createDiary(params: CreateDiaryParams): Promise<string> {
+  const { data, error } = await supabase.rpc('create_diary', {
+    p_title: params.title,
+    p_body: params.body,
+    p_visibility: params.visibility ?? 'private',
+    p_place_id: params.place_id ?? null,
+    p_place_label: params.place_label ?? null,
+    p_with_friends: params.with_friends ?? [],
+    p_photo_urls: params.photo_urls ?? [],
+    p_diary_date: params.diary_date ?? null,
+  });
+  if (error) throw new AppError(error.message, 'CREATE_DIARY_FAILED');
+  return String(data);
+}
+
+export async function updateDiaryVisibility(diaryId: string, visibility: DiaryVisibility): Promise<void> {
+  const { error } = await supabase.rpc('update_diary_visibility', {
+    p_diary_id: diaryId,
+    p_visibility: visibility,
+  });
+  if (error) throw new AppError(error.message, 'UPDATE_DIARY_VISIBILITY_FAILED');
+}
+
+export async function toggleDiaryLike(diaryId: string): Promise<boolean> {
+  const { data, error } = await supabase.rpc('toggle_diary_like', { p_diary_id: diaryId });
+  if (error) throw new AppError(error.message, 'TOGGLE_DIARY_LIKE_FAILED');
+  return Boolean(data);
+}
+
+export async function getExploreSummary(): Promise<ExploreSummary> {
+  const { data, error } = await supabase.rpc('get_explore_summary');
+  if (error) throw new AppError(error.message, 'GET_EXPLORE_SUMMARY_FAILED');
+  if (Array.isArray(data) && data.length > 0) {
+    return data[0] as ExploreSummary;
+  }
+  return { places_visited: 0, cities_visited: 0, records_count: 0, collectibles_count: 0 };
+}

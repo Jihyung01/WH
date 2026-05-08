@@ -1,0 +1,509 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<title>WhereHere · Light + Anime Adventure Map</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  html, body { margin: 0; padding: 0; min-height: 100%;
+    background:
+      radial-gradient(ellipse at 30% 20%, #FFF5E1 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 80%, #E1F5FF 0%, transparent 50%),
+      #FAF6EE;
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", system-ui, sans-serif; }
+  body { display: flex; align-items: center; justify-content: center; gap: 56px; padding: 80px 24px 60px; box-sizing: border-box; }
+
+  .phone {
+    width: 402px; height: 874px; border-radius: 48px; overflow: hidden;
+    position: relative; background: #fff;
+    box-shadow:
+      0 40px 80px rgba(70, 50, 30, .25),
+      0 0 0 1px rgba(0,0,0,.08),
+      0 0 0 12px #2a2520,
+      0 0 0 13px #1a1612;
+  }
+  .phone .island { position: absolute; top: 11px; left: 50%; transform: translateX(-50%); width: 126px; height: 37px; border-radius: 24px; background: #000; z-index: 200; }
+  .phone .home { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); width: 139px; height: 5px; border-radius: 100px; background: rgba(0,0,0,.3); z-index: 200; }
+  .phone-label { position: absolute; top: -38px; left: 50%; transform: translateX(-50%); color: #4a3825; font-size: 14px; font-weight: 700; letter-spacing: -.2px; white-space: nowrap; }
+  .phone-label .sub { font-weight: 500; color: #8b7355; margin-left: 6px; }
+  .phone-wrap { position: relative; }
+
+  .map { position: absolute; inset: 0; z-index: 1; }
+  .map .leaflet-container { background: #FAF3E0; outline: none; }
+  .leaflet-control-attribution { display: none; }
+  .leaflet-control-zoom { display: none; }
+
+  .tint-adventure { position: absolute; inset: 0; z-index: 3; pointer-events: none;
+    background:
+      radial-gradient(ellipse 380px 260px at 30% 20%, rgba(255,235,180,.55), transparent 70%),
+      radial-gradient(ellipse 320px 240px at 80% 70%, rgba(255,200,210,.45), transparent 70%),
+      linear-gradient(180deg, rgba(255,245,220,.25), rgba(255,235,210,.15));
+    mix-blend-mode: multiply; }
+  .tint-vignette { position: absolute; inset: 0; z-index: 6; pointer-events: none;
+    background: radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(74,56,37,.18) 100%); }
+
+  .tint-anime { position: absolute; inset: 0; z-index: 3; pointer-events: none;
+    background:
+      radial-gradient(ellipse 400px 300px at 25% 15%, rgba(255,225,150,.6), transparent 65%),
+      radial-gradient(ellipse 300px 220px at 75% 75%, rgba(255,180,200,.45), transparent 70%);
+    mix-blend-mode: multiply; }
+  .halftone { position: absolute; inset: 0; z-index: 4; pointer-events: none;
+    background-image: radial-gradient(circle, rgba(40,30,20,.18) 1px, transparent 1.4px);
+    background-size: 5px 5px; mix-blend-mode: multiply; opacity: .55; }
+
+  .clouds { position: absolute; inset: 0; z-index: 5; pointer-events: none; overflow: hidden; }
+  .cloud { position: absolute; opacity: .85; filter: drop-shadow(0 2px 4px rgba(70,50,30,.1));
+    animation-name: drift; animation-timing-function: linear; animation-iteration-count: infinite; }
+  @keyframes drift { from { transform: translateX(-160px); } to { transform: translateX(560px); } }
+  @keyframes driftSlow { from { transform: translateX(-200px); } to { transform: translateX(620px); } }
+
+  .sparkles { position: absolute; inset: 0; z-index: 35; pointer-events: none; }
+  .spark { position: absolute; width: 8px; height: 8px; color: #FFB84D; animation: sparkPop 2.6s ease-out infinite; }
+  @keyframes sparkPop {
+    0% { transform: scale(0) rotate(0); opacity: 0; }
+    20% { transform: scale(1.2) rotate(180deg); opacity: 1; }
+    60% { transform: scale(.7) rotate(360deg); opacity: .8; }
+    100% { transform: scale(0) rotate(540deg); opacity: 0; } }
+
+  .balloon { position: absolute; z-index: 32; pointer-events: none;
+    animation: balloon-fly 38s linear infinite;
+    filter: drop-shadow(0 4px 8px rgba(70,50,30,.18)); }
+  @keyframes balloon-fly {
+    0% { left: -120px; top: 28%; }
+    50% { left: 50%; top: 18%; }
+    100% { left: 110%; top: 32%; } }
+
+  .pow { position: absolute; z-index: 80; pointer-events: none; animation: powBob 2.4s ease-in-out infinite; transform-origin: center; }
+  @keyframes powBob { 0%,100% { transform: rotate(-8deg) scale(1); } 50% { transform: rotate(-4deg) scale(1.08); } }
+
+  .statusbar { position: absolute; top: 0; left: 0; right: 0; height: 60px; z-index: 150; pointer-events: none;
+    display: flex; align-items: center; padding: 21px 28px 0; box-sizing: border-box;
+    color: #2a1f10; font-weight: 700; font-size: 17px; justify-content: space-between;
+    text-shadow: 0 1px 0 rgba(255,255,255,.5); }
+
+  .mk { transform: translate(-50%,-50%); pointer-events: auto; cursor: pointer; }
+
+  .adv .mk-poi { width: 36px; height: 36px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; font-size: 16px;
+    background: #fff; border: 2.5px solid #FF8A65;
+    box-shadow: 0 3px 0 #C76A4A, 0 6px 14px rgba(70,50,30,.22);
+    animation: bob 3s ease-in-out infinite; }
+  .adv .mk-poi.cool { border-color: #5BC8FF; box-shadow: 0 3px 0 #3FA8E0, 0 6px 14px rgba(70,50,30,.22); }
+  .adv .mk-poi.gray { border-color: #B8B0A4; box-shadow: 0 3px 0 #8A8275, 0 4px 10px rgba(70,50,30,.18); opacity: .85; }
+  @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+  .mk-poi-label { position: absolute; top: 38px; left: 50%; transform: translateX(-50%);
+    font-size: 10px; color: #2a1f10; font-weight: 700; letter-spacing: -.2px; white-space: nowrap;
+    background: rgba(255,255,255,.92); padding: 1px 6px; border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(70,50,30,.15); }
+
+  .pop .mk-poi { width: 38px; height: 38px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; font-size: 17px;
+    background: radial-gradient(circle at 30% 30%, #fff, #FFE0CC 70%);
+    border: 3px solid #1a1612;
+    box-shadow: 3px 3px 0 #1a1612, 0 6px 14px rgba(0,0,0,.18);
+    animation: wobble 2.4s ease-in-out infinite; }
+  .pop .mk-poi.cool { background: radial-gradient(circle at 30% 30%, #fff, #CCE6FF 70%); }
+  .pop .mk-poi.gray { background: radial-gradient(circle at 30% 30%, #fff, #DDD5C9 70%);
+    box-shadow: 2px 2px 0 #1a1612, 0 4px 10px rgba(0,0,0,.15); }
+  @keyframes wobble { 0%,100% { transform: rotate(-3deg) translateY(0); } 50% { transform: rotate(3deg) translateY(-3px); } }
+  .pop .mk-poi-label { background: #FFEC99; border: 1.5px solid #1a1612; box-shadow: 2px 2px 0 #1a1612;
+    padding: 2px 7px; top: 42px; font-weight: 800; }
+
+  .mk-friend { position: relative; transform: translate(-50%,-50%); animation: bob 2.6s ease-in-out infinite; }
+  .mk-friend-bubble { width: 50px; height: 50px; border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #FFE066, #FFB84D 70%, #E89232);
+    border: 3px solid #fff;
+    box-shadow: 0 0 0 2px #FFB84D, 0 4px 0 #B97824, 0 8px 18px rgba(70,50,30,.3);
+    display: flex; align-items: center; justify-content: center; font-size: 22px; }
+  .pop .mk-friend-bubble { border: 3px solid #1a1612;
+    box-shadow: 3px 3px 0 #1a1612, 0 0 0 5px #FFE066, 3px 3px 0 5px #1a1612; }
+  .mk-friend-name { position: absolute; top: 56px; left: 50%; transform: translateX(-50%);
+    padding: 2px 8px; background: #fff; border: 1.5px solid #FFB84D; border-radius: 8px;
+    font-size: 11px; color: #B97824; font-weight: 800; white-space: nowrap;
+    box-shadow: 0 2px 4px rgba(70,50,30,.15); }
+  .pop .mk-friend-name { border-color: #1a1612; box-shadow: 2px 2px 0 #1a1612; background: #FFEC99; color: #1a1612; }
+
+  .mk-event { transform: translate(-50%, -85%); position: relative;
+    filter: drop-shadow(0 4px 8px rgba(61,180,120,.4)); }
+  .mk-event .ripple { position: absolute; left: 50%; top: 100%;
+    width: 40px; height: 14px; transform: translate(-50%, -50%); border-radius: 50%;
+    border: 2px solid rgba(61,220,151,.7); animation: ripple-out 1.8s ease-out infinite; }
+  .mk-event .ripple:nth-child(2) { animation-delay: .9s; }
+  @keyframes ripple-out {
+    0% { transform: translate(-50%, -50%) scale(.4); opacity: 1; }
+    100% { transform: translate(-50%, -50%) scale(2.4); opacity: 0; } }
+
+  .mk-hero { position: relative; transform: translate(-50%,-50%); width: 130px; height: 130px; pointer-events: none; }
+  .mk-hero .pulse { position: absolute; inset: 30px; border-radius: 50%;
+    border: 2.5px solid rgba(61,220,151,.7); animation: pulseRing 2.4s ease-out infinite; }
+  .mk-hero .pulse.delay { animation-delay: 1.2s; }
+  @keyframes pulseRing { 0% { transform: scale(.5); opacity: 1; } 100% { transform: scale(1.5); opacity: 0; } }
+  .mk-hero .ring { position: absolute; inset: 38px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(61,220,151,.35), rgba(61,220,151,.12) 65%, transparent); }
+  .mk-hero .mascot { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -55%);
+    animation: float 3s ease-in-out infinite; }
+  @keyframes float { 0%,100% { transform: translate(-50%, -55%); } 50% { transform: translate(-50%, -65%); } }
+  .mk-hero .name { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%);
+    padding: 3px 10px; background: #fff; border-radius: 12px; border: 2px solid #3DDC97;
+    font-size: 11px; color: #1B7A52; font-weight: 800; letter-spacing: -.2px;
+    white-space: nowrap; box-shadow: 0 3px 0 #1A8A5A, 0 6px 12px rgba(70,50,30,.2); }
+  .pop .mk-hero .name { border: 2px solid #1a1612; box-shadow: 2px 2px 0 #1a1612; }
+
+  .ui { position: absolute; z-index: 100; }
+
+  .xp { top: 78px; left: 14px; width: 64px; height: 64px; border-radius: 32px;
+    background: #fff; border: 3px solid #3DDC97;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 0 #1A8A5A, 0 8px 16px rgba(70,50,30,.18); font-size: 28px; }
+  .pop .xp { border: 3px solid #1a1612; box-shadow: 4px 4px 0 #1a1612; }
+  .xp .lvl { position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%);
+    background: #3DDC97; color: #0A2E1F; font-size: 12px; font-weight: 900;
+    padding: 2px 9px; border-radius: 10px; letter-spacing: -.2px; border: 2px solid #fff; }
+  .pop .xp .lvl { border: 2px solid #1a1612; }
+
+  .right-stack { top: 78px; right: 12px; display: flex; flex-direction: column; gap: 12px; }
+  .icon-btn { width: 48px; height: 48px; border-radius: 24px;
+    background: #fff; border: 2px solid #2a1f10;
+    display: flex; align-items: center; justify-content: center;
+    color: #2a1f10; box-shadow: 0 3px 0 #2a1f10, 0 5px 12px rgba(70,50,30,.15);
+    cursor: pointer; transition: transform .15s; }
+  .adv .icon-btn { border: 1.5px solid rgba(70,50,30,.2); box-shadow: 0 3px 0 rgba(70,50,30,.18), 0 5px 12px rgba(70,50,30,.12); }
+
+  .fab-stack { bottom: 110px; right: 16px; display: flex; flex-direction: column; gap: 12px; align-items: center; }
+  .fab { width: 56px; height: 56px; border-radius: 28px;
+    background: linear-gradient(135deg, #3DDC97, #1A8A5A); border: 3px solid #fff;
+    box-shadow: 0 4px 0 #0A6B3D, 0 8px 18px rgba(61,220,151,.5);
+    display: flex; align-items: center; justify-content: center; color: #fff; cursor: pointer; }
+  .pop .fab { border: 3px solid #1a1612; box-shadow: 3px 3px 0 #1a1612, 0 6px 14px rgba(0,0,0,.18); }
+  .fab.locate { width: 48px; height: 48px; background: #fff; border: 2px solid #2a1f10; color: #2a1f10;
+    box-shadow: 0 3px 0 #2a1f10, 0 5px 12px rgba(70,50,30,.15); }
+  .adv .fab.locate { border: 1.5px solid rgba(70,50,30,.2); box-shadow: 0 3px 0 rgba(70,50,30,.18), 0 5px 12px rgba(70,50,30,.12); }
+
+  .tabbar { bottom: 0; left: 0; right: 0; padding: 10px 4px 24px;
+    background: linear-gradient(to top, rgba(255,250,240,.98), rgba(255,250,240,.85) 60%, rgba(255,250,240,0));
+    backdrop-filter: blur(8px); display: flex; justify-content: space-around;
+    border-top: 1px solid rgba(70,50,30,.06); }
+  .tab { display: flex; flex-direction: column; align-items: center; gap: 3px;
+    padding: 4px 10px; cursor: pointer; color: rgba(70,50,30,.4); }
+  .tab.active { color: #1A8A5A; }
+  .tab .lbl { font-size: 10px; font-weight: 600; letter-spacing: -.2px; }
+  .tab.active .lbl { font-weight: 900; }
+
+  .toast { position: absolute; z-index: 90; pointer-events: none;
+    top: 64px; left: 50%; transform: translate(-50%, -10px);
+    background: #FFEC99; border: 2.5px solid #1a1612; border-radius: 12px;
+    padding: 8px 14px; font-weight: 900; font-size: 13px; color: #1a1612;
+    letter-spacing: -.2px; white-space: nowrap;
+    box-shadow: 3px 3px 0 #1a1612;
+    display: flex; align-items: center; gap: 8px;
+    animation: toastSlide 4s ease-in-out infinite; }
+  @keyframes toastSlide {
+    0%,12%,88%,100% { opacity: 0; transform: translate(-50%, -22px); }
+    20%,80% { opacity: 1; transform: translate(-50%, 0); } }
+  .toast .star { width: 18px; height: 18px; background: #3DDC97;
+    clip-path: polygon(50% 0, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); }
+
+  .quest-pill { position: absolute; top: 64px; left: 50%; transform: translateX(-50%);
+    z-index: 80; padding: 8px 16px; border-radius: 999px;
+    background: #fff; border: 2px solid #3DDC97;
+    color: #1A8A5A; font-size: 12px; font-weight: 800; letter-spacing: -.2px;
+    display: flex; align-items: center; gap: 8px;
+    box-shadow: 0 3px 0 #1A8A5A, 0 6px 14px rgba(70,50,30,.15); }
+  .quest-pill .dot { width: 6px; height: 6px; border-radius: 50%; background: #3DDC97;
+    animation: blink 1.4s ease-in-out infinite; }
+  @keyframes blink { 0%,100%{opacity:.4} 50%{opacity:1} }
+
+  .header { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 1000;
+    display: flex; gap: 6px; padding: 6px;
+    background: #fff; border: 1.5px solid rgba(70,50,30,.12);
+    border-radius: 999px; box-shadow: 0 3px 0 rgba(70,50,30,.15), 0 6px 18px rgba(70,50,30,.12); }
+  .header .pill { padding: 8px 16px; border-radius: 999px; cursor: pointer;
+    color: #4a3825; font-size: 13px; font-weight: 700; letter-spacing: -.2px; }
+  .header .pill.on { background: #3DDC97; color: #0A2E1F; }
+
+  .hint { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); z-index: 1000;
+    color: #4a3825; font-size: 11px; letter-spacing: -.1px;
+    background: #fff; padding: 6px 14px; border-radius: 999px;
+    border: 1.5px solid rgba(70,50,30,.12); box-shadow: 0 2px 4px rgba(70,50,30,.1); }
+
+  .caption { color: #4a3825; font-size: 12px; text-align: center; margin-top: 16px;
+    letter-spacing: -.2px; max-width: 402px; line-height: 1.55; }
+  .caption b { color: #1a1612; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="pill on" id="toggleBoth">둘 다 보기</div>
+  <div class="pill" id="toggleAdv">Adventure만</div>
+  <div class="pill" id="togglePop">Anime Pop만</div>
+</div>
+
+<div class="phone-wrap" id="advWrap">
+  <div class="phone-label">A · Adventure Daylight <span class="sub">— 구름·반짝임·바운스 마커</span></div>
+  <div class="phone adv">
+    <div class="island"></div>
+    <div class="map" id="advMap"></div>
+    <div class="tint-adventure"></div>
+    <div class="clouds" id="advClouds"></div>
+    <div class="balloon" style="animation-delay: -8s;">
+      <svg width="56" height="80" viewBox="0 0 56 80">
+        <ellipse cx="28" cy="32" rx="24" ry="28" fill="#FF8A65"/>
+        <path d="M4 32 Q 28 50 52 32 L 52 28 Q 28 46 4 28 Z" fill="#FFD0BB"/>
+        <path d="M14 32 V 5 Q 28 -2 42 5 V 32" fill="none" stroke="#C76A4A" stroke-width="1"/>
+        <line x1="14" y1="58" x2="20" y2="68" stroke="#5C4030" stroke-width="1"/>
+        <line x1="42" y1="58" x2="36" y2="68" stroke="#5C4030" stroke-width="1"/>
+        <rect x="20" y="65" width="16" height="10" rx="2" fill="#8B5A3C"/>
+        <rect x="20" y="65" width="16" height="3" fill="#6B3F26"/>
+      </svg>
+    </div>
+    <div class="sparkles" id="advSparkles"></div>
+    <div class="statusbar"><span>5:25</span><span style="font-size:13px;opacity:.85">●●● 100%</span></div>
+    <div class="ui quest-pill"><span class="dot"></span>오늘의 모험 · 3 / 5 발견</div>
+    <div class="ui xp"><span>⭐</span><div class="lvl">20</div></div>
+    <div class="ui right-stack">
+      <div class="icon-btn"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 19c0-3 3-5 6-5s6 2 6 5"/><path d="M14 17c0-2 2-3 3-3s3 1 3 3"/></svg></div>
+      <div class="icon-btn"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21a2 2 0 004 0"/></svg></div>
+      <div class="icon-btn"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="9" y1="18" x2="15" y2="18"/></svg></div>
+    </div>
+    <div class="ui fab-stack">
+      <div class="fab"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5l4 4L8 20H4v-4L16.5 3.5z"/></svg></div>
+      <div class="fab" style="background:linear-gradient(135deg,#FFB84D,#FF8A65); box-shadow: 0 4px 0 #C76A4A, 0 8px 18px rgba(255,138,101,.5);"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg></div>
+      <div class="fab locate"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 8a4 4 0 100 8 4 4 0 000-8z"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+    </div>
+    <div class="ui tabbar">
+      <div class="tab active"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2V6z"/><path d="M9 4v16M15 6v16"/></svg><span class="lbl">지도</span></div>
+      <div class="tab"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5L5 21"/></svg><span class="lbl">피드</span></div>
+      <div class="tab"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="9" cy="7" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 19c0-3 3-5 6-5s6 2 6 5"/></svg><span class="lbl">소셜</span></div>
+      <div class="tab"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2l1.5 5.5L19 9l-4 4 1 6-4-3-4 3 1-6-4-4 5.5-1.5L12 2z"/></svg><span class="lbl">캐릭터</span></div>
+      <div class="tab"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg><span class="lbl">프로필</span></div>
+    </div>
+    <div class="tint-vignette"></div>
+    <div class="home"></div>
+  </div>
+  <div class="caption"><b>지도는 그대로 밝게.</b> 위에 구름·열기구·반짝임만 얹음.<br>마커는 둥둥 떠 있고, 이벤트는 잔물결이 퍼져요. 모험 RPG 톤.</div>
+</div>
+
+<div class="phone-wrap" id="popWrap">
+  <div class="phone-label">B · Anime Pop <span class="sub">— 만화 효과·하프톤·콜아웃</span></div>
+  <div class="phone pop">
+    <div class="island"></div>
+    <div class="map" id="popMap"></div>
+    <div class="tint-anime"></div>
+    <div class="halftone"></div>
+    <div class="clouds" id="popClouds"></div>
+    <div class="pow" id="popPow" style="left: 60%; top: 28%;">
+      <svg width="92" height="92" viewBox="0 0 92 92">
+        <path d="M46 4 L 56 22 L 76 14 L 70 34 L 88 38 L 72 52 L 84 70 L 64 66 L 56 86 L 46 70 L 36 86 L 28 66 L 8 70 L 20 52 L 4 38 L 22 34 L 16 14 L 36 22 Z"
+          fill="#FFEC99" stroke="#1a1612" stroke-width="3" stroke-linejoin="round"/>
+        <text x="46" y="56" text-anchor="middle" font-family="-apple-system, system-ui" font-size="20" font-weight="900" fill="#1a1612">EVENT!</text>
+      </svg>
+    </div>
+    <div class="toast"><span class="star"></span>NEW · 우마블 발견!</div>
+    <div class="sparkles" id="popSparkles"></div>
+    <div class="statusbar"><span>5:25</span><span style="font-size:13px;opacity:.85">●●● 100%</span></div>
+    <div class="ui xp"><span>⭐</span><div class="lvl">20</div></div>
+    <div class="ui right-stack">
+      <div class="icon-btn"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 19c0-3 3-5 6-5s6 2 6 5"/><path d="M14 17c0-2 2-3 3-3s3 1 3 3"/></svg></div>
+      <div class="icon-btn"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21a2 2 0 004 0"/></svg></div>
+      <div class="icon-btn"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="9" y1="18" x2="15" y2="18"/></svg></div>
+    </div>
+    <div class="ui fab-stack">
+      <div class="fab"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5l4 4L8 20H4v-4L16.5 3.5z"/></svg></div>
+      <div class="fab" style="background:linear-gradient(135deg,#FFB84D,#FF6B9A);"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg></div>
+      <div class="fab locate"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 8a4 4 0 100 8 4 4 0 000-8z"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+    </div>
+    <div class="ui tabbar">
+      <div class="tab active"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2V6z"/><path d="M9 4v16M15 6v16"/></svg><span class="lbl">지도</span></div>
+      <div class="tab"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5L5 21"/></svg><span class="lbl">피드</span></div>
+      <div class="tab"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="9" cy="7" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 19c0-3 3-5 6-5s6 2 6 5"/></svg><span class="lbl">소셜</span></div>
+      <div class="tab"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 2l1.5 5.5L19 9l-4 4 1 6-4-3-4 3 1-6-4-4 5.5-1.5L12 2z"/></svg><span class="lbl">캐릭터</span></div>
+      <div class="tab"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg><span class="lbl">프로필</span></div>
+    </div>
+    <div class="home"></div>
+  </div>
+  <div class="caption"><b>지도는 밝게 + 만화 변환.</b> 하프톤 점·노란 콜아웃·검은 외곽선 마커.<br>이벤트엔 EVENT! 별, 새 발견 시 토스트가 통통 등장. JUMP 페이지 톤.</div>
+</div>
+
+<div class="hint">두 폰 다 진짜 인터랙티브 지도예요 — 드래그/핀치/줌 다 됩니다.</div>
+
+<script>
+const HERO = [37.34921, 127.10583];
+const POIS = [
+  { id: 'wmarble', ll: [37.35080, 127.10410], emoji: '🍝', label: '우마블', kind: 'food' },
+  { id: 'jiggle', ll: [37.34980, 127.10590], emoji: '🍽', label: '지글', kind: 'food' },
+  { id: 'bongpi', ll: [37.34870, 127.10720], emoji: '🍜', label: '봉피양', kind: 'food' },
+  { id: 'wuyoung', ll: [37.35200, 127.10180], emoji: '🍜', label: '우영시멘트', kind: 'food' },
+  { id: 'gongcha', ll: [37.35280, 127.10760], emoji: '🍵', label: '공차', kind: 'food' },
+  { id: 'papa', ll: [37.35020, 127.10930], emoji: '🍕', label: '파파존스', kind: 'food' },
+  { id: 'gym', ll: [37.35120, 127.10620], emoji: '💪', label: '골든핏', kind: 'cool' },
+  { id: 'naver', ll: [37.34620, 127.10330], emoji: '🏢', label: '네이버', kind: 'gray' },
+  { id: 'school', ll: [37.34550, 127.10880], emoji: '🏫', label: '늘푸른중', kind: 'gray' },
+];
+const FRIEND = { ll: [37.34810, 127.10930], emoji: '⭐', name: '황상연' };
+const EVENT = { ll: [37.35040, 127.10870], emoji: '🚀', label: '런칭 파티' };
+const FOOTPRINTS = [[37.35080, 127.10410],[37.34990, 127.10510],[37.34960, 127.10580],[37.34940, 127.10580],[37.34921, 127.10583]];
+
+function lightTiles() {
+  return L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    attribution: '', subdomains: 'abcd', maxZoom: 20,
+  });
+}
+
+const MASCOT_SVG = `<svg width="60" height="68" viewBox="0 0 60 68">
+  <defs>
+    <linearGradient id="bodyG" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#fff"/><stop offset="100%" stop-color="#E0F5EA"/></linearGradient>
+    <radialGradient id="visorG" cx=".5" cy=".4"><stop offset="0%" stop-color="#7FE5C5"/><stop offset="100%" stop-color="#1A8A5A"/></radialGradient>
+  </defs>
+  <path d="M20 36 Q 8 36 4 44 L 10 46 Q 16 40 22 40 Z" fill="#FF8A65"/>
+  <path d="M22 40 Q 18 44 16 50" stroke="#C76A4A" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  <ellipse cx="30" cy="42" rx="14" ry="13" fill="url(#bodyG)" stroke="#1a1612" stroke-width="2"/>
+  <ellipse cx="17" cy="42" rx="4" ry="6" fill="#fff" stroke="#1a1612" stroke-width="1.8" transform="rotate(-15 17 42)"/>
+  <ellipse cx="43" cy="42" rx="4" ry="6" fill="#fff" stroke="#1a1612" stroke-width="1.8" transform="rotate(15 43 42)"/>
+  <circle cx="30" cy="24" r="16" fill="rgba(127,229,197,.25)" stroke="#1a1612" stroke-width="2"/>
+  <ellipse cx="30" cy="22" rx="10" ry="8" fill="url(#visorG)" stroke="#1a1612" stroke-width="1.5"/>
+  <ellipse cx="26" cy="19" rx="3.5" ry="2" fill="rgba(255,255,255,.7)"/>
+  <line x1="30" y1="8" x2="30" y2="2" stroke="#1a1612" stroke-width="1.5"/>
+  <path d="M30 0 L 31.5 3 L 35 3.5 L 32 5.5 L 33 9 L 30 7 L 27 9 L 28 5.5 L 25 3.5 L 28.5 3 Z" fill="#FFB84D" stroke="#1a1612" stroke-width="1"/>
+  <circle cx="30" cy="44" r="3" fill="#3DDC97" stroke="#1a1612" stroke-width="1.5"/>
+</svg>`;
+
+function cloudSVG(scale = 1) {
+  const w = 100 * scale, h = 50 * scale;
+  return `<svg width="${w}" height="${h}" viewBox="0 0 100 50"><path d="M20 38 Q 8 38 8 28 Q 8 18 20 20 Q 24 8 38 12 Q 50 4 62 14 Q 78 10 82 22 Q 94 22 92 34 Q 90 42 78 40 L 22 40 Q 18 42 20 38 Z" fill="rgba(255,255,255,.92)" stroke="rgba(70,50,30,.18)" stroke-width="1.2"/></svg>`;
+}
+function spawnClouds(container, count, slow) {
+  const el = document.getElementById(container);
+  for (let i = 0; i < count; i++) {
+    const c = document.createElement('div');
+    c.className = 'cloud';
+    const scale = .6 + Math.random() * .8;
+    c.innerHTML = cloudSVG(scale);
+    c.style.top = (5 + Math.random() * 70) + '%';
+    c.style.animationDuration = (slow ? 50 + Math.random() * 30 : 35 + Math.random() * 25) + 's';
+    c.style.animationName = slow ? 'driftSlow' : 'drift';
+    c.style.animationDelay = (-Math.random() * 40) + 's';
+    c.style.opacity = .7 + Math.random() * .25;
+    el.appendChild(c);
+  }
+}
+spawnClouds('advClouds', 6, false);
+spawnClouds('popClouds', 4, true);
+
+function spawnSparkles(container, count) {
+  const el = document.getElementById(container);
+  for (let i = 0; i < count; i++) {
+    const s = document.createElement('div');
+    s.className = 'spark';
+    s.innerHTML = `<svg width="100%" height="100%" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0 L9.5 6.5 L16 8 L9.5 9.5 L8 16 L6.5 9.5 L0 8 L6.5 6.5 Z"/></svg>`;
+    s.style.color = ['#FFB84D', '#FFE066', '#FF8A65', '#3DDC97'][i % 4];
+    s.style.animationDelay = (Math.random() * 2.6) + 's';
+    s.style.width = (6 + Math.random() * 6) + 'px';
+    s.style.height = s.style.width;
+    el.appendChild(s);
+  }
+  return el;
+}
+const advSparks = spawnSparkles('advSparkles', 8);
+const popSparks = spawnSparkles('popSparkles', 8);
+
+function placeSparklesAround(map, container, ll, radius) {
+  const sparks = container.children;
+  const center = map.latLngToContainerPoint(L.latLng(ll[0], ll[1]));
+  for (let i = 0; i < sparks.length; i++) {
+    const a = (i / sparks.length) * Math.PI * 2 + (Date.now() / 8000);
+    const r = radius * (.6 + Math.sin(Date.now() / 1500 + i) * .3);
+    const x = center.x + Math.cos(a) * r;
+    const y = center.y + Math.sin(a) * r;
+    sparks[i].style.left = (x - parseFloat(sparks[i].style.width) / 2) + 'px';
+    sparks[i].style.top = (y - parseFloat(sparks[i].style.width) / 2) + 'px';
+  }
+}
+
+function buildMap(elId, opts) {
+  const m = L.map(elId, { center: HERO, zoom: 16, zoomControl: false, attributionControl: false, zoomSnap: .25 });
+  lightTiles().addTo(m);
+  if (opts.constellations) {
+    L.polyline([POIS[0].ll, POIS[3].ll, POIS[4].ll, POIS[5].ll, POIS[2].ll, POIS[1].ll, POIS[0].ll],
+      { color: '#FFB84D', weight: 1.4, opacity: .55, dashArray: '3 5' }).addTo(m);
+  }
+  L.polyline(FOOTPRINTS, { color: opts.trailColor, weight: opts.trailWeight, opacity: .9, dashArray: opts.trailDash || null }).addTo(m);
+  FOOTPRINTS.forEach((ll, i) => {
+    L.circleMarker(ll, { radius: i === FOOTPRINTS.length-1 ? 5 : 3.5, fillColor: '#fff', color: opts.trailColor, weight: 2, fillOpacity: 1 }).addTo(m);
+  });
+  POIS.forEach(p => {
+    const cls = ['mk', 'mk-poi'];
+    if (p.kind === 'cool') cls.push('cool');
+    if (p.kind === 'gray') cls.push('gray');
+    L.marker(p.ll, { icon: L.divIcon({
+      html: `<div class="${cls.join(' ')}" style="animation-delay:${(Math.random()*3).toFixed(2)}s">${p.emoji}<div class="mk-poi-label">${p.label}</div></div>`,
+      className: '', iconSize: [0,0], iconAnchor: [0,0],
+    }) }).addTo(m);
+  });
+  L.marker(FRIEND.ll, { icon: L.divIcon({
+    html: `<div class="mk mk-friend"><div class="mk-friend-bubble">${FRIEND.emoji}</div><div class="mk-friend-name">${FRIEND.name}</div></div>`,
+    className: '', iconSize: [0,0], iconAnchor: [0,0],
+  }) }).addTo(m);
+  L.marker(EVENT.ll, { icon: L.divIcon({
+    html: `<div class="mk mk-event"><div class="ripple"></div><div class="ripple"></div>
+      <svg width="50" height="62" viewBox="0 0 44 56">
+        <path d="M22 4 C 10 4, 4 14, 4 24 C 4 36, 22 52, 22 52 C 22 52, 40 36, 40 24 C 40 14, 34 4, 22 4 Z"
+          fill="${opts.eventFill}" stroke="${opts.eventStroke}" stroke-width="1.8"/>
+        <text x="22" y="29" text-anchor="middle" font-size="16">🚀</text>
+      </svg></div>`,
+    className: '', iconSize: [0,0], iconAnchor: [0,0],
+  }) }).addTo(m);
+  L.marker(HERO, { icon: L.divIcon({
+    html: `<div class="mk-hero"><div class="pulse"></div><div class="pulse delay"></div><div class="ring"></div><div class="mascot">${MASCOT_SVG}</div><div class="name">별찌</div></div>`,
+    className: '', iconSize: [0,0], iconAnchor: [0,0],
+  }) }).addTo(m);
+  return m;
+}
+
+const advMap = buildMap('advMap', { constellations: true, trailColor: '#FFB84D', trailWeight: 3, trailDash: '4 4', eventFill: '#A7F5C8', eventStroke: '#1A8A5A' });
+const popMap = buildMap('popMap', { constellations: false, trailColor: '#1a1612', trailWeight: 3.5, trailDash: '6 4', eventFill: '#3DDC97', eventStroke: '#1a1612' });
+
+function tick() {
+  placeSparklesAround(advMap, advSparks, HERO, 56);
+  placeSparklesAround(popMap, popSparks, HERO, 56);
+  const pow = document.getElementById('popPow');
+  if (pow) {
+    const p = popMap.latLngToContainerPoint(L.latLng(EVENT.ll[0], EVENT.ll[1]));
+    pow.style.left = (p.x - 75) + 'px';
+    pow.style.top = (p.y - 90) + 'px';
+  }
+  requestAnimationFrame(tick);
+}
+tick();
+
+const $aw = document.getElementById('advWrap');
+const $pw = document.getElementById('popWrap');
+function setView(mode) {
+  document.querySelectorAll('.header .pill').forEach(p => p.classList.remove('on'));
+  if (mode === 'both') { $aw.style.display=''; $pw.style.display=''; document.getElementById('toggleBoth').classList.add('on'); }
+  if (mode === 'adv')  { $aw.style.display=''; $pw.style.display='none'; document.getElementById('toggleAdv').classList.add('on'); }
+  if (mode === 'pop')  { $aw.style.display='none'; $pw.style.display=''; document.getElementById('togglePop').classList.add('on'); }
+  setTimeout(() => { advMap.invalidateSize(); popMap.invalidateSize(); }, 50);
+  try { localStorage.setItem('wh-mode2', mode); } catch {}
+}
+document.getElementById('toggleBoth').onclick = () => setView('both');
+document.getElementById('toggleAdv').onclick  = () => setView('adv');
+document.getElementById('togglePop').onclick  = () => setView('pop');
+const saved = (() => { try { return localStorage.getItem('wh-mode2'); } catch { return null; } })();
+if (saved) setView(saved);
+
+let syncing = false;
+function sync(src, dst) {
+  src.on('move', () => {
+    if (syncing) return; syncing = true;
+    dst.setView(src.getCenter(), src.getZoom(), { animate: false });
+    syncing = false;
+  });
+}
+sync(advMap, popMap);
+sync(popMap, advMap);
+</script>
+</body>
+</html>

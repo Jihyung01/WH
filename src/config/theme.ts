@@ -14,6 +14,89 @@ export const BRAND = {
   kakaoText: '#191919',
 } as const;
 
+// ────────────────────────────────────────────────────────────
+// MANGA Design System (v2)
+// ────────────────────────────────────────────────────────────
+// Source of truth: docs/design/WhereHere_Manga.html :root variables.
+// 기존 BRAND / DARK_PALETTE / LIGHT_PALETTE 와 공존. 점진적으로 화면별
+// 적용. 모든 토큰은 manga 화면을 만들 때만 사용 (기존 화면 회귀 0).
+
+export const MANGA = {
+  ink:    '#1A1612',  // borders / text / primary accent
+  paper:  '#FFFEF5',  // cream background
+  paper2: '#FFF5DC',  // warm cream secondary background
+  y:      '#FFD93D',  // primary yellow accent
+  y2:     '#FFB400',  // darker yellow (active / pressed)
+  r:      '#FF4757',  // urgent / 좋아요 / FAB
+  b:      '#4FBDFF',  // info / 같이가기
+  g:      '#3DDC97',  // online / 성공
+  p:      '#C5A6FF',  // story / 친구 액센트
+} as const;
+
+// Friend avatar accent palette — 한글 이니셜 기반 색 자동 배정 (spec §0.3).
+// 인덱스 = (이니셜 codepoint % 7).
+export const MANGA_AVATAR_PALETTE = [
+  '#FFD93D', // 노랑
+  '#3DDC97', // 초록
+  '#FF6B9A', // 핑크
+  '#4FBDFF', // 시안
+  '#FFB84D', // 오렌지
+  '#C5A6FF', // 퍼플
+  '#FF6B6B', // 다크레드
+] as const;
+
+// Hard ink shadow (만화 톤 핵심) — translate(N,N) + shadow 0 으로 도장 누르는 효과.
+// ⚠️ Android: RN 의 shadowColor/shadowOffset 가 elevation 0 일 때도 일부 OEM 에서
+// 무시되거나 sub-pixel offset 으로 깨짐. 정확히 hard shadow 가 필요한 곳은
+// MangaCard 컴포넌트(추후 Phase 1)에서 absolute View 한 장 오프셋해서 표현.
+// 이 토큰은 iOS 와 Android 의 elevation 폴백용 fallback 값.
+export const MANGA_SHADOW = {
+  sm: {
+    shadowColor: MANGA.ink,
+    shadowOffset: { width: 2, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: 0,
+  },
+  md: {
+    shadowColor: MANGA.ink,
+    shadowOffset: { width: 3, height: 3 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: 0,
+  },
+  lg: {
+    shadowColor: MANGA.ink,
+    shadowOffset: { width: 4, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: 0,
+  },
+} as const;
+
+// Pixel offsets used by MangaCard (absolute View shadow trick on Android).
+export const MANGA_SHADOW_OFFSET = {
+  sm: 2,
+  md: 3,
+  lg: 4,
+} as const;
+
+// Common ink outline (border) applied to most manga cards / buttons.
+export const MANGA_BORDER = {
+  width: 2.5,
+  color: MANGA.ink,
+} as const;
+
+// Manga corner radius scale (spec §0.1: 카드 11~16, 칩 5~8).
+export const MANGA_RADIUS = {
+  chip: 6,
+  chipLg: 8,
+  card: 14,
+  cardLg: 16,
+  cardXl: 22,  // phone-shell-scale 박스
+  pill: 999,
+} as const;
+
 // ── Event Category Colors ──
 export const EVENT_COLORS = {
   exploration: '#10B981',
@@ -112,8 +195,13 @@ export const SPACING = {
 } as const;
 
 // ── Typography ──
+// expo-font 로 등록한 키와 정확히 일치해야 함 (app/_layout.tsx 의 useFonts 참조).
+// 등록되지 않은 fontFamily 는 RN 이 system 으로 silent fallback.
 export const FONT_FAMILY = {
-  primary: 'Pretendard',
+  primary: 'Pretendard-Regular',
+  primaryMedium: 'Pretendard-SemiBold',
+  primaryBold: 'Pretendard-Bold',
+  display: 'BagelFatOne-Regular',  // 큰 숫자 / 만화 헤드라인
   narrative: 'NotoSerifKR',
   mono: 'SpaceMono',
 } as const;

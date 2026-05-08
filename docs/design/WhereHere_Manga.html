@@ -1,0 +1,1490 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<title>WhereHere · Manga</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+:root{
+  --ink:#1a1612; --paper:#FFFEF5; --paper2:#FFF5DC;
+  --y:#FFD93D; --y2:#FFB400;
+  --r:#FF4757; --b:#4FBDFF; --g:#3DDC97; --p:#C5A6FF;
+  --shadow: 3px 3px 0 var(--ink);
+  --shadow2: 4px 4px 0 var(--ink);
+  --shadow-sm: 2px 2px 0 var(--ink);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;min-height:100%;font-family:Pretendard,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",system-ui,sans-serif;color:var(--ink)}
+body{
+  background:
+    radial-gradient(circle at 20% 10%, #FFE08C 0, transparent 35%),
+    radial-gradient(circle at 90% 80%, #FFB6B6 0, transparent 40%),
+    repeating-linear-gradient(0deg, transparent 0 22px, rgba(26,22,18,.04) 22px 23px),
+    #FFF5DC;
+  min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px 24px;gap:48px
+}
+/* page corner stamps */
+.stamp{position:fixed;font-family:"Bagel Fat One",serif;font-weight:900;letter-spacing:-1px;color:rgba(26,22,18,.15);pointer-events:none;z-index:0}
+.stamp.tl{top:24px;left:32px;font-size:24px}
+.stamp.br{bottom:24px;right:32px;font-size:18px;text-align:right;line-height:1.1}
+
+/* phone shell */
+.phone{
+  position:relative;width:392px;height:836px;border-radius:54px;
+  background:var(--paper);
+  box-shadow:
+    0 0 0 3px var(--ink),
+    8px 8px 0 var(--ink),
+    20px 20px 60px rgba(26,22,18,.25);
+  overflow:hidden;flex-shrink:0;z-index:1
+}
+.phone .island{position:absolute;top:11px;left:50%;transform:translateX(-50%);
+  width:124px;height:36px;border-radius:24px;background:#000;z-index:300}
+.phone .home{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);
+  width:134px;height:5px;border-radius:100px;background:rgba(26,22,18,.55);z-index:300;pointer-events:none}
+.statusbar{position:absolute;top:0;left:0;right:0;height:54px;z-index:200;display:flex;align-items:center;justify-content:space-between;padding:18px 28px 0;font-weight:800;font-size:15px;pointer-events:none}
+.statusbar .right{display:flex;align-items:center;gap:5px;font-size:13px}
+.statusbar .right svg{display:block}
+
+/* screens */
+.screen{position:absolute;inset:0;display:none;flex-direction:column}
+.screen.on{display:flex}
+
+/* halftone overlay (universal manga vibe) */
+.halftone{position:absolute;inset:0;pointer-events:none;
+  background-image:radial-gradient(circle, rgba(26,22,18,.18) 1px, transparent 1.4px);
+  background-size:5px 5px;mix-blend-mode:multiply;opacity:.5;z-index:50}
+.speedlines{position:absolute;inset:0;pointer-events:none;z-index:51;
+  background:repeating-linear-gradient(105deg, transparent 0 9px, rgba(26,22,18,.045) 9px 10px);
+  mix-blend-mode:multiply}
+
+/* tab bar */
+.tabbar{position:absolute;bottom:0;left:0;right:0;z-index:250;
+  background:var(--paper);border-top:2.5px solid var(--ink);
+  padding:6px 4px 22px;display:flex;justify-content:space-around;align-items:flex-start}
+.tab{display:flex;flex-direction:column;align-items:center;gap:1px;padding:6px 8px;cursor:pointer;color:rgba(26,22,18,.42);transition:transform .15s}
+.tab:active{transform:scale(.92)}
+.tab.on{color:var(--r)}
+.tab.on .tabicon{background:var(--y);border:2px solid var(--ink);box-shadow:var(--shadow-sm);transform:translateY(-3px)}
+.tabicon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.tab .lb{font-size:10px;font-weight:900;letter-spacing:-.2px;margin-top:2px}
+
+/* ====== MAP SCREEN ====== */
+#map{position:absolute;inset:0;z-index:1}
+.leaflet-container{background:#FFFAEB;outline:none}
+.leaflet-control-attribution,.leaflet-control-zoom{display:none}
+.maptint{position:absolute;inset:0;z-index:3;pointer-events:none;
+  background:radial-gradient(ellipse 400px 260px at 30% 18%,rgba(255,217,61,.42),transparent 65%),
+    radial-gradient(ellipse 280px 220px at 75% 80%,rgba(255,107,107,.28),transparent 70%);
+  mix-blend-mode:multiply}
+
+/* top bar */
+.topbar{position:absolute;top:60px;left:14px;right:14px;z-index:120;display:flex;align-items:center;gap:10px}
+.search{flex:1;height:46px;border-radius:23px;background:#fff;border:2.5px solid var(--ink);
+  box-shadow:var(--shadow);display:flex;align-items:center;gap:9px;padding:0 16px;font-weight:800;font-size:13.5px;letter-spacing:-.2px;cursor:pointer}
+.iconbtn{width:46px;height:46px;border-radius:23px;background:var(--y);border:2.5px solid var(--ink);box-shadow:var(--shadow);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;position:relative}
+.iconbtn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+.iconbtn .badge{position:absolute;top:-5px;right:-5px;background:var(--r);color:#fff;border:2px solid var(--ink);border-radius:10px;font-size:10px;font-weight:900;padding:0 5px;height:18px;display:flex;align-items:center}
+
+/* right floating column TOP (filters) */
+.rstack-top{position:absolute;top:118px;right:14px;z-index:120;display:flex;flex-direction:column;gap:10px}
+/* right floating column BOTTOM (event/track/locate) */
+.rstack-bot{position:absolute;right:14px;bottom:228px;z-index:120;display:flex;flex-direction:column;gap:10px;align-items:center}
+.fab{width:50px;height:50px;border-radius:25px;border:2.5px solid var(--ink);box-shadow:var(--shadow);display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:900;font-size:11px;letter-spacing:-.2px;position:relative}
+.fab:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+.fab.locate{background:var(--r);color:#fff;width:56px;height:56px;border-radius:28px}
+.fab.event{background:#fff;color:var(--ink)}
+.fab.track{background:var(--b);color:var(--ink)}
+.fab.layers{background:#fff;color:var(--ink)}
+.fab.weather{background:var(--y);color:var(--ink);font-size:18px}
+.fab .tt{position:absolute;right:60px;top:50%;transform:translateY(-50%);background:var(--ink);color:var(--paper);font-size:10px;font-weight:800;padding:3px 8px;border-radius:5px;white-space:nowrap;opacity:0;transition:opacity .15s;pointer-events:none}
+.fab:hover .tt{opacity:1}
+
+/* near-card (horizontal scroll) */
+.nearwrap{position:absolute;left:0;right:0;bottom:84px;z-index:110;padding:0 0 14px}
+.nearheader{padding:0 18px 8px;display:flex;justify-content:space-between;align-items:flex-end}
+.nearheader h3{margin:0;font-weight:900;font-size:15px;letter-spacing:-.4px}
+.nearheader .ct{font-size:11px;font-weight:800;background:var(--y);border:2px solid var(--ink);padding:2px 8px;border-radius:8px;box-shadow:var(--shadow-sm);transform:rotate(-3deg)}
+.nearheader .more{font-size:11px;font-weight:800;color:rgba(26,22,18,.6)}
+.nearscroll{display:flex;gap:10px;padding:6px 14px 8px;overflow-x:auto;scrollbar-width:none}
+.nearscroll::-webkit-scrollbar{display:none}
+.ncard{flex:0 0 156px;background:#fff;border:2.5px solid var(--ink);border-radius:14px;box-shadow:var(--shadow);overflow:hidden;cursor:pointer;transition:transform .15s}
+.ncard:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+.ncard .thumb{height:84px;position:relative;display:flex;align-items:flex-end;padding:7px;border-bottom:2.5px solid var(--ink)}
+.ncard .ribbon{position:absolute;top:7px;right:-3px;background:var(--r);color:#fff;font-size:9px;font-weight:900;padding:2px 7px;border:2px solid var(--ink);border-right:none;letter-spacing:.5px}
+.ncard .dist{background:var(--ink);color:var(--paper);font-size:10px;font-weight:900;padding:2px 7px;border-radius:6px}
+.ncard .body{padding:8px 10px 10px}
+.ncard .name{font-size:13px;font-weight:900;letter-spacing:-.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ncard .meta{font-size:10px;font-weight:700;color:rgba(26,22,18,.55);margin-top:2px}
+
+/* markers */
+.mk{transform:translate(-50%,-50%);pointer-events:auto;cursor:pointer}
+.mk-poi{width:38px;height:38px;background:#fff;border:3px solid var(--ink);border-radius:50%;box-shadow:var(--shadow);display:flex;align-items:center;justify-content:center;font-size:16px;animation:wob 2.4s ease-in-out infinite;position:relative}
+@keyframes wob{0%,100%{transform:rotate(-3deg) translateY(0)}50%{transform:rotate(3deg) translateY(-3px)}}
+.mk-poi.cool{background:#CCE6FF}
+.mk-poi.warm{background:#FFE0CC}
+.mk-poi.gray{background:#E8E0D2;box-shadow:var(--shadow-sm);opacity:.92}
+.mk-poi.event{background:linear-gradient(135deg,#FFE066 0%,#FFB400 100%);width:46px;height:46px;font-size:20px}
+.mk-poi .lab{position:absolute;top:42px;left:50%;transform:translateX(-50%);background:var(--y);color:var(--ink);border:1.5px solid var(--ink);box-shadow:var(--shadow-sm);font-size:10px;font-weight:900;padding:1px 6px;border-radius:5px;white-space:nowrap;letter-spacing:-.2px}
+.mk-poi.event .lab{background:var(--r);color:#fff;font-size:9px}
+
+/* hero marker */
+.hero{transform:translate(-50%,-50%);pointer-events:none;width:120px;height:120px;position:relative}
+.hero .pulse{position:absolute;inset:30px;border-radius:50%;border:3px solid var(--ink);animation:pr 2.4s ease-out infinite}
+.hero .pulse.d{animation-delay:1.2s}
+@keyframes pr{0%{transform:scale(.5);opacity:1}100%{transform:scale(1.7);opacity:0}}
+.hero .core{position:absolute;left:50%;top:50%;width:62px;height:62px;border-radius:50%;
+  transform:translate(-50%,-58%);
+  background:radial-gradient(circle at 35% 30%,#fff,#FFE066 70%);
+  border:3px solid var(--ink);
+  box-shadow:4px 4px 0 var(--ink),0 0 0 4px var(--y),4px 4px 0 4px var(--ink);
+  display:flex;align-items:center;justify-content:center;font-size:28px;
+  animation:fl 3s ease-in-out infinite;
+  background-size:cover;background-position:center;overflow:hidden}
+@keyframes fl{0%,100%{transform:translate(-50%,-58%)}50%{transform:translate(-50%,-66%)}}
+.hero .core img{width:100%;height:100%;object-fit:cover}
+.hero .nm{position:absolute;left:50%;bottom:0;transform:translateX(-50%);background:var(--r);color:#fff;border:2.5px solid var(--ink);box-shadow:var(--shadow-sm);font-size:11px;font-weight:900;padding:3px 11px;border-radius:11px;letter-spacing:-.2px;white-space:nowrap}
+
+/* friend marker */
+.mk-friend{width:42px;height:42px;border-radius:50%;background:var(--y);border:3px solid var(--ink);box-shadow:var(--shadow);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:16px;position:relative;transform:translate(-50%,-50%)}
+.mk-friend .nm{position:absolute;top:46px;left:50%;transform:translateX(-50%);background:#fff;border:1.5px solid var(--ink);box-shadow:var(--shadow-sm);font-size:9.5px;font-weight:900;padding:1px 6px;border-radius:5px;white-space:nowrap}
+
+/* event POW callout (overlay above map) */
+.pow{position:absolute;z-index:90;pointer-events:none;animation:pb 2.4s ease-in-out infinite;transform-origin:center}
+@keyframes pb{0%,100%{transform:rotate(-8deg) scale(1)}50%{transform:rotate(-3deg) scale(1.06)}}
+
+/* toast */
+.toast{position:absolute;z-index:130;left:50%;top:118px;transform:translate(-50%,-30px);background:var(--y);border:2.5px solid var(--ink);border-radius:12px;padding:7px 14px;font-weight:900;font-size:12px;letter-spacing:-.2px;box-shadow:var(--shadow);display:flex;align-items:center;gap:8px;opacity:0;pointer-events:none;transition:opacity .3s, transform .3s}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+.toast .star{width:14px;height:14px;background:var(--r);clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)}
+
+/* WEATHER OVERLAYS */
+.wx{position:absolute;inset:0;pointer-events:none;z-index:6;overflow:hidden}
+.cloud{position:absolute;animation:drift 60s linear infinite;opacity:.85}
+@keyframes drift{from{transform:translateX(-180px)}to{transform:translateX(560px)}}
+.rain{position:absolute;width:2px;height:14px;background:linear-gradient(transparent,#4FBDFF);animation:fall .8s linear infinite;opacity:.65}
+@keyframes fall{from{transform:translateY(-20px)}to{transform:translateY(900px)}}
+.snow{position:absolute;color:#fff;text-shadow:0 0 2px var(--ink);font-size:14px;animation:sfall 6s linear infinite}
+@keyframes sfall{from{transform:translateY(-20px) rotate(0)}to{transform:translateY(900px) rotate(360deg)}}
+.star{position:absolute;color:var(--y);font-size:10px;animation:tw 2.4s infinite}
+@keyframes tw{0%,100%{opacity:.4;transform:scale(1)}50%{opacity:1;transform:scale(1.4)}}
+.sunray{position:absolute;top:-40px;right:-40px;width:240px;height:240px;
+  background:radial-gradient(circle at 30% 30%, rgba(255,217,61,.55), transparent 60%);
+  filter:blur(2px)}
+.moon{position:absolute;top:90px;right:24px;width:42px;height:42px;border-radius:50%;background:#FFF8DC;border:2.5px solid var(--ink);box-shadow:var(--shadow);font-size:22px;display:flex;align-items:center;justify-content:center}
+.nightveil{position:absolute;inset:0;background:linear-gradient(180deg,rgba(40,30,80,.18),rgba(40,30,80,.05));mix-blend-mode:multiply}
+.fog{position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.5),transparent 30%,transparent 70%,rgba(255,255,255,.5));pointer-events:none}
+
+/* weather chip on top */
+.wxchip{position:absolute;top:118px;left:14px;z-index:120;background:#fff;border:2.5px solid var(--ink);box-shadow:var(--shadow);border-radius:14px;padding:5px 10px;display:flex;align-items:center;gap:6px;font-weight:900;font-size:12px;letter-spacing:-.2px;cursor:pointer}
+.wxchip .ic{font-size:16px}
+
+/* ====== FEED SCREEN ====== */
+.feedhead{position:sticky;top:0;background:var(--paper);z-index:200;padding:54px 16px 0;border-bottom:2.5px solid var(--ink)}
+.feedtop{display:flex;justify-content:space-between;align-items:center;padding:10px 0 12px}
+.brand-pill{display:flex;align-items:center;gap:6px;font-family:"Bagel Fat One",serif;font-size:18px;letter-spacing:-1px}
+.brand-pill .dot{width:24px;height:24px;border-radius:50%;background:var(--y);border:2px solid var(--ink);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--ink);box-shadow:var(--shadow-sm)}
+.feedtabs{display:flex;gap:18px;padding:4px 0 12px}
+.ftab{font-weight:900;font-size:16px;letter-spacing:-.3px;color:rgba(26,22,18,.4);position:relative;padding:4px 0;cursor:pointer}
+.ftab.on{color:var(--ink)}
+.ftab.on::after{content:"";position:absolute;left:-3px;right:-3px;bottom:-2px;height:8px;background:var(--y);z-index:-1;border:2px solid var(--ink);border-radius:4px;transform:rotate(-1deg)}
+.feedscroll{flex:1;overflow-y:auto;padding-bottom:90px;background:var(--paper)}
+.feedscroll::-webkit-scrollbar{display:none}
+.post{margin:14px;background:#fff;border:2.5px solid var(--ink);border-radius:16px;box-shadow:var(--shadow2);overflow:hidden}
+.post-h{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:2.5px solid var(--ink)}
+.post-h .av{width:38px;height:38px;border-radius:50%;border:2.5px solid var(--ink);background:var(--y);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;flex-shrink:0;box-shadow:var(--shadow-sm)}
+.post-h .meta{flex:1;min-width:0}
+.post-h .name{font-weight:900;font-size:14px;letter-spacing:-.2px}
+.post-h .sub{font-size:11px;font-weight:700;color:rgba(26,22,18,.55);margin-top:1px}
+.post-h .more{padding:6px 8px;font-weight:900;cursor:pointer;color:rgba(26,22,18,.55)}
+.post-img{position:relative;height:240px;background:linear-gradient(135deg,#FFD6A5,#FFB6B6);border-bottom:2.5px solid var(--ink);overflow:hidden;display:flex;align-items:flex-end;padding:14px}
+.post-img.b{background:linear-gradient(135deg,#A5E8FF,#C5A6FF)}
+.post-img.c{background:linear-gradient(135deg,#A5FFC5,#FFE066)}
+.post-img.d{background:linear-gradient(135deg,#FFB6E1,#FFD96B)}
+.post-img .wash{position:absolute;inset:0;background-image:radial-gradient(circle, rgba(26,22,18,.18) 1px, transparent 1.4px);background-size:5px 5px;mix-blend-mode:multiply;opacity:.4}
+.post-img .badge{position:absolute;top:12px;left:12px;background:var(--ink);color:var(--paper);border:2px solid var(--ink);font-size:10px;font-weight:900;padding:3px 8px;border-radius:6px;display:flex;align-items:center;gap:5px}
+.post-img .ttl{position:relative;z-index:2;color:#fff;text-shadow:2px 2px 0 var(--ink);font-size:22px;font-weight:900;letter-spacing:-.5px;line-height:1.15;font-family:"Bagel Fat One",serif}
+.post-img .sttl{position:relative;z-index:2;color:#fff;text-shadow:1px 1px 0 var(--ink);font-size:12px;font-weight:800;margin-top:4px}
+.post-actions{display:flex;align-items:center;gap:14px;padding:11px 14px}
+.act{display:flex;align-items:center;gap:5px;font-weight:900;font-size:13px;cursor:pointer;user-select:none}
+.act svg{display:block;transition:transform .2s}
+.act.liked{color:var(--r)}
+.act.liked svg{transform:scale(1.15)}
+.act:active svg{transform:scale(.85)}
+
+/* placeholder screens */
+.stub{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 30px;text-align:center}
+.stub .stamp2{width:140px;height:140px;border-radius:50%;background:var(--y);border:3px solid var(--ink);box-shadow:var(--shadow2);display:flex;align-items:center;justify-content:center;font-family:"Bagel Fat One",serif;font-size:48px;transform:rotate(-6deg);margin-bottom:24px;line-height:1}
+.stub h2{font-family:"Bagel Fat One",serif;margin:0;font-size:32px;letter-spacing:-1px;line-height:1}
+.stub p{font-size:13px;font-weight:700;color:rgba(26,22,18,.55);margin:10px 0 0;line-height:1.5}
+.stub .pillbtn{margin-top:24px;background:var(--r);color:#fff;border:2.5px solid var(--ink);box-shadow:var(--shadow);padding:10px 20px;border-radius:12px;font-weight:900;font-size:13px;cursor:pointer}
+
+/* ====== PROFILE SCREEN ====== */
+.prof-screen{flex:1;overflow-y:auto;background:var(--paper);padding:54px 14px 100px;position:relative}
+.prof-screen::-webkit-scrollbar{display:none}
+.prof-head{display:flex;align-items:center;justify-content:space-between;padding:8px 4px 16px}
+.prof-head h1{margin:0;font-family:"Bagel Fat One",serif;font-size:22px;letter-spacing:-.6px}
+.prof-head .gear{width:38px;height:38px;border-radius:19px;background:var(--y);border:2.5px solid var(--ink);box-shadow:var(--shadow-sm);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
+.prof-card{background:#fff;border:2.5px solid var(--ink);border-radius:16px;box-shadow:var(--shadow);padding:14px;margin-bottom:14px;position:relative}
+.prof-card-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px}
+.prof-card-h h3{margin:0;font-weight:900;font-size:14px;letter-spacing:-.3px;display:flex;align-items:center;gap:6px}
+.prof-card-h .chip{display:inline-block;background:var(--ink);color:var(--paper);font-size:10px;font-weight:800;padding:1px 7px;border-radius:5px;letter-spacing:.3px}
+.prof-card-h .more{font-size:10px;font-weight:800;color:rgba(26,22,18,.5)}
+.tape{position:absolute;top:-8px;right:18px;background:var(--y);width:46px;height:14px;transform:rotate(8deg);border:2px solid var(--ink);box-shadow:var(--shadow-sm);opacity:.92;z-index:2}
+
+/* stats */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.stat{text-align:center;padding:6px 0}
+.stat .num{font-family:"Bagel Fat One",serif;font-size:24px;letter-spacing:-1px;line-height:1;color:var(--ink)}
+.stat .lbl{font-size:10px;font-weight:800;color:rgba(26,22,18,.6);margin-top:5px}
+.stat + .stat{border-left:1.5px dashed rgba(26,22,18,.15)}
+
+/* chart */
+.chart-toggle{display:flex;border:2px solid var(--ink);border-radius:8px;overflow:hidden;box-shadow:var(--shadow-sm)}
+.chart-toggle button{padding:3px 10px;font-weight:900;font-size:10px;background:#fff;border:none;border-right:2px solid var(--ink);cursor:pointer;font-family:inherit}
+.chart-toggle button:last-child{border-right:none}
+.chart-toggle button.on{background:var(--y)}
+.chart{display:flex;gap:8px;height:128px;padding:14px 0 0}
+.chart-y{display:flex;flex-direction:column;justify-content:space-between;font-size:9px;font-weight:800;color:rgba(26,22,18,.5);padding:0 0 22px;text-align:right;width:20px}
+.bars{flex:1;display:flex;align-items:flex-end;gap:6px;border-bottom:2px solid var(--ink);padding-bottom:0;position:relative}
+.bar{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%}
+.bar .b{width:100%;background:var(--g);border:2px solid var(--ink);border-bottom:none;border-radius:4px 4px 0 0;height:var(--h);position:relative}
+.bar.cur .b{background:var(--y)}
+.bar.cur .b::after{content:attr(data-v);position:absolute;top:-16px;left:50%;transform:translateX(-50%);font-size:10px;font-weight:900;background:var(--y);border:1.5px solid var(--ink);padding:0 4px;border-radius:4px;box-shadow:var(--shadow-sm)}
+.bar .lb{font-size:10px;font-weight:800;margin-top:4px;color:rgba(26,22,18,.65)}
+.bar.cur .lb{color:var(--ink)}
+
+/* polaroid */
+.poly-wrap{display:flex;gap:12px;overflow-x:auto;padding:6px 2px 8px;scrollbar-width:none}
+.poly-wrap::-webkit-scrollbar{display:none}
+.polaroid{flex:0 0 152px;background:#FFFAEB;border:2.5px solid var(--ink);box-shadow:var(--shadow);padding:8px 8px 12px;transform:rotate(-1.5deg);transition:transform .2s;cursor:pointer;flex-shrink:0}
+.polaroid:nth-child(2n){transform:rotate(1.8deg)}
+.polaroid:hover{transform:rotate(0) scale(1.03)}
+.polaroid-img{height:104px;border:2px solid var(--ink);background-size:cover;background-position:center;position:relative;overflow:hidden;display:flex;align-items:flex-end;padding:6px}
+.polaroid-img::after{content:"";position:absolute;inset:0;background-image:radial-gradient(circle, rgba(26,22,18,.18) 1px, transparent 1.4px);background-size:5px 5px;mix-blend-mode:multiply;opacity:.45;pointer-events:none}
+.polaroid-img .em{position:relative;z-index:2;font-size:22px;filter:drop-shadow(1px 1px 0 #1a1612)}
+.polaroid-ttl{font-weight:900;font-size:12.5px;letter-spacing:-.2px;margin-top:8px;line-height:1.2}
+.polaroid-date{font-size:10px;font-weight:700;color:rgba(26,22,18,.5);margin-top:2px;font-family:"Courier New",monospace}
+
+/* ai note */
+.ai-note{display:flex;gap:10px;align-items:center;background:linear-gradient(135deg,#fff 60%,#FFF5DC)}
+.ai-text{flex:1;min-width:0}
+.ai-text h3{margin:0 0 6px;font-weight:900;font-size:14px;display:flex;align-items:center;gap:5px}
+.ai-text p{margin:0;font-size:12px;line-height:1.55;font-weight:700;color:rgba(26,22,18,.85)}
+.ai-text .hl{background:var(--y);padding:0 5px;border-radius:3px;border:1.5px solid var(--ink);font-weight:900;display:inline-block;line-height:1.3}
+.ai-bot{flex-shrink:0;animation:wob 3.4s ease-in-out infinite}
+
+/* diary (journal) */
+.diary-add{background:var(--r);color:#fff;border:2.5px solid var(--ink);box-shadow:2px 2px 0 var(--ink);border-radius:8px;padding:5px 10px;font-weight:900;font-size:11px;cursor:pointer;font-family:inherit;letter-spacing:-.2px}
+.diary-add:active{transform:translate(2px,2px);box-shadow:0 0 0 var(--ink)}
+.diary-list{display:flex;flex-direction:column;gap:10px;margin-top:6px}
+.diary-entry{display:flex;gap:10px;background:#FFFAEB;border:2.5px solid var(--ink);box-shadow:3px 3px 0 var(--ink);border-radius:11px;padding:10px;cursor:pointer;transition:transform .12s;position:relative;background-image:repeating-linear-gradient(transparent,transparent 22px,rgba(26,22,18,.07) 22px,rgba(26,22,18,.07) 23px)}
+.diary-entry:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+.diary-entry.locked{background:#F5EFE0}
+.diary-date{flex-shrink:0;width:46px;background:var(--y);border:2.5px solid var(--ink);box-shadow:2px 2px 0 var(--ink);border-radius:8px;padding:6px 0;text-align:center;align-self:flex-start}
+.diary-date .d{font-family:"Bagel Fat One",serif;font-size:22px;line-height:1;letter-spacing:-1px}
+.diary-date .m{font-size:10px;font-weight:900;margin-top:2px}
+.diary-body{flex:1;min-width:0}
+.diary-ttl{font-weight:900;font-size:13.5px;letter-spacing:-.3px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.diary-ttl .vis{font-size:9.5px;font-weight:900;background:#fff;border:1.5px solid var(--ink);border-radius:5px;padding:1px 5px;letter-spacing:-.2px}
+.diary-ttl .vis.lock{background:#E8E0D2}
+.diary-txt{font-size:12px;font-weight:700;color:rgba(26,22,18,.75);margin-top:4px;line-height:1.45;font-family:"Courier New",monospace}
+.diary-foot{display:flex;gap:5px;margin-top:7px;flex-wrap:wrap}
+.chiplet{font-size:10px;font-weight:900;background:#fff;border:1.5px solid var(--ink);border-radius:5px;padding:2px 6px;letter-spacing:-.2px}
+.chiplet.love{background:#FFD9E4}
+.chiplet.share{background:var(--g);cursor:pointer}
+.diary-with{display:flex;align-items:center;gap:4px;margin-top:6px}
+.diary-with .with-lb{font-size:10px;font-weight:800;color:rgba(26,22,18,.5);margin-right:2px}
+.av-mini{width:22px;height:22px;border-radius:50%;border:2px solid var(--ink);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:10px;color:var(--ink);margin-left:-4px}
+.av-mini:first-of-type{margin-left:0}
+.polaroid.add{background:#FFF8DC;border-style:dashed;border-color:rgba(26,22,18,.6)}
+.polaroid.add .polaroid-ttl{color:rgba(26,22,18,.7)}
+
+/* hub tiles */
+.hub{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.hub-tile{background:#fff;border:2.5px solid var(--ink);border-radius:12px;box-shadow:var(--shadow-sm);padding:11px 12px;cursor:pointer;display:flex;align-items:center;gap:9px;transition:transform .15s}
+.hub-tile:active{transform:translate(1px,1px);box-shadow:1px 1px 0 var(--ink)}
+.hub-tile .ic{width:32px;height:32px;border-radius:8px;background:var(--y);border:2px solid var(--ink);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.hub-tile .ic.r{background:var(--r);color:#fff}
+.hub-tile .ic.g{background:var(--g)}
+.hub-tile .ic.b{background:var(--b)}
+.hub-tile .lb{font-weight:900;font-size:12px;letter-spacing:-.2px;line-height:1.2}
+.hub-tile .sub{font-size:10px;font-weight:700;color:rgba(26,22,18,.5);margin-top:1px}
+
+/* tweaks panel (manga-styled) */
+.tweaks{position:fixed;right:24px;bottom:24px;z-index:1000;width:280px;background:#fff;border:2.5px solid var(--ink);border-radius:16px;box-shadow:6px 6px 0 var(--ink);font-size:12px;display:none;overflow:hidden}
+.tweaks.on{display:block}
+.tweaks .hd{background:var(--y);border-bottom:2.5px solid var(--ink);padding:8px 12px;font-family:"Bagel Fat One",serif;font-size:14px;display:flex;justify-content:space-between;align-items:center;letter-spacing:-.4px}
+.tweaks .hd .x{cursor:pointer;background:var(--ink);color:var(--paper);width:22px;height:22px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:12px}
+.tweaks .body{padding:12px;max-height:60vh;overflow-y:auto}
+.tweaks .row{margin-bottom:14px}
+.tweaks .row:last-child{margin-bottom:0}
+.tweaks label{font-weight:900;font-size:11px;letter-spacing:-.2px;display:block;margin-bottom:6px;text-transform:uppercase}
+.tweaks .opts{display:flex;gap:6px;flex-wrap:wrap}
+.tweaks .opt{flex:1;min-width:48px;padding:7px 8px;border:2px solid var(--ink);border-radius:8px;background:#fff;font-weight:900;font-size:11px;text-align:center;cursor:pointer;letter-spacing:-.2px}
+.tweaks .opt.on{background:var(--y);box-shadow:var(--shadow-sm) inset}
+.tweaks .swatch{width:32px;height:32px;border-radius:50%;border:2.5px solid var(--ink);cursor:pointer;flex:0 0 auto;position:relative}
+.tweaks .swatch.on::after{content:"";position:absolute;inset:-5px;border:2px dashed var(--ink);border-radius:50%}
+
+/* tweak toggle button */
+/* ====== SOCIAL TAB ====== */
+.soc{flex:1;overflow-y:auto;background:var(--cream,#F2F0EC);padding-bottom:100px;position:relative}
+.soc::-webkit-scrollbar{display:none}
+.soc-top{padding:14px 16px 8px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.soc-top h1{margin:0;font-size:24px;font-weight:900;letter-spacing:-.5px;font-family:"Bagel Fat One",serif}
+.ghost-toggle{display:flex;align-items:center;gap:6px;background:var(--g);color:#fff;border:2.5px solid var(--ink);box-shadow:3px 3px 0 var(--ink);border-radius:999px;padding:5px 12px 5px 8px;font-weight:900;font-size:11.5px;letter-spacing:-.2px;cursor:pointer}
+.ghost-toggle.off{background:#8b7355}
+.ghost-toggle .led{width:8px;height:8px;border-radius:50%;background:#fff;box-shadow:0 0 0 2px var(--ink),0 0 6px #fff;animation:gpulse 1.6s infinite}
+@keyframes gpulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+.radar-wrap{position:relative;margin:6px 14px 0;height:220px;border-radius:18px;border:2.5px solid var(--ink);box-shadow:5px 5px 0 var(--ink);overflow:hidden;background:radial-gradient(circle at 50% 55%,#FFE9C2,#FFD8A0 50%,#FFC078 100%)}
+.radar-wrap::before{content:"";position:absolute;inset:0;background-image:radial-gradient(circle,rgba(26,22,18,.1) 1px,transparent 1.4px);background-size:5px 5px;mix-blend-mode:multiply;opacity:.5}
+.radar-ring{position:absolute;border:1.5px dashed rgba(26,22,18,.35);border-radius:50%}
+.radar-ring.r1{inset:30%}.radar-ring.r2{inset:18%}.radar-ring.r3{inset:6%}
+.radar-me{position:absolute;left:50%;top:55%;transform:translate(-50%,-50%);width:42px;height:42px;border-radius:50%;background:var(--y);border:3px solid var(--ink);box-shadow:3px 3px 0 var(--ink);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:15px;z-index:2}
+.radar-me::after{content:"";position:absolute;inset:-12px;border:2.5px solid var(--r);border-radius:50%;animation:radarp 2.4s ease-out infinite;opacity:.7}
+@keyframes radarp{0%{transform:scale(.6);opacity:.9}100%{transform:scale(2);opacity:0}}
+.radar-pin{position:absolute;width:38px;height:38px;border-radius:50%;border:2.5px solid var(--ink);box-shadow:2px 2px 0 var(--ink);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;color:#fff;transform:translate(-50%,-50%);cursor:pointer;transition:transform .15s}
+.radar-pin:hover{transform:translate(-50%,-50%) scale(1.15)}
+.radar-pin .dist{position:absolute;top:38px;left:50%;transform:translateX(-50%);background:#fff;color:var(--ink);border:1.5px solid var(--ink);box-shadow:1.5px 1.5px 0 var(--ink);font-size:9.5px;font-weight:900;padding:1px 5px;border-radius:5px;white-space:nowrap}
+
+.soc-seg{margin:14px 14px 8px;display:flex;background:#fff;border:2.5px solid var(--ink);box-shadow:3px 3px 0 var(--ink);border-radius:11px;padding:3px;font-weight:900;font-size:11.5px;letter-spacing:-.2px}
+.soc-seg div{flex:1;text-align:center;padding:7px 0;border-radius:8px;color:#8b7355;cursor:pointer}
+.soc-seg div.on{background:var(--ink);color:var(--y)}
+
+.soc-list{padding:0 14px;display:flex;flex-direction:column;gap:8px;margin-top:6px}
+.frow{display:flex;align-items:center;gap:10px;padding:10px;background:#fff;border:2.5px solid var(--ink);box-shadow:3px 3px 0 var(--ink);border-radius:13px}
+.frow .av{width:38px;height:38px;border-radius:50%;border:2.5px solid var(--ink);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;color:#fff;flex-shrink:0}
+.frow .meta{flex:1;min-width:0}
+.frow .meta .nm{font-weight:900;font-size:13px;letter-spacing:-.3px;display:flex;align-items:center;gap:6px}
+.frow .meta .lo{font-size:10.5px;color:#8b7355;font-weight:700;margin-top:2px}
+.frow .stat{padding:2px 6px;border-radius:5px;font-size:9px;font-weight:900;border:1.5px solid var(--ink);box-shadow:1.5px 1.5px 0 var(--ink)}
+.frow .stat.on{background:var(--g);color:#fff}
+.frow .stat.gh{background:#E8E0D2;color:#8b7355}
+.crewchip{padding:1px 7px;font-size:9px;border-radius:999px;background:var(--y);border:1.5px solid var(--ink);box-shadow:1.5px 1.5px 0 var(--ink);font-weight:900}
+.actbtn{display:inline-flex;align-items:center;justify-content:center;gap:4px;background:var(--r);color:#fff;border:2px solid var(--ink);box-shadow:2px 2px 0 var(--ink);border-radius:8px;padding:5px 10px;font-weight:900;font-size:11px;cursor:pointer;letter-spacing:-.2px}
+.actbtn.cool{background:var(--b)}
+.actbtn.green{background:var(--g)}
+
+.soc-h2{padding:0 16px;margin:18px 0 8px;font-size:13px;font-weight:900;letter-spacing:-.3px;display:flex;justify-content:space-between;align-items:center;font-family:"Bagel Fat One",serif}
+.soc-h2 .more{font-size:11px;font-weight:800;color:var(--r);font-family:-apple-system,system-ui,sans-serif;cursor:pointer}
+
+.crew-card{margin:0 14px;padding:14px;border-radius:16px;background:linear-gradient(135deg,#FF6B6B,#FF4757);border:2.5px solid var(--ink);box-shadow:5px 5px 0 var(--ink);color:#fff;position:relative;overflow:hidden}
+.crew-card::before{content:"";position:absolute;inset:0;background-image:radial-gradient(circle,rgba(255,255,255,.2) 1px,transparent 1.4px);background-size:5px 5px;mix-blend-mode:overlay;opacity:.6}
+.crew-card .hd{display:flex;align-items:center;justify-content:space-between;position:relative}
+.crew-card .hd .nm{font-size:18px;font-weight:900;letter-spacing:-.5px}
+.crew-card .hd .rk{padding:4px 10px;background:var(--y);color:var(--ink);border:2px solid var(--ink);border-radius:8px;font-weight:900;font-size:11px;box-shadow:2px 2px 0 var(--ink);transform:rotate(4deg)}
+.crew-card .stats{display:flex;gap:16px;margin-top:14px;position:relative}
+.crew-card .st{flex:1}
+.crew-card .st .v{font-size:24px;font-weight:900;letter-spacing:-.5px;line-height:1;font-family:"Bagel Fat One",serif}
+.crew-card .st .l{font-size:10px;font-weight:800;opacity:.85;margin-top:4px;letter-spacing:-.2px}
+.crew-card .members{display:flex;margin-top:12px;position:relative}
+.crew-card .members .av{width:28px;height:28px;border-radius:50%;border:2.5px solid #fff;font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;background:#fff;color:var(--ink);margin-left:-8px}
+.crew-card .members .av:first-child{margin-left:0}
+
+.fab-spark{position:absolute;right:18px;bottom:96px;z-index:50;display:flex;align-items:center;gap:10px}
+.fab-spark .lab{background:var(--ink);color:var(--paper);font-size:11px;font-weight:900;padding:5px 9px;border-radius:7px;letter-spacing:-.2px;border:2px solid var(--ink);box-shadow:2px 2px 0 rgba(0,0,0,.35)}
+.fab-spark .btn{width:60px;height:60px;border-radius:50%;background:var(--r);border:3px solid var(--ink);box-shadow:4px 4px 0 var(--ink);color:#fff;font-size:28px;font-weight:900;display:flex;align-items:center;justify-content:center;cursor:pointer;animation:fabbob 2.6s ease-in-out infinite}
+@keyframes fabbob{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-3px) rotate(2deg)}}
+
+/* live activity (stories + feed) */
+.act-h{padding:0 16px;margin:18px 0 8px;display:flex;align-items:center;gap:8px}
+.act-h h3{margin:0;font-size:18px;font-weight:900;letter-spacing:-.4px;font-family:"Bagel Fat One",serif;display:flex;align-items:center;gap:8px}
+.act-h .live{padding:2px 7px;background:var(--r);color:#fff;border-radius:5px;font-size:10px;font-weight:900;letter-spacing:.5px;border:2px solid var(--ink);box-shadow:2px 2px 0 var(--ink);animation:liveblink 1.6s infinite;font-family:-apple-system,system-ui,sans-serif}
+@keyframes liveblink{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}
+.act-h .new{margin-left:auto;padding:3px 10px;background:var(--ink);color:var(--y);border-radius:999px;font-size:10px;font-weight:900;letter-spacing:.5px}
+.stories{padding:6px 14px 12px;display:flex;gap:10px;overflow-x:auto;scrollbar-width:none}
+.stories::-webkit-scrollbar{display:none}
+.story{flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:4px;width:62px;cursor:pointer}
+.story .ring{width:54px;height:54px;border-radius:50%;padding:3px;background:linear-gradient(135deg,var(--r),var(--y),var(--p));border:2.5px solid var(--ink);box-sizing:border-box}
+.story .ring.viewed{background:#E8E0D2}
+.story .ring.add{background:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:900;color:var(--ink)}
+.story .av{width:100%;height:100%;border-radius:50%;border:2.5px solid #fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;color:#fff;box-sizing:border-box}
+.story .nm{font-size:9.5px;font-weight:800;letter-spacing:-.2px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%}
+.act-seg{margin:0 14px 10px;display:flex;background:#fff;border:2.5px solid var(--ink);box-shadow:3px 3px 0 var(--ink);border-radius:11px;padding:3px;font-weight:900;font-size:11.5px}
+.act-seg div{flex:1;text-align:center;padding:6px 0;border-radius:8px;color:#8b7355;cursor:pointer}
+.act-seg div.on{background:var(--ink);color:var(--y)}
+.act-feed{padding:0 14px;display:flex;flex-direction:column;gap:10px}
+.ev{background:#fff;border:2.5px solid var(--ink);box-shadow:3px 3px 0 var(--ink);border-radius:13px;padding:11px;display:flex;flex-direction:column;gap:8px}
+.ev .hd{display:flex;align-items:center;gap:8px}
+.ev .hd .av{width:30px;height:30px;border-radius:50%;border:2px solid var(--ink);font-size:12px;color:#fff;font-weight:900;display:flex;align-items:center;justify-content:center}
+.ev .hd .name{font-weight:900;font-size:12.5px;letter-spacing:-.2px}
+.ev .hd .name b{color:var(--r)}
+.ev .hd .when{font-size:9.5px;color:#8b7355;font-weight:700;margin-top:1px}
+.ev .body{font-size:12.5px;font-weight:700;line-height:1.45;letter-spacing:-.2px}
+.ev .preview{display:flex;align-items:center;gap:8px;padding:8px;border:2px solid var(--ink);border-radius:9px;background:#FFFAEB}
+.ev .preview .em{font-size:22px}
+.ev .preview .pl{flex:1;min-width:0}
+.ev .preview .pl .pn{font-weight:900;font-size:12px;letter-spacing:-.3px}
+.ev .preview .pl .pm{font-size:10px;color:#8b7355;font-weight:700;margin-top:2px}
+.ev .acts{display:flex;gap:6px;flex-wrap:wrap}
+.ev .acts .actbtn{flex:0 0 auto}
+.actbtn.y{background:var(--y);color:var(--ink)}
+
+/* ====== SOCIAL NOTIFICATIONS (compact list) ====== */
+.noti-list{padding:0 14px;display:flex;flex-direction:column;gap:6px}
+.noti{background:#fff;border:2.5px solid var(--ink);box-shadow:2px 2px 0 var(--ink);border-radius:11px;padding:8px 10px;display:flex;align-items:center;gap:9px;cursor:pointer;transition:transform .12s;position:relative}
+.noti:active{transform:translate(1px,1px);box-shadow:1px 1px 0 var(--ink)}
+.noti.new{background:#FFFAEB}
+.noti .ic{width:34px;height:34px;border-radius:50%;border:2.5px solid var(--ink);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;color:var(--ink);flex-shrink:0;box-shadow:2px 2px 0 var(--ink)}
+.noti .meta{flex:1;min-width:0}
+.noti .ln{font-size:12.5px;font-weight:800;color:var(--ink);letter-spacing:-.2px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.noti .ln b{font-weight:900}
+.noti .ln .pl{display:inline-block;padding:1px 6px;background:var(--y);border:1.5px solid var(--ink);border-radius:5px;font-size:10.5px;font-weight:900;margin-left:4px;vertical-align:1px}
+.noti .when{font-size:10px;font-weight:700;color:rgba(26,22,18,.5);margin-top:1px;font-family:-apple-system,system-ui,sans-serif}
+.noti .dot{width:8px;height:8px;border-radius:50%;background:var(--r);border:1.5px solid var(--ink);flex-shrink:0}
+
+/* ====== MESSAGES TAB ====== */
+.msgscr{flex:1;overflow-y:auto;background:var(--cream,#F2F0EC);padding-bottom:100px}
+.msgscr::-webkit-scrollbar{display:none}
+.msg-top{padding:14px 16px 8px;display:flex;align-items:center;justify-content:space-between}
+.msg-top h1{margin:0;font-size:24px;font-weight:900;letter-spacing:-.5px;font-family:"Bagel Fat One",serif}
+.msg-actions{display:flex;gap:8px}
+.msg-iconbtn{width:38px;height:38px;border-radius:50%;background:#fff;border:2.5px solid var(--ink);box-shadow:3px 3px 0 var(--ink);font-size:16px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit;transition:transform .12s}
+.msg-iconbtn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+.msg-iconbtn.primary{background:var(--r);color:#fff;font-size:20px}
+.msg-search{margin:6px 14px 12px;height:42px;background:#fff;border:2.5px solid var(--ink);box-shadow:3px 3px 0 var(--ink);border-radius:12px;display:flex;align-items:center;gap:8px;padding:0 12px}
+.msg-search input{flex:1;border:none;outline:none;font:inherit;font-weight:700;font-size:13px;background:transparent;color:var(--ink)}
+.msg-search input::placeholder{color:rgba(26,22,18,.4)}
+.call-card{margin:0 14px 12px;background:linear-gradient(135deg,#FF6B9A,#FFB400);border:2.5px solid var(--ink);box-shadow:5px 5px 0 var(--ink);border-radius:14px;padding:12px;display:flex;align-items:center;gap:10px;cursor:pointer;position:relative;overflow:hidden}
+.call-card::before{content:"";position:absolute;inset:0;background-image:radial-gradient(circle,rgba(255,255,255,.18) 1px,transparent 1.4px);background-size:6px 6px;mix-blend-mode:overlay}
+.call-emojis{display:flex;position:relative;z-index:1}
+.call-emojis .av{width:36px;height:36px;border-radius:50%;border:2.5px solid var(--ink);box-shadow:2px 2px 0 var(--ink);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;color:var(--ink);margin-left:-8px}
+.call-emojis .av:first-child{margin-left:0}
+.call-info{flex:1;min-width:0;position:relative;z-index:1;color:#fff;text-shadow:1px 1px 0 var(--ink)}
+.call-info .ttl{font-weight:900;font-size:14px;letter-spacing:-.3px;display:flex;align-items:center;gap:6px}
+.call-info .sub{font-size:11px;font-weight:800;margin-top:2px;opacity:.95}
+.live-badge{background:#fff;color:var(--r);border:2px solid var(--ink);border-radius:5px;padding:1px 6px;font-size:9px;font-weight:900;letter-spacing:.5px;text-shadow:none;animation:liveblink 1.6s infinite}
+.join-btn{background:#fff;color:var(--ink);border:2.5px solid var(--ink);box-shadow:2px 2px 0 var(--ink);border-radius:10px;padding:7px 12px;font-weight:900;font-size:12px;cursor:pointer;font-family:inherit;position:relative;z-index:1;letter-spacing:-.2px}
+.join-btn:active{transform:translate(2px,2px);box-shadow:0 0 0 var(--ink)}
+.quick-row{padding:0 14px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.quick{background:#fff;border:2.5px solid var(--ink);box-shadow:3px 3px 0 var(--ink);border-radius:12px;padding:9px 4px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;transition:transform .12s}
+.quick:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+.quick .q-ic{width:36px;height:36px;border-radius:50%;border:2px solid var(--ink);display:flex;align-items:center;justify-content:center;font-size:18px}
+.quick .q-ic.y{background:var(--y)}
+.quick .q-ic.r{background:var(--r);color:#fff}
+.quick .q-ic.b{background:#4FBDFF}
+.quick .q-ic.g{background:#3DDC97}
+.quick .q-lb{font-size:10px;font-weight:900;letter-spacing:-.2px;text-align:center;line-height:1.1}
+.msg-seg{margin:0 14px 10px;display:flex;background:#fff;border:2.5px solid var(--ink);border-radius:10px;box-shadow:3px 3px 0 var(--ink);overflow:hidden}
+.msg-seg div{flex:1;text-align:center;padding:8px 0;font-weight:900;font-size:12px;cursor:pointer;letter-spacing:-.2px;border-right:2px solid var(--ink)}
+.msg-seg div:last-child{border-right:none}
+.msg-seg div.on{background:var(--y)}
+.msg-h2{padding:0 16px;margin:14px 0 8px;font-size:14px;font-weight:900;letter-spacing:-.3px;display:flex;justify-content:space-between;align-items:center;font-family:"Bagel Fat One",serif}
+.msg-h2 .more{font-size:11px;font-weight:800;color:var(--r);font-family:-apple-system,system-ui,sans-serif;cursor:pointer}
+.chat-list{padding:0 14px;display:flex;flex-direction:column;gap:8px}
+.chat-row{background:#fff;border:2.5px solid var(--ink);box-shadow:3px 3px 0 var(--ink);border-radius:12px;padding:10px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:transform .12s}
+.chat-row:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+.chat-row.pinned{background:#FFF8DC}
+.chat-row.group{background:linear-gradient(135deg,#fff,#FFFAEB)}
+.chat-av{width:46px;height:46px;border-radius:50%;border:2.5px solid var(--ink);box-shadow:2px 2px 0 var(--ink);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:16px;color:var(--ink);position:relative;flex-shrink:0}
+.chat-av.group{background:#fff;font-size:22px}
+.chat-av.group .cnt{position:absolute;bottom:-4px;right:-4px;background:var(--ink);color:var(--y);border:2px solid var(--ink);border-radius:999px;padding:0 5px;font-size:9px;font-weight:900;line-height:1.5}
+.chat-av .online{position:absolute;bottom:0;right:0;width:12px;height:12px;border-radius:50%;background:#3DDC97;border:2px solid var(--ink)}
+.chat-meta{flex:1;min-width:0}
+.chat-line1{display:flex;justify-content:space-between;align-items:center;gap:6px}
+.chat-line2{display:flex;justify-content:space-between;align-items:center;gap:6px;margin-top:2px}
+.chat-nm{font-weight:900;font-size:14px;letter-spacing:-.3px;display:flex;align-items:center;gap:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chat-time{font-size:10px;font-weight:800;color:rgba(26,22,18,.5);font-family:-apple-system,system-ui,sans-serif;flex-shrink:0}
+.chat-prev{font-size:12px;font-weight:700;color:rgba(26,22,18,.65);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+.chat-prev b{color:var(--ink);font-weight:900}
+.badge.unread{background:var(--r);color:#fff;border:2px solid var(--ink);border-radius:999px;padding:0 6px;font-size:10px;font-weight:900;line-height:1.6;flex-shrink:0;font-family:-apple-system,system-ui,sans-serif}
+.pin-ic{font-size:11px;transform:rotate(35deg)}
+
+/* ====== CHARACTER TAB (legacy, unused) ====== */
+.charscr{flex:1;overflow-y:auto;background:var(--cream,#F2F0EC);padding-bottom:100px}
+.charscr::-webkit-scrollbar{display:none}
+.char-top{padding:14px 16px 6px;display:flex;align-items:center;justify-content:space-between}
+.char-top h1{margin:0;font-size:24px;font-weight:900;letter-spacing:-.5px;font-family:"Bagel Fat One",serif}
+.char-coin{display:flex;align-items:center;gap:5px;background:var(--y);border:2.5px solid var(--ink);box-shadow:3px 3px 0 var(--ink);border-radius:999px;padding:5px 11px 5px 5px;font-weight:900;font-size:13px;font-family:"Bagel Fat One",serif}
+.char-coin .em{font-size:18px}
+.stage{margin:6px 14px 0;height:300px;border-radius:18px;border:2.5px solid var(--ink);box-shadow:5px 5px 0 var(--ink);background:radial-gradient(ellipse 200px 120px at 50% 80%,#FFE066,#FFD93D 60%,#FFB400);position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.stage::before{content:"";position:absolute;inset:0;background-image:radial-gradient(circle,rgba(26,22,18,.15) 1px,transparent 1.4px);background-size:6px 6px;mix-blend-mode:multiply;opacity:.45}
+.stage .lines{position:absolute;inset:0;background:repeating-conic-gradient(from 0deg at 50% 100%,transparent 0deg 6deg,rgba(26,22,18,.06) 6deg 8deg);mix-blend-mode:multiply}
+.stage .ch{position:relative;z-index:2;text-align:center;animation:stagebob 3s ease-in-out infinite}
+@keyframes stagebob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+.stage .ch .body{font-size:130px;line-height:1;filter:drop-shadow(4px 4px 0 var(--ink))}
+.stage .stbadge{position:absolute;top:12px;left:12px;background:var(--r);color:#fff;border:2.5px solid var(--ink);box-shadow:2px 2px 0 var(--ink);border-radius:8px;padding:3px 8px;font-weight:900;font-size:11px;letter-spacing:-.2px}
+.stage .nm{position:absolute;bottom:12px;left:12px;background:#fff;border:2.5px solid var(--ink);box-shadow:2px 2px 0 var(--ink);border-radius:8px;padding:4px 9px;font-weight:900;font-size:12px;letter-spacing:-.2px;display:flex;align-items:center;gap:5px}
+.stage .rotate{position:absolute;bottom:12px;right:12px;width:36px;height:36px;background:#fff;border:2.5px solid var(--ink);box-shadow:2px 2px 0 var(--ink);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer}
+.char-h2{padding:0 16px;margin:14px 0 8px;font-size:14px;font-weight:900;letter-spacing:-.3px;display:flex;justify-content:space-between;align-items:center;font-family:"Bagel Fat One",serif}
+.char-h2 .more{font-size:11px;font-weight:800;color:var(--r);font-family:-apple-system,system-ui,sans-serif;cursor:pointer}
+.slots{padding:0 14px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.slot{background:#fff;border:2.5px solid var(--ink);box-shadow:3px 3px 0 var(--ink);border-radius:12px;padding:8px;display:flex;flex-direction:column;align-items:center;gap:3px;position:relative;cursor:pointer}
+.slot .ic{width:42px;height:42px;border-radius:8px;background:var(--cream,#F2F0EC);border:2px solid var(--ink);display:flex;align-items:center;justify-content:center;font-size:24px}
+.slot.empty .ic{background:repeating-linear-gradient(45deg,#fff 0 6px,#E8E0D2 6px 12px);color:rgba(26,22,18,.4);font-size:18px}
+.slot .lab{font-size:9.5px;font-weight:800;color:#8b7355;letter-spacing:-.2px}
+.slot .nm{font-size:10.5px;font-weight:900;letter-spacing:-.2px;text-align:center;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.slot.eq::after{content:"E";position:absolute;top:-6px;right:-6px;width:18px;height:18px;background:var(--g);color:#fff;border:2px solid var(--ink);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:900;box-shadow:1.5px 1.5px 0 var(--ink)}
+.slot .new{position:absolute;top:-6px;left:-6px;background:var(--r);color:#fff;border:2px solid var(--ink);border-radius:5px;padding:0 4px;font-size:8.5px;font-weight:900;letter-spacing:.5px;box-shadow:1.5px 1.5px 0 var(--ink)}
+.friendlooks{padding:0 0 0 14px;display:flex;gap:10px;overflow-x:auto;padding-right:14px}
+.friendlooks::-webkit-scrollbar{display:none}
+.flook{flex-shrink:0;width:108px;background:#fff;border:2.5px solid var(--ink);box-shadow:3px 3px 0 var(--ink);border-radius:13px;padding:0;overflow:hidden;cursor:pointer;display:flex;flex-direction:column}
+.flook .pose{height:108px;position:relative;display:flex;align-items:flex-end;justify-content:center;padding-bottom:6px}
+.flook .pose .em{font-size:60px;line-height:1;filter:drop-shadow(2px 2px 0 var(--ink));position:relative;z-index:2}
+.flook.p1 .pose{background:linear-gradient(180deg,#FFE9F1,#FFFAEB)}
+.flook.p2 .pose{background:linear-gradient(180deg,#E0F2FE,#FFFAEB)}
+.flook.p3 .pose{background:linear-gradient(180deg,#E0F8E0,#FFFAEB)}
+.flook.p4 .pose{background:linear-gradient(180deg,#FFE9C2,#FFFAEB)}
+.flook .pose::before{content:"";position:absolute;inset:0;background-image:radial-gradient(circle,rgba(26,22,18,.12) 1px,transparent 1.4px);background-size:5px 5px;mix-blend-mode:multiply;opacity:.4}
+.flook .meta{padding:8px;border-top:2px solid var(--ink);display:flex;align-items:center;justify-content:space-between;gap:6px;background:#fff}
+.flook .meta .who{display:flex;align-items:center;gap:5px;min-width:0}
+.flook .meta .av{width:20px;height:20px;border-radius:50%;font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;color:#fff;border:1.5px solid var(--ink);flex-shrink:0}
+.flook .meta .nm{font-size:10px;font-weight:900;letter-spacing:-.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.flook .meta .heart{font-size:10px;font-weight:900;color:var(--r);white-space:nowrap}
+.flook .tag{position:absolute;top:6px;right:6px;background:var(--ink);color:var(--y);border-radius:5px;padding:1px 5px;font-size:8.5px;font-weight:900;letter-spacing:.5px;z-index:3}
+.flook .tag.try{background:var(--r);color:#fff}
+
+.tweakbtn{position:fixed;right:24px;bottom:24px;z-index:999;background:var(--ink);color:var(--paper);width:48px;height:48px;border-radius:24px;display:none;align-items:center;justify-content:center;cursor:pointer;font-size:20px;box-shadow:4px 4px 0 rgba(0,0,0,.3)}
+.tweakbtn.on{display:flex}
+</style>
+</head>
+<body style="background-color: rgb(242, 240, 236)">
+<div class="stamp tl">WhereHere · v0.1</div>
+<div class="stamp br">SHŌNEN INK<br/>EXPLORATION SOCIAL</div>
+
+<!-- ====================== PHONE ====================== -->
+<div class="phone" id="phone">
+  <div class="island"></div>
+  <div class="statusbar">
+    <span>9:41</span>
+    <span class="right">
+      <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><path d="M1 4 L8.5 1 L16 4" stroke="currentColor" stroke-width="1.5" fill="none"/><circle cx="8.5" cy="9" r="1.2"/><path d="M3.5 5 L8.5 3 L13.5 5" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>
+      <svg width="22" height="12" viewBox="0 0 22 12"><rect x="0.5" y="0.5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="15" height="8" rx="1.5" fill="currentColor"/><rect x="19.5" y="3.5" width="2" height="5" rx="1" fill="currentColor"/></svg>
+    </span>
+  </div>
+
+  <!-- ===== MAP SCREEN ===== -->
+  <div class="screen on" data-screen="map">
+    <div id="map"></div>
+    <div class="wx" id="wxlayer"></div>
+    <div class="pow" id="pow" style="display:none">
+      <svg width="84" height="84" viewBox="0 0 92 92">
+        <path d="M46 4 L 56 22 L 76 14 L 70 34 L 88 38 L 72 52 L 84 70 L 64 66 L 56 86 L 46 70 L 36 86 L 28 66 L 8 70 L 20 52 L 4 38 L 22 34 L 16 14 L 36 22 Z" fill="#FFD93D" stroke="#1a1612" stroke-width="3" stroke-linejoin="round"/>
+        <text x="46" y="55" text-anchor="middle" font-size="18" font-weight="900" fill="#1a1612" font-family="Pretendard,sans-serif">EVENT!</text>
+      </svg>
+    </div>
+
+    <!-- top bar -->
+    <div class="topbar">
+      <div class="search" onclick="showToast('🔎 검색 준비 중')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+        오늘 어디로?!
+      </div>
+      <div class="iconbtn" onclick="showToast('🔔 알림 3개')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21a2 2 0 004 0"/></svg>
+        <span class="badge">3</span>
+      </div>
+    </div>
+
+    <!-- weather chip -->
+    <div class="wxchip" id="wxchip" onclick="cycleWeather()">
+      <span class="ic" id="wxic">☀️</span>
+      <span id="wxtxt">--°</span>
+    </div>
+
+    <!-- right top stack -->
+    <div class="rstack-top">
+      <div class="fab layers" onclick="showToast('🗂 레이어 필터')">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 12l9 5 9-5"/><path d="M3 17l9 5 9-5"/></svg>
+      </div>
+    </div>
+
+    <!-- right bottom stack -->
+    <div class="rstack-bot">
+      <div class="fab event" onclick="showToast('✏️ 이벤트 만들기')">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+        <span class="tt">이벤트 만들기</span>
+      </div>
+      <div class="fab track" onclick="showToast('👣 흔적 만들기')">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><ellipse cx="8" cy="9" rx="2" ry="3"/><ellipse cx="14" cy="7" rx="1.6" ry="2.4"/><ellipse cx="17" cy="11" rx="1.4" ry="2"/><ellipse cx="6" cy="13" rx="1.4" ry="2"/><path d="M7 17c0-3 4-3 4-1s-3 4-3 5 1 1 2 1 2-1 2-2"/></svg>
+        <span class="tt">흔적 만들기</span>
+      </div>
+      <div class="fab locate" onclick="locateMe()">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+        <span class="tt">내 위치</span>
+      </div>
+    </div>
+
+    <!-- near scroll -->
+    <div class="nearwrap">
+      <div class="nearheader">
+        <h3>근처 탐험지 <span class="ct">3</span></h3>
+        <span class="more">더보기 ›</span>
+      </div>
+      <div class="nearscroll" id="nearscroll"></div>
+    </div>
+
+    <!-- toast -->
+    <div class="toast" id="toast"><span class="star"></span><span id="toasttxt">NEW</span></div>
+  </div>
+
+  <!-- ===== FEED SCREEN ===== -->
+  <div class="screen" data-screen="feed">
+    <div class="feedhead">
+      <div class="feedtop">
+        <div class="brand-pill"><span class="dot">W</span>WHEREHERE</div>
+        <div class="iconbtn" style="width:38px;height:38px;border-radius:19px;background:#fff" onclick="showToast('🔔 알림 3개')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21a2 2 0 004 0"/></svg>
+        </div>
+      </div>
+      <div class="feedtabs">
+        <div class="ftab on" onclick="setFeedTab(this,0)">추천</div>
+        <div class="ftab" onclick="setFeedTab(this,1)">팔로잉</div>
+      </div>
+    </div>
+    <div class="feedscroll" id="feedscroll"></div>
+  </div>
+
+  <!-- ============== SOCIAL ============== -->
+  <div class="screen" data-screen="social">
+    <div class="soc">
+      <div class="soc-top">
+        <h1>친구들 👥</h1>
+        <div class="ghost-toggle" id="ghostToggle" onclick="toggleGhost()"><span class="led"></span><span id="ghostLab">고스트 OFF</span></div>
+      </div>
+
+      <div class="soc-h2" style="margin-top:6px">스토리 🎬<span class="more" onclick="showToast('🎬 스토리 전체')">전체 →</span></div>
+      <div class="stories">
+        <div class="story" onclick="showToast('+ 내 스토리 올리기')"><div class="ring add">+</div><div class="nm">스토리</div></div>
+        <div class="story" onclick="showToast('🎬 주정빈 스토리')"><div class="ring"><div class="av" style="background:#3DDC97">정</div></div><div class="nm">주정빈</div></div>
+        <div class="story" onclick="showToast('🎬 주민혜 스토리')"><div class="ring"><div class="av" style="background:#FF6B9A">주</div></div><div class="nm">주민혜</div></div>
+        <div class="story" onclick="showToast('🎬 민지호 스토리')"><div class="ring"><div class="av" style="background:#4FBDFF">민</div></div><div class="nm">민지호</div></div>
+        <div class="story" onclick="showToast('🎬 하지원 스토리')"><div class="ring viewed"><div class="av" style="background:#FFB84D">하</div></div><div class="nm">하지원</div></div>
+        <div class="story" onclick="showToast('🎬 서윤 스토리')"><div class="ring viewed"><div class="av" style="background:#C5A6FF">서</div></div><div class="nm">서윤</div></div>
+      </div>
+
+      <div class="soc-h2" style="margin-top:14px">레이더 📡<span class="more" onclick="showToast('📡 지도에서 보기')">지도 →</span></div>
+      <div class="radar-wrap">
+        <div class="radar-ring r1"></div><div class="radar-ring r2"></div><div class="radar-ring r3"></div>
+        <div class="radar-me">권</div>
+        <div class="radar-pin" style="left:25%;top:30%;background:#3DDC97" onclick="showToast('📍 주정빈 — 정자동 카페거리')">정<div class="dist">120m</div></div>
+        <div class="radar-pin" style="left:72%;top:35%;background:#FF6B9A" onclick="showToast('📍 주민혜 — 우마블')">주<div class="dist">340m</div></div>
+        <div class="radar-pin" style="left:78%;top:72%;background:#4FBDFF" onclick="showToast('📍 민지호 — 12분 전')">민<div class="dist">580m</div></div>
+        <div class="radar-pin" style="left:18%;top:78%;background:#FFB84D" onclick="showToast('📍 하지원 — 정자초공원')">하<div class="dist">820m</div></div>
+      </div>
+      <div class="soc-seg">
+        <div class="on" onclick="setSocSeg(this,0)">근처 4명</div>
+        <div onclick="setSocSeg(this,1)">온라인 7</div>
+        <div onclick="setSocSeg(this,2)">전체</div>
+      </div>
+      <div class="soc-list">
+        <div class="frow">
+          <div class="av" style="background:#3DDC97">정</div>
+          <div class="meta">
+            <div class="nm">주정빈 <span class="crewchip">크루</span></div>
+            <div class="lo">📍 정자동 카페거리 · 120m</div>
+          </div>
+          <button class="actbtn" onclick="showToast('⚡ 만남 약속 보냄 — 주정빈')">만나기</button>
+        </div>
+        <div class="frow">
+          <div class="av" style="background:#FF6B9A">주</div>
+          <div class="meta">
+            <div class="nm">주민혜</div>
+            <div class="lo">📍 우마블에서 흔적 남김 · 340m</div>
+          </div>
+          <button class="actbtn cool" onclick="showToast('🚶 같이가기 신청 — 주민혜')">같이가기</button>
+        </div>
+        <div class="frow">
+          <div class="av" style="background:#4FBDFF">민</div>
+          <div class="meta">
+            <div class="nm">민지호</div>
+            <div class="lo">⏱ 12분 전 · 580m</div>
+          </div>
+          <span class="frow-stat stat gh" style="padding:2px 6px;border-radius:5px;font-size:9px;font-weight:900;border:1.5px solid var(--ink);background:#E8E0D2;color:#8b7355">GHOST</span>
+        </div>
+        <div class="frow">
+          <div class="av" style="background:#FFB84D">하</div>
+          <div class="meta">
+            <div class="nm">하지원 <span class="crewchip">크루</span></div>
+            <div class="lo">📍 정자초공원 · 820m</div>
+          </div>
+          <button class="actbtn" onclick="showToast('⚡ 만남 약속 보냄 — 하지원')">만나기</button>
+        </div>
+      </div>
+
+      <div class="soc-h2">내 크루 🏆<span class="more" onclick="showToast('🏆 크루 전체 보기')">전체 →</span></div>
+      <div class="crew-card" onclick="showToast('🍝 우마블 메이트 크루룸 진입')">
+        <div class="hd">
+          <div class="nm">우마블 메이트 🍝</div>
+          <div class="rk">#3 / 정자동</div>
+        </div>
+        <div class="stats">
+          <div class="st"><div class="v">1,240</div><div class="l">주간 EXP</div></div>
+          <div class="st"><div class="v">28</div><div class="l">발견 장소</div></div>
+          <div class="st"><div class="v">12</div><div class="l">멤버</div></div>
+        </div>
+        <div class="members">
+          <div class="av">권</div><div class="av">정</div><div class="av">주</div><div class="av">민</div><div class="av">하</div><div class="av">+7</div>
+        </div>
+      </div>
+
+      <div class="soc-h2">진행 중인 챌린지<span class="more" onclick="showToast('🏁 챌린지 전체')">전체 →</span></div>
+      <div style="padding:0 14px;display:flex;flex-direction:column;gap:8px">
+        <div class="frow" style="gap:12px">
+          <div style="width:46px;height:46px;background:var(--y);border:2.5px solid var(--ink);border-radius:11px;box-shadow:2px 2px 0 var(--ink);display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0">☕</div>
+          <div class="meta">
+            <div class="nm">정자동 카페 5곳 가기</div>
+            <div class="lo">남은 4일 · 보상 +120 EXP</div>
+            <div style="height:7px;background:#E8E0D2;border:1.5px solid var(--ink);border-radius:5px;margin-top:5px;overflow:hidden"><div style="height:100%;width:60%;background:var(--r);border-right:1.5px solid var(--ink)"></div></div>
+          </div>
+          <div style="font-weight:900;font-size:13px;color:var(--r);font-family:'Bagel Fat One',serif">3/5</div>
+        </div>
+      </div>
+
+      <div class="soc-h2" style="margin-top:18px">알림 🔔<span class="more" onclick="showToast('🔔 알림 전체')">전체 →</span></div>
+      <div class="noti-list">
+        <div class="noti new" onclick="showToast('🚀 주정빈 — 우마블')">
+          <div class="ic" style="background:#3DDC97">정</div>
+          <div class="meta"><div class="ln"><b>주정빈</b>님이 새 장소 발견 🚀 <span class="pl">우마블</span></div><div class="when">3분 전 · 정자동</div></div>
+          <span class="dot"></span>
+        </div>
+        <div class="noti new" onclick="showToast('✏️ 주민혜 — 정자초공원')">
+          <div class="ic" style="background:#FF6B9A">주</div>
+          <div class="meta"><div class="ln"><b>주민혜</b>님이 흔적 남김 ✏️</div><div class="when">12분 전 · 정자초공원</div></div>
+          <span class="dot"></span>
+        </div>
+        <div class="noti" onclick="showToast('🏆 하지원 — 챌린지 완료')">
+          <div class="ic" style="background:#FFB84D">하</div>
+          <div class="meta"><div class="ln"><b>하지원</b>님이 챌린지 완료 🏆 <span class="pl">+120 EXP</span></div><div class="when">1시간 전</div></div>
+        </div>
+        <div class="noti" onclick="showToast('💛 민지호 — 좋아요')">
+          <div class="ic" style="background:#4FBDFF">민</div>
+          <div class="meta"><div class="ln"><b>민지호</b>님이 내 흔적에 ❤ 눌렀어요</div><div class="when">2시간 전 · 정자초공원</div></div>
+        </div>
+        <div class="noti" onclick="showToast('👥 서윤 — 친구 추가')">
+          <div class="ic" style="background:#C5A6FF">서</div>
+          <div class="meta"><div class="ln"><b>서윤</b>님이 친구 추가 👥</div><div class="when">어제</div></div>
+        </div>
+      </div>
+
+      <div class="fab-spark">
+        <div class="lab">번개 약속</div>
+        <div class="btn" onclick="showToast('⚡ 새 번개 약속 만들기')">⚡</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============== MESSAGES ============== -->
+  <div class="screen" data-screen="msg">
+    <div class="msgscr">
+      <div class="msg-top">
+        <h1>메시지 💬</h1>
+        <div class="msg-actions">
+          <button class="msg-iconbtn" onclick="showToast('🎥 새 영상통화 시작')">📹</button>
+          <button class="msg-iconbtn primary" onclick="showToast('+ 새 메시지')">＋</button>
+        </div>
+      </div>
+
+      <div class="msg-search">
+        <span style="opacity:.5">🔍</span>
+        <input placeholder="이름·메시지 검색" onfocus="showToast('🔍 검색')"/>
+      </div>
+
+      <!-- 진행 중 통화 -->
+      <div class="call-card" onclick="showToast('🎥 우마블 메이트 단체 영상통화 입장')">
+        <div class="call-emojis">
+          <div class="av" style="background:#3DDC97">정</div>
+          <div class="av" style="background:#FF6B9A">주</div>
+          <div class="av" style="background:#FFB84D">하</div>
+        </div>
+        <div class="call-info">
+          <div class="ttl">우마블 메이트 <span class="live-badge">LIVE</span></div>
+          <div class="sub">단체 영상통화 진행 중 · 3명 참여</div>
+        </div>
+        <button class="join-btn" onclick="event.stopPropagation();showToast('🎥 통화 참여')">참여</button>
+      </div>
+
+      <!-- 빠른 액션 -->
+      <div class="quick-row">
+        <div class="quick" onclick="showToast('👥 새 그룹 만들기')"><div class="q-ic y">👥</div><div class="q-lb">그룹 만들기</div></div>
+        <div class="quick" onclick="showToast('🎥 단체 영상통화')"><div class="q-ic r">🎥</div><div class="q-lb">단체 영상</div></div>
+        <div class="quick" onclick="showToast('⚡ 번개 약속 채팅')"><div class="q-ic b">⚡</div><div class="q-lb">번개 약속</div></div>
+        <div class="quick" onclick="showToast('📍 위치 공유')"><div class="q-ic g">📍</div><div class="q-lb">위치 공유</div></div>
+      </div>
+
+      <div class="msg-seg">
+        <div class="on" onclick="setMsgSeg(this,0)">전체</div>
+        <div onclick="setMsgSeg(this,1)">그룹</div>
+        <div onclick="setMsgSeg(this,2)">DM</div>
+      </div>
+
+      <!-- 그룹 채팅방 -->
+      <div class="msg-h2">그룹 채팅방 <span class="crewchip" style="font-family:-apple-system,system-ui,sans-serif">3</span></div>
+      <div class="chat-list">
+        <div class="chat-row group pinned" onclick="showToast('🍝 우마블 메이트 채팅방')">
+          <div class="chat-av group">🍝<span class="cnt">12</span></div>
+          <div class="chat-meta">
+            <div class="chat-line1"><div class="chat-nm">우마블 메이트 <span class="pin-ic">📌</span></div><div class="chat-time">방금</div></div>
+            <div class="chat-line2"><div class="chat-prev"><b>주정빈</b>: 오늘 7시 우마블 ㄱㄱ 🍝</div><div class="badge unread">5</div></div>
+          </div>
+        </div>
+        <div class="chat-row group" onclick="showToast('🌸 벚꽃 시즌단 채팅방')">
+          <div class="chat-av group">🌸<span class="cnt">8</span></div>
+          <div class="chat-meta">
+            <div class="chat-line1"><div class="chat-nm">벚꽃 시즌단</div><div class="chat-time">12분 전</div></div>
+            <div class="chat-line2"><div class="chat-prev"><b>하지원</b>: 정자초 만개 사진 보냄 [사진]</div><div class="badge unread">2</div></div>
+          </div>
+        </div>
+        <div class="chat-row group" onclick="showToast('☕ 카페 탐험단 채팅방')">
+          <div class="chat-av group">☕<span class="cnt">5</span></div>
+          <div class="chat-meta">
+            <div class="chat-line1"><div class="chat-nm">카페 탐험단</div><div class="chat-time">1시간 전</div></div>
+            <div class="chat-line2"><div class="chat-prev">⚡ <b>주민혜</b>님이 번개 약속을 만들었어요</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 1:1 메시지 -->
+      <div class="msg-h2" style="margin-top:14px">개인 메시지 <span class="more" onclick="showToast('📩 보관함')">보관함 →</span></div>
+      <div class="chat-list">
+        <div class="chat-row" onclick="showToast('💬 주정빈 1:1 채팅')">
+          <div class="chat-av" style="background:#3DDC97">정<span class="online"></span></div>
+          <div class="chat-meta">
+            <div class="chat-line1"><div class="chat-nm">주정빈 <span class="crewchip" style="font-family:-apple-system,system-ui,sans-serif;font-size:9px;padding:0 5px">크루</span></div><div class="chat-time">2분 전</div></div>
+            <div class="chat-line2"><div class="chat-prev">📍 [위치] 정자동 카페거리 공유</div><div class="badge unread">1</div></div>
+          </div>
+        </div>
+        <div class="chat-row" onclick="showToast('💬 주민혜 1:1 채팅')">
+          <div class="chat-av" style="background:#FF6B9A">주<span class="online"></span></div>
+          <div class="chat-meta">
+            <div class="chat-line1"><div class="chat-nm">주민혜</div><div class="chat-time">15분 전</div></div>
+            <div class="chat-line2"><div class="chat-prev">너무 좋아 다음에 같이 가자!</div></div>
+          </div>
+        </div>
+        <div class="chat-row" onclick="showToast('💬 민지호 1:1 채팅')">
+          <div class="chat-av" style="background:#4FBDFF">민</div>
+          <div class="chat-meta">
+            <div class="chat-line1"><div class="chat-nm">민지호</div><div class="chat-time">어제</div></div>
+            <div class="chat-line2"><div class="chat-prev">📞 부재중 통화</div></div>
+          </div>
+        </div>
+        <div class="chat-row" onclick="showToast('💬 하지원 1:1 채팅')">
+          <div class="chat-av" style="background:#FFB84D">하<span class="online"></span></div>
+          <div class="chat-meta">
+            <div class="chat-line1"><div class="chat-nm">하지원 <span class="crewchip" style="font-family:-apple-system,system-ui,sans-serif;font-size:9px;padding:0 5px">크루</span></div><div class="chat-time">어제</div></div>
+            <div class="chat-line2"><div class="chat-prev">[음성 0:42]</div></div>
+          </div>
+        </div>
+        <div class="chat-row" onclick="showToast('💬 서윤 1:1 채팅')">
+          <div class="chat-av" style="background:#C5A6FF">서</div>
+          <div class="chat-meta">
+            <div class="chat-line1"><div class="chat-nm">서윤</div><div class="chat-time">2일 전</div></div>
+            <div class="chat-line2"><div class="chat-prev">ㅋㅋㅋ 그래 ㄱㄱ</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="screen prof-screen" data-screen="prof">
+    <div class="prof-head">
+      <h1>나의 탐험</h1>
+      <div class="gear" onclick="showToast('⚙ 설정')">⚙</div>
+    </div>
+
+    <!-- 장소 메모리 (최상단) -->
+    <div class="prof-card">
+      <div class="tape"></div>
+      <div class="prof-card-h">
+        <h3>장소 메모리 📸</h3>
+        <span class="more" onclick="showToast('📸 메모리 전체 보기')">최근 추가 ›</span>
+      </div>
+      <div class="poly-wrap">
+        <div class="polaroid add" onclick="showToast('+ 새 장소 메모리 추가')">
+          <div class="polaroid-img" style="background:repeating-linear-gradient(45deg,#FFFAEB,#FFFAEB 8px,#FFE9B0 8px,#FFE9B0 16px);display:flex;align-items:center;justify-content:center"><span class="em" style="font-size:36px">＋</span></div>
+          <div class="polaroid-ttl">새 메모리</div>
+          <div class="polaroid-date">사진 + 장소</div>
+        </div>
+        <div class="polaroid" onclick="showToast('🌅 노을이 예쁘던 날')">
+          <div class="polaroid-img" style="background:linear-gradient(180deg,#FF9D5C 0%,#D4602C 45%,#4A2D1A 100%)"><span class="em">🌅</span></div>
+          <div class="polaroid-ttl">노을이 예쁘던 날</div>
+          <div class="polaroid-date">2025.05.12</div>
+        </div>
+        <div class="polaroid" onclick="showToast('🌫 새벽 산책의 고요')">
+          <div class="polaroid-img" style="background:linear-gradient(180deg,#A8C8D6 0%,#4A6B7C 60%,#1A2B33 100%)"><span class="em">🌫</span></div>
+          <div class="polaroid-ttl">새벽 산책의 고요</div>
+          <div class="polaroid-date">2025.05.10</div>
+        </div>
+        <div class="polaroid" onclick="showToast('🌸 정자초 벚꽃길')">
+          <div class="polaroid-img" style="background:linear-gradient(180deg,#FFB3D1 0%,#E68FB5 60%,#5C2D4D 100%)"><span class="em">🌸</span></div>
+          <div class="polaroid-ttl">정자초 벚꽃길</div>
+          <div class="polaroid-date">2025.04.07</div>
+        </div>
+        <div class="polaroid" onclick="showToast('☕ 단골 카페의 오후')">
+          <div class="polaroid-img" style="background:linear-gradient(180deg,#F5D9A8 0%,#B8895C 55%,#3D2818 100%)"><span class="em">☕</span></div>
+          <div class="polaroid-ttl">단골 카페의 오후</div>
+          <div class="polaroid-date">2025.03.28</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 탐험 일기장 -->
+    <div class="prof-card diary">
+      <div class="prof-card-h">
+        <h3>탐험 일기장 📓</h3>
+        <button class="diary-add" onclick="showToast('＋ 새 일기 작성')">＋ 새 일기</button>
+      </div>
+      <div class="diary-list">
+        <div class="diary-entry" onclick="showToast('📓 정자동 카페투어 일기')">
+          <div class="diary-date"><div class="d">12</div><div class="m">5월</div></div>
+          <div class="diary-body">
+            <div class="diary-ttl">정자동 카페 투어 ☕<span class="vis" title="공개 범위">🌍 전체공개</span></div>
+            <div class="diary-txt">"5곳 전부 클리어! 우마블이 제일 좋았다. 다음엔 주민혜랑 같이 가야지 ㅎㅎ"</div>
+            <div class="diary-foot">
+              <span class="chiplet">📍 정자동 · 4곳</span>
+              <span class="chiplet love">❤ 12</span>
+              <span class="chiplet share" onclick="event.stopPropagation();showToast('📤 친구에게 공유 — 주정빈, 주민혜')">📤 공유</span>
+            </div>
+            <div class="diary-with">
+              <span class="with-lb">함께</span>
+              <div class="av-mini" style="background:#3DDC97">정</div>
+              <div class="av-mini" style="background:#FF6B9A">주</div>
+            </div>
+          </div>
+        </div>
+        <div class="diary-entry" onclick="showToast('📓 벚꽃 산책 일기')">
+          <div class="diary-date"><div class="d">07</div><div class="m">4월</div></div>
+          <div class="diary-body">
+            <div class="diary-ttl">벚꽃 산책 🌸<span class="vis">👥 친구만</span></div>
+            <div class="diary-txt">"바람 불 때마다 꽃잎이 비처럼 쏟아짐. 사진으로는 못 담는 게 아쉬움…"</div>
+            <div class="diary-foot">
+              <span class="chiplet">📍 정자초공원</span>
+              <span class="chiplet love">❤ 8</span>
+              <span class="chiplet">💬 3</span>
+              <span class="chiplet share" onclick="event.stopPropagation();showToast('📤 친구에게 공유')">📤 공유</span>
+            </div>
+          </div>
+        </div>
+        <div class="diary-entry locked" onclick="showToast('🔒 비공개 일기')">
+          <div class="diary-date"><div class="d">28</div><div class="m">3월</div></div>
+          <div class="diary-body">
+            <div class="diary-ttl">단골 카페의 오후 ☕<span class="vis lock">🔒 비공개</span></div>
+            <div class="diary-txt">"오늘 사장님이 새 원두 추천해주셨다. 케냐 AA — 산미가 부드럽고…"</div>
+            <div class="diary-foot">
+              <span class="chiplet">📍 카페 모먼트</span>
+              <span class="chiplet share" onclick="event.stopPropagation();showToast('🌍 공개로 전환')">🌍 공개</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 탐험 요약 -->
+    <div class="prof-card">
+      <div class="prof-card-h">
+        <h3>탐험 요약 <span class="chip">전체</span></h3>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="num">214</div><div class="lbl">탐험 장소</div></div>
+        <div class="stat"><div class="num">37</div><div class="lbl">도시</div></div>
+        <div class="stat"><div class="num">862</div><div class="lbl">기록</div></div>
+        <div class="stat"><div class="num">12</div><div class="lbl">수집품</div></div>
+      </div>
+    </div>
+
+    <!-- 탐험 그래프 -->
+    <div class="prof-card">
+      <div class="prof-card-h">
+        <h3>탐험 그래프</h3>
+        <div class="chart-toggle">
+          <button onclick="setChartTab(this,'주')">주</button>
+          <button class="on" onclick="setChartTab(this,'월')">월</button>
+          <button onclick="setChartTab(this,'연')">연</button>
+        </div>
+      </div>
+      <div class="chart">
+        <div class="chart-y"><span>20</span><span>10</span><span>0</span></div>
+        <div class="bars">
+          <div class="bar"><div class="b" style="--h:42%"></div><div class="lb">1월</div></div>
+          <div class="bar"><div class="b" style="--h:65%"></div><div class="lb">2월</div></div>
+          <div class="bar"><div class="b" style="--h:48%"></div><div class="lb">3월</div></div>
+          <div class="bar cur"><div class="b" data-v="18" style="--h:90%"></div><div class="lb">4월</div></div>
+          <div class="bar"><div class="b" style="--h:30%"></div><div class="lb">5월</div></div>
+          <div class="bar"><div class="b" style="--h:58%"></div><div class="lb">6월</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI 탐험 노트 -->
+    <div class="prof-card ai-note">
+      <div class="ai-text">
+        <h3>AI 탐험 노트</h3>
+        <p>당신은 '<span class="hl">따뜻한 분위기</span>'를 좋아해요. 최근에는 <b>카페</b>와 <b>자연</b>을 자주 찾았어요.</p>
+      </div>
+      <div class="ai-bot">
+        <svg width="76" height="86" viewBox="0 0 80 90">
+          <line x1="40" y1="10" x2="40" y2="20" stroke="#1a1612" stroke-width="2.5" stroke-linecap="round"/>
+          <circle cx="40" cy="7" r="3.5" fill="#FF4757" stroke="#1a1612" stroke-width="2"/>
+          <rect x="18" y="20" width="44" height="34" rx="7" fill="#fff" stroke="#1a1612" stroke-width="2.5"/>
+          <rect x="24" y="28" width="32" height="18" rx="3" fill="#1a1612"/>
+          <circle cx="33" cy="37" r="2.8" fill="#FFD93D"/>
+          <circle cx="47" cy="37" r="2.8" fill="#FFD93D"/>
+          <path d="M30 42 Q40 46 50 42" stroke="#FFD93D" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+          <rect x="22" y="56" width="36" height="26" rx="5" fill="#fff" stroke="#1a1612" stroke-width="2.5"/>
+          <rect x="30" y="62" width="20" height="7" rx="2" fill="#FFD93D" stroke="#1a1612" stroke-width="1.5"/>
+          <circle cx="34" cy="75" r="1.8" fill="#1a1612"/>
+          <circle cx="46" cy="75" r="1.8" fill="#1a1612"/>
+          <rect x="10" y="60" width="10" height="18" rx="4" fill="#fff" stroke="#1a1612" stroke-width="2.5"/>
+          <rect x="60" y="60" width="10" height="18" rx="4" fill="#fff" stroke="#1a1612" stroke-width="2.5"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- 탐험 허브 -->
+    <div class="prof-card-h" style="padding:0 4px 8px"><h3>탐험 허브</h3></div>
+    <div class="hub">
+      <div class="hub-tile" onclick="showToast('📔 탐험 일지')">
+        <div class="ic">📔</div>
+        <div><div class="lb">탐험 일지</div><div class="sub">AI 일지·공유</div></div>
+      </div>
+      <div class="hub-tile" onclick="showToast('🎟 시즌 패스')">
+        <div class="ic g">🎟</div>
+        <div><div class="lb">시즌 패스</div><div class="sub">보상 트랙</div></div>
+      </div>
+      <div class="hub-tile" onclick="showToast('💬 캐릭터 채팅')">
+        <div class="ic b">💬</div>
+        <div><div class="lb">캐릭터 채팅</div><div class="sub">AI 대화</div></div>
+      </div>
+      <div class="hub-tile" onclick="showToast('✨ 이벤트 제안')">
+        <div class="ic r">✨</div>
+        <div><div class="lb">이벤트 제안</div><div class="sub">UGC 생성</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TAB BAR (shared) ===== -->
+  <div class="tabbar">
+    <div class="tab on" data-tab="map" onclick="setTab(this)">
+      <div class="tabicon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2V6z"/><path d="M9 4v16M15 6v16"/></svg></div>
+      <span class="lb">지도</span>
+    </div>
+    <div class="tab" data-tab="feed" onclick="setTab(this)">
+      <div class="tabicon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5L5 21"/></svg></div>
+      <span class="lb">피드</span>
+    </div>
+    <div class="tab" data-tab="social" onclick="setTab(this)">
+      <div class="tabicon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"><circle cx="9" cy="7" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 19c0-3 3-5 6-5s6 2 6 5M14 19c.5-2 2.5-3 5-3s4 1 4 3"/></svg></div>
+      <span class="lb">소셜</span>
+    </div>
+    <div class="tab" data-tab="msg" onclick="setTab(this)">
+      <div class="tabicon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg></div>
+      <span class="lb">메시지</span>
+    </div>
+    <div class="tab" data-tab="prof" onclick="setTab(this)">
+      <div class="tabicon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg></div>
+      <span class="lb">프로필</span>
+    </div>
+  </div>
+
+  <div class="home"></div>
+</div>
+
+<!-- ============ TWEAKS ============ -->
+<div class="tweakbtn" id="tweakbtn" onclick="document.getElementById('tweaks').classList.toggle('on')">⚙</div>
+<div class="tweaks" id="tweaks">
+  <div class="hd">TWEAKS<span class="x" onclick="closeTweaks()">×</span></div>
+  <div class="body">
+    <div class="row">
+      <label>날씨 강제 적용</label>
+      <div class="opts" id="wxopts"></div>
+    </div>
+    <div class="row">
+      <label>마커 밀도</label>
+      <div class="opts" id="dnopts"></div>
+    </div>
+    <div class="row">
+      <label>포인트 컬러</label>
+      <div class="opts" id="acopts" style="gap:10px"></div>
+    </div>
+    <div class="row">
+      <label>효과 (구름·별·비)</label>
+      <div class="opts" id="fxopts"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============== STATE ============== */
+const TWEAKS = /*EDITMODE-BEGIN*/{
+  "weather": "snow",
+  "density": "normal",
+  "accent": "#4FBDFF",
+  "fx": true
+}/*EDITMODE-END*/;
+let state = Object.assign({}, TWEAKS);
+
+const HERO=[37.34921,127.10583];
+const POIS=[
+  {ll:[37.35080,127.10410],e:'🍝',n:'우마블',k:''},
+  {ll:[37.34980,127.10590],e:'☕',n:'어반플랜트',k:'warm'},
+  {ll:[37.34870,127.10720],e:'🍜',n:'봉피양',k:''},
+  {ll:[37.35200,127.10180],e:'🅿️',n:'정자공영',k:'gray'},
+  {ll:[37.35280,127.10760],e:'🍵',n:'공차',k:'cool'},
+  {ll:[37.35020,127.10930],e:'🍕',n:'파파존스',k:''},
+  {ll:[37.35120,127.10620],e:'💪',n:'골든핏',k:'cool'},
+  {ll:[37.34780,127.10650],e:'🥐',n:'폴앤폴리나',k:'warm'},
+  {ll:[37.35330,127.10500],e:'🌳',n:'정자초공원',k:''},
+];
+const FRIENDS=[
+  {ll:[37.34810,127.10930],n:'황상연',c:'권',color:'#FFD93D'},
+  {ll:[37.35150,127.10350],n:'주정빈',c:'주',color:'#3DDC97'},
+];
+const EVENT={ll:[37.35040,127.10870],e:'🚀',n:'정자동 야간 산책'};
+
+const NEAR=[
+  {n:'정자동 카페거리',d:'80m',m:'카페 12곳 · 친구 2명',c:'linear-gradient(135deg,#FFD6A5,#FFB6B6)',e:'☕',r:'HOT'},
+  {n:'탄천 산책길',d:'250m',m:'러닝코스 · 일몰 명당',c:'linear-gradient(135deg,#A5E8FF,#A5FFC5)',e:'🌅',r:'NEW'},
+  {n:'느루공원',d:'520m',m:'벚꽃 시즌 · 사진 스팟',c:'linear-gradient(135deg,#FFB6E1,#FFD96B)',e:'🌸',r:''},
+  {n:'정자초 운동장',d:'780m',m:'주말 풋살 · 크루 모임',c:'linear-gradient(135deg,#C5A6FF,#A5E8FF)',e:'⚽',r:''},
+];
+
+const POSTS=[
+  {av:'이',name:'이지형',loc:'정자동',time:'2시간 전',
+    img:'a',badge:'📍 정자동 카페거리',ttl:'봄날의 작은 발견',sttl:'정자동 카페거리에서 만난 따뜻한 순간들',
+    likes:128,comments:32,shares:14},
+  {av:'K',name:'Kdywj',loc:'불정로',time:'5시간 전',
+    img:'b',badge:'📍 탄천 산책길',ttl:'탄천에서 본 노을',sttl:'한 시간을 그냥 앉아 있었어',
+    likes:243,comments:18,shares:9},
+  {av:'주',name:'주정빈',loc:'정자동',time:'어제',
+    img:'c',badge:'⚡ 새로운 흔적',ttl:'느루공원 새벽 러닝',sttl:'5km · 누구라도 같이 뛸래?',
+    likes:67,comments:12,shares:4},
+  {av:'권',name:'권재우',loc:'정자동',time:'이틀 전',
+    img:'d',badge:'🚀 EVENT',ttl:'골목 라멘 모임',sttl:'화요일 7시 · 봉피양 앞에서 만나요',
+    likes:412,comments:54,shares:38},
+];
+
+/* ============== TAB SWITCHING ============== */
+function setTab(el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  el.classList.add('on');
+  const t=el.dataset.tab;
+  document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on',s.dataset.screen===t));
+  if(t==='map' && map){setTimeout(()=>map.invalidateSize(),50)}
+}
+function setChartTab(el,k){
+  el.parentElement.querySelectorAll('button').forEach(b=>b.classList.remove('on'));
+  el.classList.add('on');
+  showToast('📊 '+k+'간 보기');
+}
+function setSocSeg(el,i){document.querySelectorAll('.soc-seg div').forEach(d=>d.classList.remove('on'));el.classList.add('on');showToast(['📍 근처 4명','🟢 온라인 7','👥 전체 친구'][i])}
+function setMsgSeg(el,i){document.querySelectorAll('.msg-seg div').forEach(d=>d.classList.remove('on'));el.classList.add('on');showToast(['💬 전체','👥 그룹','💌 DM'][i])}
+function setActSeg(el,i){document.querySelectorAll('.act-seg div').forEach(d=>d.classList.remove('on'));el.classList.add('on');showToast(['🌍 전체 활동','👥 친구만','📍 근처 활동'][i])}
+function toggleGhost(){const t=document.getElementById('ghostToggle'),l=document.getElementById('ghostLab');t.classList.toggle('off');const off=t.classList.contains('off');l.textContent=off?'고스트 ON':'고스트 OFF';showToast(off?'👻 위치 숨김':'📍 위치 공유 중')}
+function rotateChar(){const b=document.getElementById('charBody');b.style.transform=b.style.transform==='scaleX(-1)'?'':'scaleX(-1)'}
+function setFeedTab(el,i){
+  document.querySelectorAll('.ftab').forEach(t=>t.classList.remove('on'));
+  el.classList.add('on');
+  showToast(i===0?'🔥 추천 피드':'👥 팔로잉만');
+}
+
+/* ============== TOAST ============== */
+let toastTm;
+function showToast(msg){
+  const t=document.getElementById('toast');
+  document.getElementById('toasttxt').textContent=msg;
+  t.classList.add('on');
+  clearTimeout(toastTm);
+  toastTm=setTimeout(()=>t.classList.remove('on'),2400);
+}
+
+/* ============== MAP ============== */
+let map,heroMarker,poiMarkers=[];
+function buildMap(){
+  map=L.map('map',{center:HERO,zoom:16,zoomControl:false,attributionControl:false,zoomSnap:.25});
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:20}).addTo(map);
+
+  drawPois();
+  drawFriends();
+
+  // event marker
+  L.marker(EVENT.ll,{icon:L.divIcon({html:`<div class="mk mk-poi event">${EVENT.e}<div class="lab">${EVENT.n}</div></div>`,className:'',iconSize:[0,0]})}).addTo(map).on('click',()=>showToast('🚀 '+EVENT.n));
+
+  // hero
+  const charImg = localStorage.getItem('wh_char_img');
+  const heroHtml = `<div class="hero">
+    <div class="pulse"></div><div class="pulse d"></div>
+    <div class="core" id="herocore">${charImg?`<img src="${charImg}"/>`:'⭐'}</div>
+    <div class="nm">별찌 Lv.20</div>
+  </div>`;
+  heroMarker=L.marker(HERO,{icon:L.divIcon({html:heroHtml,className:'',iconSize:[0,0]})}).addTo(map);
+
+  // pow positioning
+  const powEl=document.getElementById('pow');
+  function tickPow(){
+    if(map._loaded){
+      const p=map.latLngToContainerPoint(L.latLng(EVENT.ll[0],EVENT.ll[1]));
+      powEl.style.left=(p.x-66)+'px';
+      powEl.style.top=(p.y-86)+'px';
+      powEl.style.display='block';
+    }
+    requestAnimationFrame(tickPow);
+  }
+  tickPow();
+}
+
+function drawPois(){
+  poiMarkers.forEach(m=>map.removeLayer(m));
+  poiMarkers=[];
+  let list=POIS;
+  if(state.density==='sparse')list=POIS.slice(0,4);
+  if(state.density==='dense')list=POIS;
+  list.forEach(p=>{
+    const cls=['mk','mk-poi'];if(p.k)cls.push(p.k);
+    const m=L.marker(p.ll,{icon:L.divIcon({html:`<div class="${cls.join(' ')}" style="animation-delay:${(Math.random()*3).toFixed(2)}s">${p.e}<div class="lab">${p.n}</div></div>`,className:'',iconSize:[0,0]})}).addTo(map);
+    m.on('click',()=>showToast(p.e+' '+p.n));
+    poiMarkers.push(m);
+  });
+}
+
+function drawFriends(){
+  FRIENDS.forEach(f=>{
+    L.marker(f.ll,{icon:L.divIcon({html:`<div class="mk-friend" style="background:${f.color}">${f.c}<div class="nm">${f.n}</div></div>`,className:'',iconSize:[0,0]})}).addTo(map).on('click',()=>showToast('👋 '+f.n));
+  });
+}
+
+function locateMe(){
+  if(map){map.flyTo(HERO,17,{duration:1.2});showToast('📍 내 위치로')}
+}
+
+/* ============== NEAR CARDS ============== */
+function buildNear(){
+  const wrap=document.getElementById('nearscroll');
+  wrap.innerHTML=NEAR.map(c=>`<div class="ncard" onclick="showToast('${c.e} ${c.n}')">
+    <div class="thumb" style="background:${c.c}">
+      ${c.r?`<div class="ribbon">${c.r}</div>`:''}
+      <div class="dist">${c.d}</div>
+    </div>
+    <div class="body">
+      <div class="name">${c.e} ${c.n}</div>
+      <div class="meta">${c.m}</div>
+    </div>
+  </div>`).join('');
+}
+
+/* ============== FEED ============== */
+function buildFeed(){
+  const wrap=document.getElementById('feedscroll');
+  wrap.innerHTML=POSTS.map((p,i)=>`<div class="post">
+    <div class="post-h">
+      <div class="av">${p.av}</div>
+      <div class="meta">
+        <div class="name">${p.name}</div>
+        <div class="sub">📍 ${p.loc} · ${p.time}</div>
+      </div>
+      <div class="more">⋯</div>
+    </div>
+    <div class="post-img ${p.img}">
+      <div class="wash"></div>
+      <div class="badge">${p.badge}</div>
+      <div>
+        <div class="ttl">${p.ttl}</div>
+        <div class="sttl">${p.sttl}</div>
+      </div>
+    </div>
+    <div class="post-actions">
+      <div class="act" data-pi="${i}" onclick="toggleLike(this)">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"><path d="M12 21s-7-4.5-9.5-9C.5 8 3 4 7 4c2 0 3.5 1 5 3 1.5-2 3-3 5-3 4 0 6.5 4 4.5 8C19 16.5 12 21 12 21z"/></svg>
+        <span class="ct">${p.likes}</span>
+      </div>
+      <div class="act" onclick="showToast('💬 댓글')">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"><path d="M21 12a8 8 0 01-12.6 6.5L3 20l1.5-5.4A8 8 0 1121 12z"/></svg>
+        <span>${p.comments}</span>
+      </div>
+      <div class="act" onclick="showToast('↗ 공유')">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v14"/></svg>
+        <span>${p.shares}</span>
+      </div>
+    </div>
+  </div>`).join('');
+}
+function toggleLike(el){
+  const i=+el.dataset.pi;
+  const ct=el.querySelector('.ct');
+  const cur=+ct.textContent;
+  const liked=el.classList.toggle('liked');
+  ct.textContent = liked?cur+1:cur-1;
+}
+
+/* ============== CHARACTER UPLOAD ============== */
+function uploadChar(e){
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=ev=>{
+    localStorage.setItem('wh_char_img',ev.target.result);
+    const core=document.querySelector('.hero .core');
+    if(core){core.innerHTML=`<img src="${ev.target.result}"/>`}
+    showToast('✨ 캐릭터 업데이트!');
+  };
+  r.readAsDataURL(f);
+}
+
+/* ============== WEATHER ============== */
+const WX = {
+  clear: {ic:'☀️', label:'맑음', name:'clear'},
+  cloud: {ic:'☁️', label:'흐림', name:'cloud'},
+  rain:  {ic:'🌧',  label:'비',   name:'rain'},
+  snow:  {ic:'❄️', label:'눈',   name:'snow'},
+  fog:   {ic:'🌫', label:'안개',  name:'fog'},
+  night: {ic:'🌙', label:'밤',   name:'night'},
+};
+let currentWx='clear', currentTemp=null;
+
+function applyWeather(name){
+  currentWx=name;
+  const layer=document.getElementById('wxlayer');
+  layer.innerHTML='';
+  document.getElementById('wxic').textContent=WX[name].ic;
+  document.getElementById('wxtxt').textContent = (currentTemp!==null?currentTemp+'° ':'') + WX[name].label;
+
+  if(!state.fx)return;
+  if(name==='cloud'||name==='clear'){
+    // sun rays for clear
+    if(name==='clear'){
+      const ray=document.createElement('div');ray.className='sunray';layer.appendChild(ray);
+    }
+    // a few clouds either way (fewer for clear)
+    const n=name==='cloud'?6:2;
+    for(let i=0;i<n;i++){
+      const c=document.createElement('div');c.className='cloud';
+      const sc=.55+Math.random()*.55;
+      c.innerHTML=`<svg width="${110*sc}" height="${56*sc}" viewBox="0 0 110 56"><path d="M22 44 Q 8 44 8 30 Q 8 18 24 22 Q 28 6 44 12 Q 58 2 72 14 Q 88 8 94 24 Q 106 24 102 38 Q 98 48 84 46 L 26 46 Q 22 48 22 44 Z" fill="rgba(255,255,255,.95)" stroke="#1a1612" stroke-width="2"/></svg>`;
+      c.style.top=(8+Math.random()*60)+'%';
+      c.style.animationDuration=(40+Math.random()*30)+'s';
+      c.style.animationDelay=(-Math.random()*40)+'s';
+      layer.appendChild(c);
+    }
+  }
+  if(name==='rain'){
+    for(let i=0;i<60;i++){
+      const r=document.createElement('div');r.className='rain';
+      r.style.left=Math.random()*100+'%';
+      r.style.animationDuration=(.5+Math.random()*.4)+'s';
+      r.style.animationDelay=(-Math.random()*.8)+'s';
+      r.style.opacity=.4+Math.random()*.4;
+      layer.appendChild(r);
+    }
+    // a couple gray clouds too
+    for(let i=0;i<3;i++){
+      const c=document.createElement('div');c.className='cloud';c.style.opacity='.7';
+      c.innerHTML=`<svg width="120" height="60" viewBox="0 0 110 56"><path d="M22 44 Q 8 44 8 30 Q 8 18 24 22 Q 28 6 44 12 Q 58 2 72 14 Q 88 8 94 24 Q 106 24 102 38 Q 98 48 84 46 L 26 46 Q 22 48 22 44 Z" fill="rgba(180,180,200,.95)" stroke="#1a1612" stroke-width="2"/></svg>`;
+      c.style.top=(4+Math.random()*30)+'%';
+      c.style.animationDuration='70s';c.style.animationDelay=(-Math.random()*70)+'s';
+      layer.appendChild(c);
+    }
+  }
+  if(name==='snow'){
+    for(let i=0;i<40;i++){
+      const s=document.createElement('div');s.className='snow';s.textContent='❄';
+      s.style.left=Math.random()*100+'%';
+      s.style.animationDuration=(4+Math.random()*4)+'s';
+      s.style.animationDelay=(-Math.random()*8)+'s';
+      s.style.fontSize=(8+Math.random()*8)+'px';
+      layer.appendChild(s);
+    }
+  }
+  if(name==='fog'){
+    const f=document.createElement('div');f.className='fog';layer.appendChild(f);
+  }
+  if(name==='night'){
+    const veil=document.createElement('div');veil.className='nightveil';layer.appendChild(veil);
+    for(let i=0;i<55;i++){
+      const s=document.createElement('div');s.className='star';s.textContent='✦';
+      s.style.left=Math.random()*100+'%';
+      s.style.top=Math.random()*55+'%';
+      s.style.animationDelay=(Math.random()*2.4)+'s';
+      s.style.fontSize=(6+Math.random()*8)+'px';
+      layer.appendChild(s);
+    }
+    const moon=document.createElement('div');moon.className='moon';moon.textContent='🌙';layer.appendChild(moon);
+  }
+}
+
+/* fetch open-meteo (CORS-friendly, no key) */
+async function autoWeather(){
+  try{
+    const r=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${HERO[0]}&longitude=${HERO[1]}&current=temperature_2m,weather_code,is_day`);
+    const j=await r.json();
+    const c=j.current;
+    currentTemp=Math.round(c.temperature_2m);
+    let name='clear';
+    const wc=c.weather_code;
+    if(c.is_day===0)name='night';
+    else if(wc===0||wc===1)name='clear';
+    else if(wc===2||wc===3)name='cloud';
+    else if(wc>=45&&wc<=48)name='fog';
+    else if((wc>=51&&wc<=67)||(wc>=80&&wc<=82)||(wc>=95))name='rain';
+    else if(wc>=71&&wc<=77)name='snow';
+    else name='cloud';
+    if(state.weather==='auto')applyWeather(name);
+  }catch(e){
+    if(state.weather==='auto')applyWeather('clear');
+  }
+}
+
+/* manual cycle (for chip click + tweak) */
+const WX_ORDER=['clear','cloud','rain','snow','fog','night'];
+function cycleWeather(){
+  const i=WX_ORDER.indexOf(currentWx);
+  const n=WX_ORDER[(i+1)%WX_ORDER.length];
+  state.weather=n;persist();
+  applyWeather(n);
+  rebuildTweakRows();
+  showToast('☼ '+WX[n].label);
+}
+
+/* ============== TWEAKS PANEL ============== */
+function persist(){
+  window.parent.postMessage({type:'__edit_mode_set_keys',edits:state},'*');
+}
+function rebuildTweakRows(){
+  // weather
+  const wxBox=document.getElementById('wxopts');
+  const wxList=[['auto','자동'],['clear','☀️'],['cloud','☁️'],['rain','🌧'],['snow','❄️'],['fog','🌫'],['night','🌙']];
+  wxBox.innerHTML=wxList.map(([k,l])=>`<div class="opt ${state.weather===k?'on':''}" data-k="${k}" onclick="setWx('${k}')">${l}</div>`).join('');
+  // density
+  const dn=document.getElementById('dnopts');
+  dn.innerHTML=[['sparse','적게'],['normal','보통'],['dense','많게']].map(([k,l])=>`<div class="opt ${state.density===k?'on':''}" onclick="setDn('${k}')">${l}</div>`).join('');
+  // accents
+  const ac=document.getElementById('acopts');
+  ac.innerHTML=['#FFD93D','#FF4757','#3DDC97','#4FBDFF','#C5A6FF'].map(c=>`<div class="swatch ${state.accent===c?'on':''}" style="background:${c}" onclick="setAcc('${c}')"></div>`).join('');
+  // fx
+  const fx=document.getElementById('fxopts');
+  fx.innerHTML=[[true,'ON'],[false,'OFF']].map(([k,l])=>`<div class="opt ${state.fx===k?'on':''}" onclick="setFx(${k})">${l}</div>`).join('');
+}
+function setWx(k){
+  state.weather=k;persist();rebuildTweakRows();
+  if(k==='auto')autoWeather();
+  else applyWeather(k);
+}
+function setDn(k){state.density=k;persist();rebuildTweakRows();drawPois()}
+function setAcc(c){
+  state.accent=c;persist();rebuildTweakRows();
+  document.documentElement.style.setProperty('--y',c);
+}
+function setFx(v){state.fx=v;persist();rebuildTweakRows();applyWeather(currentWx)}
+function closeTweaks(){
+  document.getElementById('tweaks').classList.remove('on');
+  window.parent.postMessage({type:'__edit_mode_dismissed'},'*');
+}
+
+/* host edit-mode protocol */
+window.addEventListener('message',e=>{
+  const d=e.data;if(!d||!d.type)return;
+  if(d.type==='__activate_edit_mode'){document.getElementById('tweaks').classList.add('on');document.getElementById('tweakbtn').classList.add('on')}
+  if(d.type==='__deactivate_edit_mode'){document.getElementById('tweaks').classList.remove('on');document.getElementById('tweakbtn').classList.remove('on')}
+});
+window.parent.postMessage({type:'__edit_mode_available'},'*');
+
+/* ============== INIT ============== */
+buildMap();
+buildNear();
+buildFeed();
+rebuildTweakRows();
+if(state.weather==='auto')autoWeather();else applyWeather(state.weather);
+document.documentElement.style.setProperty('--y',state.accent);
+</script>
+</body>
+</html>

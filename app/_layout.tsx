@@ -18,6 +18,7 @@ import { initPurchases } from '../src/config/purchases';
 import { ThemeProvider, useTheme, useThemeStore } from '../src/providers/ThemeProvider';
 import { useNotificationStore } from '../src/stores/notificationStore';
 import { EvolutionCelebrationOverlay } from '../src/components/character/EvolutionCelebrationOverlay';
+import { MangaToastHost } from '../src/components/ui';
 import { useWeatherStore } from '../src/stores/weatherStore';
 import { useMapStore } from '../src/stores/mapStore';
 
@@ -32,8 +33,21 @@ function AppContent() {
    * glyph (→ "?" / clipped icon on first map frame). Other tabs using Ionicons
    * also benefit. Failure is non-fatal — we still release the splash on a
    * short timeout so a font-load bug never leaves the user on the splash.
+   *
+   * Manga design system 폰트 (Phase 0):
+   *   Pretendard-Regular  ← 본문 default
+   *   Pretendard-SemiBold ← 부각 / 라벨
+   *   Pretendard-Bold     ← 굵은 본문
+   *   BagelFatOne-Regular ← 큰 숫자 / 만화 헤드라인
+   * 등록 키는 src/config/theme.ts 의 FONT_FAMILY 와 정확히 일치해야 함.
    */
-  const [fontsReady] = useFonts({ ...Ionicons.font });
+  const [fontsReady] = useFonts({
+    ...Ionicons.font,
+    'Pretendard-Regular':  require('../assets/fonts/Pretendard-Regular.otf'),
+    'Pretendard-SemiBold': require('../assets/fonts/Pretendard-SemiBold.otf'),
+    'Pretendard-Bold':     require('../assets/fonts/Pretendard-Bold.otf'),
+    'BagelFatOne-Regular': require('../assets/fonts/BagelFatOne-Regular.ttf'),
+  });
 
   useEffect(() => {
     if (fontsReady) {
@@ -194,6 +208,7 @@ function AppContent() {
         <Stack.Screen name="+not-found" />
       </Stack>
       <EvolutionCelebrationOverlay />
+      <MangaToastHost />
     </>
   );
 }
