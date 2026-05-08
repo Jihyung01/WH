@@ -7,6 +7,7 @@ import {
   Pressable,
   ActivityIndicator,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -19,6 +20,7 @@ import {
   getUserStatsForUser,
   getUserCommunityFeed,
   getUserRecentEventActivity,
+  getOrCreate1on1Room,
   type CommunityFeedItem,
   type PublicProfileResult,
   type UserEventActivityItem,
@@ -29,7 +31,17 @@ import { useTheme } from '../../src/providers/ThemeProvider';
 import { FeedPost, CommentModal } from '../(tabs)/explore';
 import { reverseGeocodeToDistrict } from '../../src/utils/reverseGeocodeDistrict';
 import { formatRelativeDate } from '../../src/utils/format';
-import { SPACING, FONT_SIZE, FONT_WEIGHT, BORDER_RADIUS, BRAND, SHADOWS } from '../../src/config/theme';
+import {
+  SPACING,
+  FONT_SIZE,
+  FONT_WEIGHT,
+  BORDER_RADIUS,
+  BRAND,
+  SHADOWS,
+  MANGA,
+  MANGA_BORDER,
+  FONT_FAMILY,
+} from '../../src/config/theme';
 import { shareKakaoFeedCard } from '../../src/services/kakaoShare';
 
 export default function PublicUserProfileScreen() {
@@ -46,6 +58,7 @@ export default function PublicUserProfileScreen() {
   const [activity, setActivity] = useState<UserEventActivityItem[]>([]);
   const [districtLabel, setDistrictLabel] = useState<string | null>(null);
   const [commentTarget, setCommentTarget] = useState<string | null>(null);
+  const [openingChat, setOpeningChat] = useState(false);
 
   const userId = typeof id === 'string' ? id : Array.isArray(id) ? id[0] : '';
 
@@ -154,6 +167,21 @@ export default function PublicUserProfileScreen() {
       ),
     );
   }, []);
+
+  const handleOpenChat = useCallback(async () => {
+    if (!userId || openingChat) return;
+    setOpeningChat(true);
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      const roomId = await getOrCreate1on1Room(userId);
+      router.push(`/chat/${roomId}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '잠시 후 다시 시도해 주세요.';
+      Alert.alert('오류', message);
+    } finally {
+      setOpeningChat(false);
+    }
+  }, [openingChat, router, userId]);
 
   if (!userId) {
     return (
@@ -332,11 +360,13 @@ export default function PublicUserProfileScreen() {
             <Text style={styles.btnPrimaryText}>🎁 선물 보내기</Text>
           </Pressable>
           <Pressable
-            style={[styles.btnGhost, { borderColor: colors.border }]}
-            disabled
-            onPress={() => {}}
+            style={[styles.btnChat, openingChat && styles.btnChatDisabled]}
+            disabled={openingChat}
+            onPress={handleOpenChat}
           >
-            <Text style={[styles.btnGhostText, { color: colors.textMuted }]}>함께 탐험하기 (준비 중)</Text>
+            <Text style={styles.btnChatText}>
+              {openingChat ? '채팅방 여는 중' : '💬 1:1 메시지'}
+            </Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -438,4 +468,20 @@ const styles = StyleSheet.create({
     opacity: 0.55,
   },
   btnGhostText: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.medium },
+  btnChat: {
+    paddingVertical: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg,
+    alignItems: 'center',
+    borderWidth: MANGA_BORDER.width,
+    borderColor: MANGA.ink,
+    backgroundColor: MANGA.y,
+  },
+  btnChatDisabled: {
+    opacity: 0.65,
+  },
+  btnChatText: {
+    color: MANGA.ink,
+    fontSize: FONT_SIZE.sm,
+    fontFamily: FONT_FAMILY.primaryBold,
+  },
 });

@@ -19,6 +19,12 @@ verify_jwt = false
 import_map = "./functions/generate-exploration-note/deno.json"
 entrypoint = "./functions/generate-exploration-note/index.ts"
 
+[functions.generate-journal]
+enabled = true
+# generate-journal도 함수 본문에서 supabase.auth.getUser(Bearer)로 직접 검증한다.
+verify_jwt = false
+entrypoint = "./functions/generate-journal/index.ts"
+
 [functions.generate-narrative]
 enabled = true
 verify_jwt = true

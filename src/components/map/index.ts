@@ -16,6 +16,7 @@ export {
 
 // ── Manga overlay components (Phase 2) ──
 export { MapSearchBar } from './MapSearchBar';
+export { MapSearchSheet, type MapSearchSelection } from './MapSearchSheet';
 export { MapWeatherChip } from './MapWeatherChip';
 export type { WeatherCondition } from './MapWeatherChip';
 export { MapFabStack } from './MapFabStack';

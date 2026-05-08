@@ -233,6 +233,21 @@ export async function getNearbyEvents(
   return (data ?? []) as NearbyEvent[];
 }
 
+export async function searchEventsByKeyword(
+  query: string,
+  limit = 10,
+): Promise<NearbyEvent[]> {
+  const keyword = query.trim();
+  if (keyword.length < 2) return [];
+
+  const { data, error } = await supabase.rpc('search_events_by_keyword', {
+    p_query: keyword,
+    p_limit: limit,
+  });
+  throwIfError(error, '이벤트 검색에 실패했습니다.');
+  return (data ?? []) as NearbyEvent[];
+}
+
 export async function getEvent(eventId: string): Promise<Event> {
   const { data, error } = await supabase
     .from('events')

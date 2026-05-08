@@ -29,6 +29,8 @@ import {
   CharacterBubble,
   MapClusterMarker,
   MapSearchBar,
+  MapSearchSheet,
+  type MapSearchSelection,
   MapWeatherChip,
   MapFabStack,
   NearbyPlacesCarousel,
@@ -150,6 +152,7 @@ export default function MapScreen() {
   const [dailyRewardModalVisible, setDailyRewardModalVisible] = useState(false);
   const [friendLocations, setFriendLocations] = useState<FriendLocation[]>([]);
   const [initialRegion, setInitialRegion] = useState<Region | null>(null);
+  const [searchSheetVisible, setSearchSheetVisible] = useState(false);
   const userHeading = useLocationStore((s) => s.heading);
   const bgLocationEnabled = useNotificationStore((s) => s.backgroundLocationEnabled);
 
@@ -402,6 +405,8 @@ export default function MapScreen() {
     });
   }, [sortedEvents]);
 
+  const fabBottom = nearbyPlaces.length > 0 ? recenterBottom + 220 : recenterBottom + 8;
+
   /** Stable element list so GPS / unrelated renders do not rebuild ClusteredMapView children for friends. */
   const friendMarkerNodes = useMemo(
     () =>
@@ -467,6 +472,28 @@ export default function MapScreen() {
 
   // ── Dismiss bottom sheet ──
   const onDismiss = useCallback(() => selectEvent(null), []);
+
+  const handleSearchSelect = useCallback(
+    (selection: MapSearchSelection) => {
+      if (!isFocused) return;
+      setFollowingUser(false);
+      if (selection.kind === 'event') {
+        onMarkerPress(selection.event);
+        return;
+      }
+      selectEvent(null);
+      mapRef.current?.animateToRegion(
+        {
+          latitude: selection.latitude,
+          longitude: selection.longitude,
+          latitudeDelta: 0.006,
+          longitudeDelta: 0.006,
+        },
+        450,
+      );
+    },
+    [isFocused, onMarkerPress],
+  );
 
   // ── Challenge button ──
   const onChallenge = useCallback(
@@ -612,6 +639,10 @@ export default function MapScreen() {
         <MapSearchBar
           placeholder="오늘 어디로?!"
           unreadCount={unreadCount}
+          onSearchPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setSearchSheetVisible(true);
+          }}
           onBellPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             router.push('/settings/notifications');
@@ -662,8 +693,7 @@ export default function MapScreen() {
         style={{
           position: 'absolute',
           right: SPACING.lg,
-          // carousel(약 180px) 보다 위. 화면 우측 중간 살짝 아래쪽.
-          bottom: recenterBottom + 200,
+          bottom: fabBottom,
           zIndex: 250,
         }}
       >
@@ -685,6 +715,12 @@ export default function MapScreen() {
 
       {/* ── 만화 효과음 오버레이 (Phase 2) ── */}
       <PowEffect ref={powRef} />
+
+      <MapSearchSheet
+        visible={searchSheetVisible}
+        onClose={() => setSearchSheetVisible(false)}
+        onSelect={handleSearchSelect}
+      />
 
       {/* ── Bottom Sheet ── */}
       {isFocused && (
