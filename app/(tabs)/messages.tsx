@@ -18,13 +18,20 @@ import {
   RefreshControl,
   Platform,
   TextInput,
+  Modal,
+  Switch,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
-import { listMyChatRooms, type ChatRoomSummary } from '../../src/lib/api';
+import {
+  listMyChatRooms,
+  startGroupCall,
+  toggleLocationSharing,
+  type ChatRoomSummary,
+} from '../../src/lib/api';
 import { MANGA, MANGA_BORDER, MANGA_RADIUS, FONT_FAMILY } from '../../src/config/theme';
 import { InkCard, MangaAvatar, showToast } from '../../src/components/ui';
 
@@ -37,6 +44,9 @@ export default function MessagesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [segment, setSegment] = useState<Segment>('all');
   const [search, setSearch] = useState('');
+  const [locationModalVisible, setLocationModalVisible] = useState(false);
+  const [locationSharingEnabled, setLocationSharingEnabled] = useState(false);
+  const [callStarting, setCallStarting] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -77,6 +87,40 @@ export default function MessagesScreen() {
   const dmRooms = useMemo(() => filteredRooms.filter((r) => r.type === '1on1'), [filteredRooms]);
   const liveRoom = useMemo(() => rooms.find((r) => r.live_video_started_at), [rooms]);
 
+  const openGroupCall = useCallback(async () => {
+    if (callStarting) return;
+    const room = groupRooms[0];
+    if (!room) {
+      showToast('먼저 그룹을 만들어 주세요', { tone: 'paper', icon: '👥' });
+      router.push('/chat/new-group' as never);
+      return;
+    }
+    setCallStarting(true);
+    try {
+      await startGroupCall(room.room_id);
+      await load();
+      router.push(`/chat/group-call/${room.room_id}` as never);
+    } catch {
+      showToast('영상 방을 열지 못했어요', { tone: 'paper', icon: '🎥' });
+    } finally {
+      setCallStarting(false);
+    }
+  }, [callStarting, groupRooms, load, router]);
+
+  const setLocationSharing = useCallback(async (enabled: boolean) => {
+    setLocationSharingEnabled(enabled);
+    try {
+      await toggleLocationSharing(enabled);
+      showToast(enabled ? '위치 공유를 켰어요' : '위치 공유를 껐어요', {
+        tone: 'paper',
+        icon: '📍',
+      });
+    } catch {
+      setLocationSharingEnabled(!enabled);
+      showToast('위치 공유 설정에 실패했어요', { tone: 'paper', icon: '📍' });
+    }
+  }, []);
+
   return (
     <ScrollView
       style={styles.container}
@@ -116,7 +160,7 @@ export default function MessagesScreen() {
       {/* LIVE 단체영상통화 배너 — 진행 중 방 있을 때만 */}
       {liveRoom ? (
         <Pressable
-          onPress={() => router.push(`/chat/${liveRoom.room_id}` as never)}
+          onPress={() => router.push(`/chat/group-call/${liveRoom.room_id}` as never)}
           style={({ pressed }) => [styles.liveWrap, pressed && { transform: [{ translateX: 2 }, { translateY: 2 }] }]}
         >
           <View style={[styles.liveShadow, { top: 3, left: 3 }]} />
@@ -152,25 +196,25 @@ export default function MessagesScreen() {
           emoji="👥"
           label="그룹 만들기"
           background={MANGA.b}
-          onPress={() => showToast('곧 추가됩니다', { tone: 'paper' })}
+          onPress={() => router.push('/chat/new-group' as never)}
         />
         <QuickAction
           emoji="🎥"
           label="단체 영상"
           background={MANGA.r}
-          onPress={() => showToast('곧 추가됩니다', { tone: 'paper' })}
+          onPress={openGroupCall}
         />
         <QuickAction
           emoji="⚡"
           label="번개 약속"
           background={MANGA.y}
-          onPress={() => showToast('곧 추가됩니다', { tone: 'paper' })}
+          onPress={() => router.push('/meetup/create' as never)}
         />
         <QuickAction
           emoji="📍"
           label="위치 공유"
           background={MANGA.g}
-          onPress={() => showToast('곧 추가됩니다', { tone: 'paper' })}
+          onPress={() => setLocationModalVisible(true)}
         />
       </View>
 
@@ -226,6 +270,50 @@ export default function MessagesScreen() {
           </Text>
         </InkCard>
       ) : null}
+
+      <Modal
+        visible={locationModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setLocationModalVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.locationModal}>
+            <Text style={styles.locationModalTitle} allowFontScaling={false}>위치 공유</Text>
+            <Text style={styles.locationModalText} allowFontScaling={false}>
+              친구 지도에서 내 최근 위치를 볼 수 있게 설정해요.
+            </Text>
+            <View style={styles.locationToggleRow}>
+              <Text style={styles.locationToggleText} allowFontScaling={false}>
+                실시간 위치 공유
+              </Text>
+              <Switch
+                value={locationSharingEnabled}
+                onValueChange={setLocationSharing}
+                trackColor={{ false: 'rgba(26,22,18,0.22)', true: MANGA.g }}
+                thumbColor={MANGA.paper}
+              />
+            </View>
+            <View style={styles.modalActions}>
+              <Pressable
+                style={styles.modalButton}
+                onPress={() => {
+                  setLocationModalVisible(false);
+                  router.push('/(tabs)/map' as never);
+                }}
+              >
+                <Text style={styles.modalButtonText} allowFontScaling={false}>지도 보기</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalButton, styles.modalCloseButton]}
+                onPress={() => setLocationModalVisible(false)}
+              >
+                <Text style={styles.modalButtonText} allowFontScaling={false}>닫기</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -375,4 +463,14 @@ const styles = StyleSheet.create({
   unreadText: { color: MANGA.paper, fontSize: 11, fontFamily: FONT_FAMILY.primaryBold, fontWeight: '900' },
   emptyTitle: { color: MANGA.ink, fontSize: 16, fontFamily: FONT_FAMILY.primaryBold, letterSpacing: -0.3 },
   emptySub: { color: MANGA.ink, opacity: 0.6, fontSize: 13, fontFamily: FONT_FAMILY.primary, marginTop: 4, lineHeight: 19 },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(26,22,18,0.28)', justifyContent: 'center', padding: 24 },
+  locationModal: { borderWidth: MANGA_BORDER.width, borderColor: MANGA.ink, borderRadius: MANGA_RADIUS.cardLg, backgroundColor: MANGA.paper, padding: 18 },
+  locationModalTitle: { color: MANGA.ink, fontSize: 20, fontFamily: FONT_FAMILY.display, includeFontPadding: false },
+  locationModalText: { color: MANGA.ink, opacity: 0.68, fontSize: 13, fontFamily: FONT_FAMILY.primary, lineHeight: 19, marginTop: 8 },
+  locationToggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 18, padding: 12, borderWidth: 2, borderColor: MANGA.ink, borderRadius: MANGA_RADIUS.card, backgroundColor: MANGA.paper2 },
+  locationToggleText: { color: MANGA.ink, fontSize: 14, fontFamily: FONT_FAMILY.primaryBold },
+  modalActions: { flexDirection: 'row', gap: 8, marginTop: 16 },
+  modalButton: { flex: 1, height: 44, borderWidth: 2, borderColor: MANGA.ink, borderRadius: MANGA_RADIUS.card, backgroundColor: MANGA.y, alignItems: 'center', justifyContent: 'center' },
+  modalCloseButton: { backgroundColor: MANGA.paper2 },
+  modalButtonText: { color: MANGA.ink, fontSize: 13, fontFamily: FONT_FAMILY.primaryBold },
 });

@@ -30,6 +30,7 @@ import {
   listRoomMessages,
   sendMessage,
   markRoomRead,
+  startGroupCall,
   type RoomMessage,
 } from '../../src/lib/api';
 import { supabase } from '../../src/config/supabase';
@@ -114,6 +115,16 @@ export default function ChatRoomScreen() {
     }
   }, [input, roomId]);
 
+  const openGroupCall = useCallback(async () => {
+    if (!roomId) return;
+    try {
+      await startGroupCall(roomId);
+      router.push(`/chat/group-call/${roomId}` as never);
+    } catch (error) {
+      Alert.alert('오류', error instanceof Error ? error.message : '영상 방을 열지 못했어요.');
+    }
+  }, [roomId, router]);
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -127,7 +138,7 @@ export default function ChatRoomScreen() {
         </Pressable>
         <Text style={styles.headerTitle} allowFontScaling={false}>채팅</Text>
         <Pressable
-          onPress={() => showToast('단체 영상 — 곧 추가됩니다', { tone: 'paper' })}
+          onPress={openGroupCall}
           hitSlop={8}
           style={styles.headerBtn}
         >

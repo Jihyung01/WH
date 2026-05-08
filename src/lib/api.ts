@@ -582,15 +582,16 @@ export async function profileNeedsPersonalityQuiz(): Promise<boolean> {
 }
 
 export async function updateProfile(
-  updates: Partial<Pick<Profile, 'username' | 'avatar_url' | 'explorer_type'>>,
+  updates: Partial<Pick<Profile, 'username' | 'avatar_url' | 'explorer_type' | 'mbti'>>,
 ): Promise<Profile> {
   const user = await getCurrentUser();
   const row: { id: string } & Partial<
-    Pick<Profile, 'username' | 'avatar_url' | 'explorer_type'>
+    Pick<Profile, 'username' | 'avatar_url' | 'explorer_type' | 'mbti'>
   > = { id: user.id };
   if (updates.username !== undefined) row.username = updates.username;
   if (updates.avatar_url !== undefined) row.avatar_url = updates.avatar_url;
   if (updates.explorer_type !== undefined) row.explorer_type = updates.explorer_type;
+  if (updates.mbti !== undefined) row.mbti = updates.mbti;
 
   const { data, error } = await supabase
     .from('profiles')
@@ -2137,6 +2138,50 @@ export async function sendMessage(params: SendMessageParams): Promise<string> {
 export async function markRoomRead(roomId: string): Promise<void> {
   const { error } = await supabase.rpc('mark_room_read', { p_room_id: roomId });
   if (error) throw new AppError(error.message, 'MARK_ROOM_READ_FAILED');
+}
+
+export async function createGroupChatRoom(params: {
+  memberIds: string[];
+  title: string;
+  emoji: string;
+}): Promise<string> {
+  const { data, error } = await supabase.rpc('create_group_chat_room', {
+    p_member_ids: params.memberIds,
+    p_title: params.title,
+    p_emoji: params.emoji,
+  });
+  if (error) throw new AppError(error.message, 'CREATE_GROUP_CHAT_ROOM_FAILED');
+  return String(data);
+}
+
+export async function startGroupCall(roomId: string): Promise<void> {
+  const { error } = await supabase.rpc('start_group_call', { p_room_id: roomId });
+  if (error) throw new AppError(error.message, 'START_GROUP_CALL_FAILED');
+}
+
+export async function endGroupCall(roomId: string): Promise<void> {
+  const { error } = await supabase.rpc('end_group_call', { p_room_id: roomId });
+  if (error) throw new AppError(error.message, 'END_GROUP_CALL_FAILED');
+}
+
+export async function createLightningMeetup(params: {
+  title: string;
+  placeLabel: string;
+  lat?: number | null;
+  lng?: number | null;
+  scheduledAt: string;
+  inviteeIds: string[];
+}): Promise<string> {
+  const { data, error } = await supabase.rpc('create_lightning_meetup', {
+    p_title: params.title,
+    p_place_label: params.placeLabel,
+    p_lat: params.lat ?? null,
+    p_lng: params.lng ?? null,
+    p_scheduled_at: params.scheduledAt,
+    p_invitee_ids: params.inviteeIds,
+  });
+  if (error) throw new AppError(error.message, 'CREATE_LIGHTNING_MEETUP_FAILED');
+  return String(data);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
