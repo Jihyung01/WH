@@ -63,10 +63,11 @@ interface Props {
   coords: { latitude: number; longitude: number } | null;
   district?: string | null;
   onCreated?: (result: CreateMarkResult) => void;
+  onSheetOpenChange?: (open: boolean) => void;
 }
 
 export const CreateMarkSheet = forwardRef<CreateMarkSheetHandle, Props>(
-  function CreateMarkSheetInner({ coords, district, onCreated }, ref) {
+  function CreateMarkSheetInner({ coords, district, onCreated, onSheetOpenChange }, ref) {
     const { colors } = useTheme();
     const sheetRef = useRef<BottomSheet>(null);
     const snapPoints = useMemo(() => ['60%', '92%'], []);
@@ -93,13 +94,14 @@ export const CreateMarkSheet = forwardRef<CreateMarkSheetHandle, Props>(
       ref,
       () => ({
         open: () => {
+          onSheetOpenChange?.(true);
           sheetRef.current?.snapToIndex(0);
         },
         close: () => {
           sheetRef.current?.close();
         },
       }),
-      [],
+      [onSheetOpenChange],
     );
 
     const renderBackdrop = useCallback(
@@ -243,6 +245,8 @@ export const CreateMarkSheet = forwardRef<CreateMarkSheetHandle, Props>(
           backdropComponent={renderBackdrop}
           backgroundStyle={{ backgroundColor: colors.surface }}
           handleIndicatorStyle={{ backgroundColor: colors.textMuted }}
+          onChange={(index) => onSheetOpenChange?.(index >= 0)}
+          onClose={() => onSheetOpenChange?.(false)}
         >
           <BottomSheetScrollView
             contentContainerStyle={styles.content}

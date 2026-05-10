@@ -703,15 +703,11 @@ function detectMime(uri: string): { mime: string; ext: string } {
   return { mime: 'image/jpeg', ext: 'jpg' };
 }
 
-async function uriToUploadBody(imageUri: string): Promise<{ body: FormData; ext: string }> {
+async function uriToUploadBody(imageUri: string): Promise<{ body: Blob; ext: string; mime: string }> {
   const { mime, ext } = detectMime(imageUri);
-  const formData = new FormData();
-  formData.append('file', {
-    uri: imageUri,
-    name: `photo.${ext}`,
-    type: mime,
-  } as unknown as Blob);
-  return { body: formData, ext };
+  const response = await fetch(imageUri);
+  const body = await response.blob();
+  return { body, ext, mime };
 }
 
 export async function uploadMissionPhoto(
@@ -719,7 +715,7 @@ export async function uploadMissionPhoto(
   imageUri: string,
 ): Promise<string> {
   const user = await getCurrentUser();
-  const { body, ext } = await uriToUploadBody(imageUri);
+  const { body, ext, mime } = await uriToUploadBody(imageUri);
   const fileName = `${user.id}/${missionId}/${Date.now()}.${ext}`;
 
   const {
@@ -733,6 +729,7 @@ export async function uploadMissionPhoto(
     headers: {
       Authorization: `Bearer ${token}`,
       apikey: SUPABASE_ANON_KEY,
+      'Content-Type': mime,
     },
     body,
   });
@@ -752,7 +749,7 @@ export async function uploadMissionPhoto(
 
 export async function uploadUGCCoverPhoto(imageUri: string): Promise<string> {
   const user = await getCurrentUser();
-  const { body, ext } = await uriToUploadBody(imageUri);
+  const { body, ext, mime } = await uriToUploadBody(imageUri);
   const fileName = `ugc-covers/${user.id}/${Date.now()}.${ext}`;
 
   const {
@@ -766,6 +763,7 @@ export async function uploadUGCCoverPhoto(imageUri: string): Promise<string> {
     headers: {
       Authorization: `Bearer ${token}`,
       apikey: SUPABASE_ANON_KEY,
+      'Content-Type': mime,
     },
     body,
   });
@@ -1826,7 +1824,7 @@ function parseMarksPayload(raw: unknown, fallbackUserId?: string | null): Mark[]
 /** 흔적 사진 업로드. `mission-photos` 버킷의 `marks/<user_id>/...` 경로에 저장. */
 export async function uploadMarkPhoto(imageUri: string): Promise<string> {
   const user = await getCurrentUser();
-  const { body, ext } = await uriToUploadBody(imageUri);
+  const { body, ext, mime } = await uriToUploadBody(imageUri);
   const fileName = `marks/${user.id}/${Date.now()}.${ext}`;
 
   const {
@@ -1840,6 +1838,7 @@ export async function uploadMarkPhoto(imageUri: string): Promise<string> {
     headers: {
       Authorization: `Bearer ${token}`,
       apikey: SUPABASE_ANON_KEY,
+      'Content-Type': mime,
     },
     body,
   });
@@ -1847,6 +1846,40 @@ export async function uploadMarkPhoto(imageUri: string): Promise<string> {
   if (!res.ok) {
     const errText = await res.text().catch(() => '');
     console.error('Mark photo upload failed:', res.status, errText);
+    throw new AppError('사진 업로드에 실패했습니다.', 'UPLOAD_ERROR', 500);
+  }
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from('mission-photos').getPublicUrl(fileName);
+
+  return publicUrl;
+}
+
+export async function uploadChatPhoto(roomId: string, imageUri: string): Promise<string> {
+  const user = await getCurrentUser();
+  const { body, ext, mime } = await uriToUploadBody(imageUri);
+  const fileName = `chat/${user.id}/${roomId}/${Date.now()}.${ext}`;
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const token = session?.access_token ?? '';
+
+  const uploadUrl = `${SUPABASE_URL}/storage/v1/object/mission-photos/${fileName}`;
+  const res = await fetch(uploadUrl, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      apikey: SUPABASE_ANON_KEY,
+      'Content-Type': mime,
+    },
+    body,
+  });
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '');
+    console.error('Chat photo upload failed:', res.status, errText);
     throw new AppError('사진 업로드에 실패했습니다.', 'UPLOAD_ERROR', 500);
   }
 
@@ -2191,7 +2224,7 @@ export async function createLightningMeetup(params: {
 /** 일기 사진 업로드 → public URL */
 export async function uploadDiaryPhoto(imageUri: string): Promise<string> {
   const user = await getCurrentUser();
-  const { body, ext } = await uriToUploadBody(imageUri);
+  const { body, ext, mime } = await uriToUploadBody(imageUri);
   const fileName = `${user.id}/${Date.now()}.${ext}`;
 
   const {
@@ -2202,7 +2235,7 @@ export async function uploadDiaryPhoto(imageUri: string): Promise<string> {
   const uploadUrl = `${SUPABASE_URL}/storage/v1/object/diary-photos/${fileName}`;
   const res = await fetch(uploadUrl, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, apikey: SUPABASE_ANON_KEY },
+    headers: { Authorization: `Bearer ${token}`, apikey: SUPABASE_ANON_KEY, 'Content-Type': mime },
     body,
   });
 
@@ -2221,7 +2254,7 @@ export async function uploadDiaryPhoto(imageUri: string): Promise<string> {
 /** 장소 메모리 사진 업로드 → public URL */
 export async function uploadPlaceMemoryPhoto(imageUri: string): Promise<string> {
   const user = await getCurrentUser();
-  const { body, ext } = await uriToUploadBody(imageUri);
+  const { body, ext, mime } = await uriToUploadBody(imageUri);
   const fileName = `${user.id}/${Date.now()}.${ext}`;
 
   const {
@@ -2232,7 +2265,7 @@ export async function uploadPlaceMemoryPhoto(imageUri: string): Promise<string> 
   const uploadUrl = `${SUPABASE_URL}/storage/v1/object/place-memories/${fileName}`;
   const res = await fetch(uploadUrl, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, apikey: SUPABASE_ANON_KEY },
+    headers: { Authorization: `Bearer ${token}`, apikey: SUPABASE_ANON_KEY, 'Content-Type': mime },
     body,
   });
 

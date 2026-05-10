@@ -2,11 +2,10 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { View, StyleSheet, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams, type Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { MBTISelector } from '../../src/components/onboarding/MBTISelector';
 import { getMyProfile, updateProfile } from '../../src/lib/api';
 import type { MBTICode } from '../../src/types/models';
-import { SPACING } from '../../src/config/theme';
+import { MANGA, SPACING } from '../../src/config/theme';
 
 /**
  * MBTI 선택 화면 — 두 가지 모드로 작동한다:
@@ -83,10 +82,7 @@ export default function MBTISelectScreen() {
   }, [finish]);
 
   return (
-    <LinearGradient
-      colors={['#0F172A', '#1E293B']}
-      style={[styles.root, { paddingTop: insets.top + SPACING.md }]}
-    >
+    <View style={[styles.root, { paddingTop: insets.top + SPACING.md }]}>
       <View style={styles.body}>
         <MBTISelector
           initial={initial}
@@ -101,13 +97,14 @@ export default function MBTISelectScreen() {
           }
         />
       </View>
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: {
     flex: 1,
+    backgroundColor: MANGA.paper2,
   },
   body: {
     flex: 1,

@@ -20,23 +20,27 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import * as ImagePicker from 'expo-image-picker';
 
 import {
   listRoomMessages,
   sendMessage,
   markRoomRead,
   startGroupCall,
+  uploadChatPhoto,
   type RoomMessage,
 } from '../../src/lib/api';
 import { supabase } from '../../src/config/supabase';
 import { useAuthStore } from '../../src/stores/authStore';
 import { MANGA, MANGA_BORDER, MANGA_RADIUS, FONT_FAMILY } from '../../src/config/theme';
-import { MangaAvatar, showToast } from '../../src/components/ui';
+import { MangaAvatar } from '../../src/components/ui';
 
 export default function ChatRoomScreen() {
   const router = useRouter();
@@ -48,6 +52,7 @@ export default function ChatRoomScreen() {
   const [messages, setMessages] = useState<RoomMessage[]>([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
+  const [attaching, setAttaching] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
   // 메시지 로드
@@ -125,6 +130,37 @@ export default function ChatRoomScreen() {
     }
   }, [roomId, router]);
 
+  const onAttachPhoto = useCallback(async () => {
+    if (!roomId || attaching) return;
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('권한 필요', '사진을 보내려면 사진 접근 권한이 필요해요.');
+      return;
+    }
+    const picked = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: false,
+      quality: 0.86,
+    });
+    if (picked.canceled || !picked.assets[0]?.uri) return;
+
+    setAttaching(true);
+    try {
+      const url = await uploadChatPhoto(roomId, picked.assets[0].uri);
+      await sendMessage({
+        roomId,
+        content: '사진',
+        messageType: 'image',
+        payload: { url },
+      });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      Alert.alert('전송 실패', error instanceof Error ? error.message : '사진을 보내지 못했어요.');
+    } finally {
+      setAttaching(false);
+    }
+  }, [attaching, roomId]);
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -179,11 +215,15 @@ export default function ChatRoomScreen() {
       {/* 입력창 */}
       <View style={[styles.inputRow, { paddingBottom: insets.bottom + 8 }]}>
         <Pressable
-          onPress={() => showToast('첨부 — 곧 추가됩니다', { tone: 'paper' })}
+          onPress={onAttachPhoto}
           style={styles.attachBtn}
           hitSlop={6}
         >
-          <Ionicons name="add" size={22} color={MANGA.ink} />
+          {attaching ? (
+            <ActivityIndicator size="small" color={MANGA.ink} />
+          ) : (
+            <Ionicons name="add" size={22} color={MANGA.ink} />
+          )}
         </Pressable>
         <View style={styles.inputBox}>
           <TextInput
@@ -229,9 +269,13 @@ function Bubble({ msg, mine, showSender }: { msg: RoomMessage; mine: boolean; sh
           <Text style={styles.senderName} allowFontScaling={false}>{msg.sender_name ?? '친구'}</Text>
         ) : null}
         <View style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleOther]}>
-          <Text style={[styles.bubbleText, mine ? styles.bubbleTextMine : null]} allowFontScaling={false}>
-            {msg.content}
-          </Text>
+          {msg.message_type === 'image' && typeof msg.payload?.url === 'string' ? (
+            <Image source={{ uri: msg.payload.url }} style={styles.bubbleImage} contentFit="cover" />
+          ) : (
+            <Text style={[styles.bubbleText, mine ? styles.bubbleTextMine : null]} allowFontScaling={false}>
+              {msg.content}
+            </Text>
+          )}
         </View>
       </View>
     </View>
@@ -265,6 +309,7 @@ const styles = StyleSheet.create({
   bubbleMine: { backgroundColor: MANGA.y, borderTopRightRadius: 4 },
   bubbleText: { color: MANGA.ink, fontSize: 14, fontFamily: FONT_FAMILY.primary, lineHeight: 20 },
   bubbleTextMine: {},
+  bubbleImage: { width: 190, height: 190, borderRadius: 10 },
   // input
   inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, paddingHorizontal: 12, paddingTop: 8, borderTopWidth: 2, borderTopColor: MANGA.ink, backgroundColor: MANGA.paper },
   attachBtn: { width: 38, height: 38, borderRadius: 19, borderWidth: 2, borderColor: MANGA.ink, backgroundColor: MANGA.paper2, alignItems: 'center', justifyContent: 'center' },

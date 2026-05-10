@@ -32,11 +32,12 @@ import { MBTI_CODES_GRID } from '../../data/mbti-character-map';
 import { MBTI_MODIFIERS } from '../../data/mbti-personality-modifiers';
 import type { MBTICode } from '../../types/models';
 import {
-  BRAND,
-  COLORS,
+  MANGA,
+  MANGA_BORDER,
+  MANGA_RADIUS,
+  FONT_FAMILY,
   SPACING,
   FONT_SIZE,
-  FONT_WEIGHT,
   BORDER_RADIUS,
 } from '../../config/theme';
 
@@ -44,10 +45,10 @@ const { width: SCREEN_W } = Dimensions.get('window');
 
 /** 그룹별 색상 그라데이션 — 4 행(분석가/외교관/관리자/탐험가) 순 */
 const GROUP_GRADIENT: [string, string][] = [
-  ['#4C1D95', '#7C3AED'],
-  ['#065F46', '#10B981'],
-  ['#1E3A5F', '#2563EB'],
-  ['#B45309', '#F59E0B'],
+  [MANGA.p, MANGA.p],
+  [MANGA.g, MANGA.g],
+  [MANGA.b, MANGA.b],
+  [MANGA.y, MANGA.y],
 ];
 
 type Props = {
@@ -224,14 +225,16 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: FONT_SIZE.xxl,
-    fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textPrimary,
+    fontFamily: FONT_FAMILY.display,
+    color: MANGA.ink,
     textAlign: 'center',
     marginTop: SPACING.md,
   },
   subtitle: {
     fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+    fontFamily: FONT_FAMILY.primary,
+    color: MANGA.ink,
+    opacity: 0.65,
     textAlign: 'center',
     marginTop: SPACING.xs,
     marginBottom: SPACING.lg,
@@ -253,7 +256,7 @@ const styles = StyleSheet.create({
   cell: {
     aspectRatio: 0.95,
     borderRadius: BORDER_RADIUS.md,
-    overflow: 'hidden',
+    overflow: 'visible',
   },
   cellInner: {
     flex: 1,
@@ -261,66 +264,75 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.xs,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: BORDER_RADIUS.md,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderRadius: MANGA_RADIUS.card,
+    borderWidth: 2,
+    borderColor: MANGA.ink,
   },
   cellInnerSelected: {
-    borderColor: '#FFFFFF',
+    borderWidth: MANGA_BORDER.width,
   },
   cellCode: {
     fontSize: FONT_SIZE.md,
-    fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.textSecondary,
+    fontFamily: FONT_FAMILY.primaryBold,
+    color: MANGA.ink,
     letterSpacing: 0.5,
   },
   cellCodeSelected: {
-    color: '#FFFFFF',
+    color: MANGA.ink,
   },
   cellLabel: {
     marginTop: 4,
     fontSize: 10,
-    color: COLORS.textMuted,
+    fontFamily: FONT_FAMILY.primary,
+    color: MANGA.ink,
+    opacity: 0.58,
     textAlign: 'center',
   },
   cellLabelSelected: {
-    color: 'rgba(255,255,255,0.9)',
+    color: MANGA.ink,
+    opacity: 0.8,
   },
   hintBox: {
     marginTop: SPACING.lg,
     padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: MANGA_RADIUS.card,
+    borderWidth: 2,
+    borderColor: MANGA.ink,
+    backgroundColor: MANGA.paper,
     alignItems: 'center',
   },
   hintCode: {
     fontSize: FONT_SIZE.xl,
-    fontWeight: FONT_WEIGHT.bold,
-    color: BRAND.primary,
+    fontFamily: FONT_FAMILY.primaryBold,
+    color: MANGA.r,
     letterSpacing: 1,
   },
   hintLabel: {
     marginTop: 2,
     fontSize: FONT_SIZE.sm,
-    color: COLORS.textSecondary,
+    fontFamily: FONT_FAMILY.primary,
+    color: MANGA.ink,
+    opacity: 0.65,
   },
   actions: {
     paddingVertical: SPACING.md,
     gap: SPACING.sm,
   },
   primaryBtn: {
-    backgroundColor: BRAND.primary,
+    backgroundColor: MANGA.y,
     paddingVertical: SPACING.lg,
-    borderRadius: BORDER_RADIUS.lg,
+    borderRadius: MANGA_RADIUS.card,
+    borderWidth: MANGA_BORDER.width,
+    borderColor: MANGA.ink,
     alignItems: 'center',
   },
   primaryBtnDisabled: {
     opacity: 0.4,
   },
   primaryBtnText: {
-    color: COLORS.textPrimary,
+    color: MANGA.ink,
     fontSize: FONT_SIZE.lg,
-    fontWeight: FONT_WEIGHT.bold,
+    fontFamily: FONT_FAMILY.primaryBold,
   },
   subRow: {
     flexDirection: 'row',
@@ -333,12 +345,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.sm,
   },
   linkText: {
-    color: COLORS.textSecondary,
+    color: MANGA.ink,
     fontSize: FONT_SIZE.sm,
-    fontWeight: FONT_WEIGHT.medium,
+    fontFamily: FONT_FAMILY.primaryBold,
   },
   dotSep: {
-    color: COLORS.textMuted,
+    color: MANGA.ink,
+    opacity: 0.5,
     fontSize: FONT_SIZE.md,
   },
 });

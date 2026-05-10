@@ -153,6 +153,7 @@ export default function MapScreen() {
   const [friendLocations, setFriendLocations] = useState<FriendLocation[]>([]);
   const [initialRegion, setInitialRegion] = useState<Region | null>(null);
   const [searchSheetVisible, setSearchSheetVisible] = useState(false);
+  const [markSheetVisible, setMarkSheetVisible] = useState(false);
   const userHeading = useLocationStore((s) => s.heading);
   const bgLocationEnabled = useNotificationStore((s) => s.backgroundLocationEnabled);
 
@@ -406,6 +407,7 @@ export default function MapScreen() {
   }, [sortedEvents]);
 
   const fabBottom = nearbyPlaces.length > 0 ? recenterBottom + 220 : recenterBottom + 8;
+  const mapChromeBlocked = searchSheetVisible || markSheetVisible || selectedEvent !== null;
 
   /** Stable element list so GPS / unrelated renders do not rebuild ClusteredMapView children for friends. */
   const friendMarkerNodes = useMemo(
@@ -651,67 +653,74 @@ export default function MapScreen() {
       </View>
 
       {/* ── 좌상단 날씨 chip (Phase 2) ── */}
-      <View
-        style={{
-          position: 'absolute',
-          top: overlayTop + 56,
-          left: SPACING.lg,
-          zIndex: 200,
-        }}
-      >
-        <MapWeatherChip
-          condition={mangaWeatherCondition}
-          temperatureC={weatherTemperatureC}
-        />
-      </View>
+      {!mapChromeBlocked ? (
+        <View
+          style={{
+            position: 'absolute',
+            top: overlayTop + 56,
+            left: SPACING.lg,
+            zIndex: 200,
+          }}
+        >
+          <MapWeatherChip
+            condition={mangaWeatherCondition}
+            temperatureC={weatherTemperatureC}
+          />
+        </View>
+      ) : null}
 
       {/* ── 하단 근처 탐험지 carousel (Phase 2) — 탭바 바로 위 ── */}
-      <View
-        style={{
-          position: 'absolute',
-          left: 0,
-          right: 0,
-          bottom: recenterBottom - 8,
-          zIndex: 100,
-        }}
-        pointerEvents="box-none"
-      >
-        <NearbyPlacesCarousel
-          title="근처 탐험지"
-          count={nearbyPlaces.length}
-          places={nearbyPlaces}
-          onPlacePress={(p) => {
-            const ev = sortedEvents.find((e) => e.id === p.id);
-            if (ev) onMarkerPress(ev);
+      {!mapChromeBlocked ? (
+        <View
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: recenterBottom - 8,
+            zIndex: 100,
           }}
-        />
-      </View>
+          pointerEvents="box-none"
+        >
+          <NearbyPlacesCarousel
+            title="근처 탐험지"
+            count={nearbyPlaces.length}
+            places={nearbyPlaces}
+            onPlacePress={(p) => {
+              const ev = sortedEvents.find((e) => e.id === p.id);
+              if (ev) onMarkerPress(ev);
+            }}
+          />
+        </View>
+      ) : null}
 
       {/* ── 우측 FAB 스택: 레이어/이벤트/흔적/내위치 (Phase 2) ──
            carousel 보다 더 위(위쪽)에 위치시켜 겹침 방지. */}
-      <View
-        style={{
-          position: 'absolute',
-          right: SPACING.lg,
-          bottom: fabBottom,
-          zIndex: 250,
-        }}
-      >
-        <MapFabStack
-          onLayerPress={() => {
-            // TODO Phase 2.5: 카테고리 필터 sheet 오픈
+      {!mapChromeBlocked ? (
+        <View
+          style={{
+            position: 'absolute',
+            right: SPACING.lg,
+            bottom: fabBottom,
+            zIndex: 250,
           }}
-          onCreateEventPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            router.push('/create-event');
-          }}
-          onCreateTracePress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            createMarkSheetRef.current?.open();
-          }}
-          onLocationPress={handleRecenter}
-        />
-      </View>
+        >
+          <MapFabStack
+            onLayerPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }}
+            onCreateEventPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              router.push('/create-event');
+            }}
+            onCreateTracePress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              setMarkSheetVisible(true);
+              createMarkSheetRef.current?.open();
+            }}
+            onLocationPress={handleRecenter}
+          />
+        </View>
+      ) : null}
 
       {/* ── 만화 효과음 오버레이 (Phase 2) ── */}
       <PowEffect ref={powRef} />
@@ -768,6 +777,7 @@ export default function MapScreen() {
             void loadNearbyMarks(result.mark.location.lat, result.mark.location.lng);
           }
         }}
+        onSheetOpenChange={setMarkSheetVisible}
       />
     </View>
   );
