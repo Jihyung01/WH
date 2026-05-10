@@ -44,6 +44,11 @@ import {
 
 const TOTAL_STEPS = 4;
 
+function imageAssetToUploadUri(asset: ImagePicker.ImagePickerAsset): string {
+  if (!asset.base64) return asset.uri;
+  return `data:${asset.mimeType ?? 'image/jpeg'};base64,${asset.base64}`;
+}
+
 const CATEGORIES = [
   { key: 'exploration', label: '탐험', icon: 'compass-outline' as const },
   { key: 'photo', label: '사진', icon: 'camera-outline' as const },
@@ -357,9 +362,10 @@ export default function CreateEventScreen() {
         allowsEditing: true,
         aspect: [16, 9],
         quality: 0.85,
+        base64: true,
       });
       if (result.canceled) return;
-      const uri = result.assets[0]?.uri;
+      const uri = result.assets[0] ? imageAssetToUploadUri(result.assets[0]) : null;
       if (uri) setCoverImageUri(uri);
     } catch {
       Alert.alert('오류', '이미지를 불러오지 못했습니다.');

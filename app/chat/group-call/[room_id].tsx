@@ -4,6 +4,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import * as Clipboard from 'expo-clipboard';
+import * as WebBrowser from 'expo-web-browser';
 
 import { endGroupCall, startGroupCall } from '../../../src/lib/api';
 import { MANGA, MANGA_BORDER, MANGA_RADIUS, FONT_FAMILY, SPACING } from '../../../src/config/theme';
@@ -17,6 +19,10 @@ export default function GroupCallScreen() {
   const [active, setActive] = useState(true);
   const [busy, setBusy] = useState(false);
   const names = useMemo(() => ['나', '친구', '크루', '탐험'], []);
+  const callUrl = useMemo(() => {
+    const safeRoomId = String(roomId ?? 'room').replace(/[^a-zA-Z0-9]/g, '');
+    return `https://meet.jit.si/wherehere-${safeRoomId}`;
+  }, [roomId]);
 
   const start = useCallback(async () => {
     if (!roomId || busy) return;
@@ -46,6 +52,31 @@ export default function GroupCallScreen() {
     }
   }, [busy, roomId, router]);
 
+  const openVideoRoom = useCallback(async () => {
+    if (!roomId || busy) return;
+    setBusy(true);
+    try {
+      await startGroupCall(roomId);
+      setActive(true);
+      await WebBrowser.openBrowserAsync(callUrl);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      Alert.alert('오류', error instanceof Error ? error.message : '영상 방을 열지 못했어요.');
+    } finally {
+      setBusy(false);
+    }
+  }, [busy, callUrl, roomId]);
+
+  const copyInviteLink = useCallback(async () => {
+    try {
+      await Clipboard.setStringAsync(callUrl);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert('복사 완료', '영상 초대 링크를 복사했어요.');
+    } catch {
+      Alert.alert('오류', '초대 링크를 복사하지 못했어요.');
+    }
+  }, [callUrl]);
+
   return (
     <View style={[styles.container, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 18 }]}>
       <View style={styles.header}>
@@ -69,18 +100,18 @@ export default function GroupCallScreen() {
       <View style={styles.notice}>
         <Text style={styles.noticeTitle} allowFontScaling={false}>그룹 통화 방</Text>
         <Text style={styles.noticeText} allowFontScaling={false}>
-          현재 버전은 방 열기와 참여 상태 공유까지 지원해요. 실제 영상 연결은 네이티브 빌드가 필요한 단계라 다음 빌드에서 이어집니다.
+          영상 연결은 안전한 웹 통화방으로 열려요. 앱에서는 방 상태와 초대 링크를 관리하고, 통화는 브라우저에서 바로 이어집니다.
         </Text>
       </View>
 
       <View style={styles.controls}>
-        <Pressable style={styles.controlButton}>
-          <Ionicons name="mic-off" size={22} color={MANGA.ink} />
-          <Text style={styles.controlText} allowFontScaling={false}>마이크</Text>
+        <Pressable style={styles.controlButton} onPress={openVideoRoom} disabled={busy}>
+          <Ionicons name="videocam" size={22} color={MANGA.ink} />
+          <Text style={styles.controlText} allowFontScaling={false}>영상 연결</Text>
         </Pressable>
-        <Pressable style={styles.controlButton}>
-          <Ionicons name="videocam-off" size={22} color={MANGA.ink} />
-          <Text style={styles.controlText} allowFontScaling={false}>카메라</Text>
+        <Pressable style={styles.controlButton} onPress={copyInviteLink} disabled={busy}>
+          <Ionicons name="link" size={22} color={MANGA.ink} />
+          <Text style={styles.controlText} allowFontScaling={false}>초대 링크</Text>
         </Pressable>
         <Pressable
           onPress={active ? end : start}

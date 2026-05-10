@@ -696,6 +696,14 @@ export async function savePushToken(token: string): Promise<void> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function detectMime(uri: string): { mime: string; ext: string } {
+  const dataMatch = /^data:([^;,]+)[;,]/.exec(uri);
+  if (dataMatch?.[1]) {
+    const mime = dataMatch[1].toLowerCase();
+    if (mime === 'image/png') return { mime, ext: 'png' };
+    if (mime === 'image/webp') return { mime, ext: 'webp' };
+    if (mime === 'image/heic' || mime === 'image/heif') return { mime, ext: 'heic' };
+    return { mime: 'image/jpeg', ext: 'jpg' };
+  }
   const lower = uri.toLowerCase();
   if (lower.includes('.heic') || lower.includes('.heif')) return { mime: 'image/heic', ext: 'heic' };
   if (lower.includes('.png')) return { mime: 'image/png', ext: 'png' };
@@ -703,8 +711,43 @@ function detectMime(uri: string): { mime: string; ext: string } {
   return { mime: 'image/jpeg', ext: 'jpg' };
 }
 
+function decodeBase64ToBytes(base64: string): Uint8Array {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  const clean = base64.replace(/[\r\n\s]/g, '');
+  const bytes: number[] = [];
+  let buffer = 0;
+  let bits = 0;
+
+  for (const char of clean) {
+    if (char === '=') break;
+    const value = alphabet.indexOf(char);
+    if (value < 0) continue;
+    buffer = (buffer << 6) | value;
+    bits += 6;
+    if (bits >= 8) {
+      bits -= 8;
+      bytes.push((buffer >> bits) & 0xff);
+    }
+  }
+
+  return new Uint8Array(bytes);
+}
+
 async function uriToUploadBody(imageUri: string): Promise<{ body: Blob; ext: string; mime: string }> {
   const { mime, ext } = detectMime(imageUri);
+  if (imageUri.startsWith('data:')) {
+    const commaIndex = imageUri.indexOf(',');
+    if (commaIndex < 0) throw new AppError('사진 파일을 읽지 못했습니다.', 'UPLOAD_READ_ERROR', 400);
+    const meta = imageUri.slice(0, commaIndex);
+    const payload = imageUri.slice(commaIndex + 1);
+    const bytes = meta.includes(';base64')
+      ? decodeBase64ToBytes(payload)
+      : new TextEncoder().encode(decodeURIComponent(payload));
+    const arrayBuffer = new ArrayBuffer(bytes.byteLength);
+    new Uint8Array(arrayBuffer).set(bytes);
+    return { body: new Blob([arrayBuffer], { type: mime }), ext, mime };
+  }
+
   const response = await fetch(imageUri);
   const body = await response.blob();
   return { body, ext, mime };
@@ -735,8 +778,6 @@ export async function uploadMissionPhoto(
   });
 
   if (!res.ok) {
-    const errText = await res.text().catch(() => '');
-    console.error('Storage upload failed:', res.status, errText);
     throw new AppError('사진 업로드에 실패했습니다.', 'UPLOAD_ERROR', 500);
   }
 
@@ -769,8 +810,6 @@ export async function uploadUGCCoverPhoto(imageUri: string): Promise<string> {
   });
 
   if (!res.ok) {
-    const errText = await res.text().catch(() => '');
-    console.error('Cover upload failed:', res.status, errText);
     throw new AppError('커버 이미지 업로드에 실패했습니다.', 'UPLOAD_ERROR', 500);
   }
 
@@ -1844,8 +1883,6 @@ export async function uploadMarkPhoto(imageUri: string): Promise<string> {
   });
 
   if (!res.ok) {
-    const errText = await res.text().catch(() => '');
-    console.error('Mark photo upload failed:', res.status, errText);
     throw new AppError('사진 업로드에 실패했습니다.', 'UPLOAD_ERROR', 500);
   }
 
@@ -1878,8 +1915,6 @@ export async function uploadChatPhoto(roomId: string, imageUri: string): Promise
   });
 
   if (!res.ok) {
-    const errText = await res.text().catch(() => '');
-    console.error('Chat photo upload failed:', res.status, errText);
     throw new AppError('사진 업로드에 실패했습니다.', 'UPLOAD_ERROR', 500);
   }
 
@@ -2240,8 +2275,6 @@ export async function uploadDiaryPhoto(imageUri: string): Promise<string> {
   });
 
   if (!res.ok) {
-    const errText = await res.text().catch(() => '');
-    console.error('Diary photo upload failed:', res.status, errText);
     throw new AppError('사진 업로드에 실패했습니다.', 'UPLOAD_ERROR', 500);
   }
 
@@ -2270,8 +2303,6 @@ export async function uploadPlaceMemoryPhoto(imageUri: string): Promise<string> 
   });
 
   if (!res.ok) {
-    const errText = await res.text().catch(() => '');
-    console.error('Place memory upload failed:', res.status, errText);
     throw new AppError('사진 업로드에 실패했습니다.', 'UPLOAD_ERROR', 500);
   }
 

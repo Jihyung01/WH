@@ -35,6 +35,11 @@ const VISIBILITY_OPTIONS: { value: DiaryVisibility; label: string; emoji: string
   { value: 'private', label: '비공개',   emoji: '🔒' },
 ];
 
+function imageAssetToUploadUri(asset: ImagePicker.ImagePickerAsset): string {
+  if (!asset.base64) return asset.uri;
+  return `data:${asset.mimeType ?? 'image/jpeg'};base64,${asset.base64}`;
+}
+
 export default function DiaryCreateScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -62,9 +67,10 @@ export default function DiaryCreateScreen() {
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         quality: 0.85,
         allowsMultipleSelection: false,
+        base64: true,
       });
       if (res.canceled || !res.assets?.[0]) return;
-      setPhotoUris((prev) => [...prev, res.assets[0].uri]);
+      setPhotoUris((prev) => [...prev, imageAssetToUploadUri(res.assets[0])]);
     } catch (e) {
       Alert.alert('사진 선택 실패', e instanceof Error ? e.message : '잠시 후 다시 시도');
     } finally {

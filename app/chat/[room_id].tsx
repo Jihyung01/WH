@@ -42,6 +42,11 @@ import { useAuthStore } from '../../src/stores/authStore';
 import { MANGA, MANGA_BORDER, MANGA_RADIUS, FONT_FAMILY } from '../../src/config/theme';
 import { MangaAvatar } from '../../src/components/ui';
 
+function imageAssetToUploadUri(asset: ImagePicker.ImagePickerAsset): string {
+  if (!asset.base64) return asset.uri;
+  return `data:${asset.mimeType ?? 'image/jpeg'};base64,${asset.base64}`;
+}
+
 export default function ChatRoomScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -141,12 +146,13 @@ export default function ChatRoomScreen() {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: false,
       quality: 0.86,
+      base64: true,
     });
     if (picked.canceled || !picked.assets[0]?.uri) return;
 
     setAttaching(true);
     try {
-      const url = await uploadChatPhoto(roomId, picked.assets[0].uri);
+      const url = await uploadChatPhoto(roomId, imageAssetToUploadUri(picked.assets[0]));
       await sendMessage({
         roomId,
         content: '사진',

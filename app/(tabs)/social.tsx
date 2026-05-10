@@ -143,6 +143,114 @@ const avatarStyles = StyleSheet.create({
   letter: { color: '#FFF', fontWeight: FONT_WEIGHT.bold },
 });
 
+function StoryRail({ friends }: { friends: FriendInfo[] }) {
+  const storyFriends = friends.slice(0, 5);
+  return (
+    <View style={s.storySection}>
+      <View style={s.sectionHeaderRow}>
+        <Text style={s.socialSectionTitle}>스토리 🎬</Text>
+        <Text style={s.sectionMore}>전체 →</Text>
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.storyRail}>
+        <Pressable
+          style={s.storyItem}
+          onPress={() => Alert.alert('스토리', '스토리 올리기는 피드 사진 공유와 함께 이어집니다.')}
+        >
+          <View style={[s.storyRing, s.storyAdd]}>
+            <Text style={s.storyAddText}>+</Text>
+          </View>
+          <Text style={s.storyName} numberOfLines={1}>스토리</Text>
+        </Pressable>
+        {storyFriends.map((friend, index) => (
+          <Pressable key={friend.user_id} style={s.storyItem}>
+            <View style={[s.storyRing, index > 2 && s.storyViewed]}>
+              <AvatarCircle username={friend.username} avatarUrl={friend.avatar_url} size={42} />
+            </View>
+            <Text style={s.storyName} numberOfLines={1}>{friend.username}</Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
+function RadarPanel({
+  friends,
+  friendLocations,
+  districtByUserId,
+  onOpenFriendProfile,
+}: {
+  friends: FriendInfo[];
+  friendLocations: FriendLocation[];
+  districtByUserId: Map<string, string>;
+  onOpenFriendProfile: (userId: string) => void;
+}) {
+  const pins = friends.slice(0, 4);
+  const positions: Array<{ left: `${number}%`; top: `${number}%` }> = [
+    { left: '24%', top: '30%' },
+    { left: '72%', top: '34%' },
+    { left: '78%', top: '70%' },
+    { left: '18%', top: '74%' },
+  ];
+
+  return (
+    <View style={s.radarSection}>
+      <View style={s.sectionHeaderRow}>
+        <Text style={s.socialSectionTitle}>레이더 📡</Text>
+        <Text style={s.sectionMore}>지도 →</Text>
+      </View>
+      <View style={s.radarWrap}>
+        <View style={[s.radarRing, s.radarRingOuter]} />
+        <View style={[s.radarRing, s.radarRingMiddle]} />
+        <View style={[s.radarRing, s.radarRingInner]} />
+        <View style={s.radarMe}>
+          <Text style={s.radarMeText}>나</Text>
+        </View>
+        {pins.map((friend, index) => {
+          const loc = friendLocations.find((item) => item.user_id === friend.user_id);
+          const district = loc ? districtByUserId.get(friend.user_id) : null;
+          const label = district ?? (friend.location_sharing ? '공유 중' : '고스트');
+          return (
+            <Pressable
+              key={friend.user_id}
+              style={[s.radarPin, positions[index]]}
+              onPress={() => onOpenFriendProfile(friend.user_id)}
+            >
+              <Text style={s.radarPinText}>{friend.username[0] ?? '?'}</Text>
+              <View style={s.radarPinLabel}>
+                <Text style={s.radarPinLabelText} numberOfLines={1}>{label}</Text>
+              </View>
+            </Pressable>
+          );
+        })}
+      </View>
+      <View style={s.socialSegment}>
+        <Text style={[s.socialSegmentText, s.socialSegmentActive]}>근처 {friendLocations.length}명</Text>
+        <Text style={s.socialSegmentText}>온라인 {friends.length}</Text>
+        <Text style={s.socialSegmentText}>전체</Text>
+      </View>
+    </View>
+  );
+}
+
+function SocialChallengeCard() {
+  return (
+    <View style={s.challengeCard}>
+      <View style={s.challengeIcon}>
+        <Text style={s.challengeIconText}>☕</Text>
+      </View>
+      <View style={s.challengeMeta}>
+        <Text style={s.challengeTitle} numberOfLines={1}>정자동 카페 5곳 가기</Text>
+        <Text style={s.challengeSub}>남은 4일 · 보상 +120 EXP</Text>
+        <View style={s.challengeProgressTrack}>
+          <View style={s.challengeProgressFill} />
+        </View>
+      </View>
+      <Text style={s.challengeCount}>3/5</Text>
+    </View>
+  );
+}
+
 // ─── Friends Tab ─────────────────────────────────────────────────────────────
 
 function FriendsTab({
@@ -287,6 +395,14 @@ function FriendsTab({
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={'#FF4757'} colors={['#FF4757']} />}
       keyboardShouldPersistTaps="handled"
     >
+      <StoryRail friends={friends} />
+      <RadarPanel
+        friends={friends}
+        friendLocations={friendLocations}
+        districtByUserId={districtByUserId}
+        onOpenFriendProfile={onOpenFriendProfile}
+      />
+
       {/* Location sharing toggle */}
       <Animated.View entering={FadeInUp.duration(300)} style={s.locationShareRow}>
         <View style={s.locationShareTextCol}>
@@ -428,6 +544,12 @@ function FriendsTab({
           })
         )}
       </Animated.View>
+
+      <View style={s.sectionHeaderRow}>
+        <Text style={s.socialSectionTitle}>진행 중인 챌린지</Text>
+        <Text style={s.sectionMore}>전체 →</Text>
+      </View>
+      <SocialChallengeCard />
     </ScrollView>
   );
 }
@@ -1167,9 +1289,14 @@ export default function SocialScreen() {
     >
       {/* Header */}
       <View style={s.header}>
-        <View style={s.backBtn} />
-        <Text style={s.headerTitle}>소셜</Text>
-        <View style={s.headerSpacer} />
+        <View>
+          <Text style={s.headerTitle}>친구들 👥</Text>
+          <Text style={s.headerSubtitle}>위치와 이야기가 모이는 곳</Text>
+        </View>
+        <View style={s.ghostPill}>
+          <View style={s.ghostLed} />
+          <Text style={s.ghostText}>고스트 OFF</Text>
+        </View>
       </View>
 
       {/* Tabs */}
@@ -1257,7 +1384,37 @@ const s = StyleSheet.create({
     color: '#1A1612',
     letterSpacing: -0.5,
   },
+  headerSubtitle: {
+    marginTop: 2,
+    color: 'rgba(26,22,18,0.58)',
+    fontSize: 11,
+    fontWeight: '800',
+  },
   headerSpacer: { width: 36 },
+  ghostPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 2,
+    borderColor: '#1A1612',
+    borderRadius: 999,
+    backgroundColor: '#FFD93D',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  ghostLed: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    backgroundColor: '#3DDC97',
+    borderWidth: 1.5,
+    borderColor: '#1A1612',
+  },
+  ghostText: {
+    color: '#1A1612',
+    fontSize: 10,
+    fontWeight: '900',
+  },
 
   // Tabs (manga: 종이 + 빨강 활성 underline)
   tabBar: {
@@ -1299,6 +1456,158 @@ const s = StyleSheet.create({
   tabContent: { flex: 1 },
   tabContentInner: { padding: SPACING.lg },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: SPACING.lg,
+    marginBottom: SPACING.sm,
+  },
+  socialSectionTitle: {
+    color: '#1A1612',
+    fontSize: 15,
+    fontWeight: '900',
+    letterSpacing: -0.3,
+  },
+  sectionMore: {
+    color: '#FF4757',
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  storySection: {
+    marginBottom: SPACING.sm,
+  },
+  storyRail: {
+    gap: 10,
+    paddingVertical: 4,
+    paddingRight: SPACING.lg,
+  },
+  storyItem: {
+    width: 62,
+    alignItems: 'center',
+    gap: 4,
+  },
+  storyRing: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    borderWidth: 2.5,
+    borderColor: '#1A1612',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FF4757',
+    padding: 3,
+  },
+  storyViewed: {
+    backgroundColor: '#E8E0D2',
+  },
+  storyAdd: {
+    backgroundColor: '#FFFEF5',
+  },
+  storyAddText: {
+    color: '#1A1612',
+    fontSize: 25,
+    fontWeight: '900',
+  },
+  storyName: {
+    width: '100%',
+    textAlign: 'center',
+    color: '#1A1612',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  radarSection: {
+    marginBottom: SPACING.md,
+  },
+  radarWrap: {
+    height: 190,
+    borderWidth: 2.5,
+    borderColor: '#1A1612',
+    borderRadius: 18,
+    backgroundColor: '#FFFEF5',
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radarRing: {
+    position: 'absolute',
+    borderWidth: 2,
+    borderColor: 'rgba(255,71,87,0.35)',
+    borderRadius: 999,
+  },
+  radarRingOuter: { width: 168, height: 168 },
+  radarRingMiddle: { width: 112, height: 112 },
+  radarRingInner: { width: 58, height: 58 },
+  radarMe: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 2.5,
+    borderColor: '#1A1612',
+    backgroundColor: '#FFD93D',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radarMeText: {
+    color: '#1A1612',
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  radarPin: {
+    position: 'absolute',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: '#1A1612',
+    backgroundColor: '#3DDC97',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radarPinText: {
+    color: '#FFF',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  radarPinLabel: {
+    position: 'absolute',
+    top: 34,
+    minWidth: 56,
+    borderWidth: 1.5,
+    borderColor: '#1A1612',
+    borderRadius: 6,
+    backgroundColor: '#FFFEF5',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+  },
+  radarPinLabelText: {
+    color: '#1A1612',
+    fontSize: 9,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  socialSegment: {
+    marginTop: SPACING.sm,
+    flexDirection: 'row',
+    borderWidth: 2.5,
+    borderColor: '#1A1612',
+    borderRadius: 12,
+    backgroundColor: '#FFFEF5',
+    padding: 3,
+  },
+  socialSegmentText: {
+    flex: 1,
+    textAlign: 'center',
+    color: '#8B7355',
+    fontSize: 11,
+    fontWeight: '900',
+    paddingVertical: 7,
+    borderRadius: 9,
+  },
+  socialSegmentActive: {
+    color: '#FFD93D',
+    backgroundColor: '#1A1612',
+  },
   sectionTitle: {
     fontSize: FONT_SIZE.md,
     fontWeight: FONT_WEIGHT.bold,
@@ -1385,6 +1694,8 @@ const s = StyleSheet.create({
     padding: SPACING.md,
     marginBottom: SPACING.sm,
     gap: SPACING.md,
+    borderWidth: 2,
+    borderColor: '#1A1612',
   },
   friendInfo: { flex: 1 },
   friendName: {
@@ -1435,6 +1746,62 @@ const s = StyleSheet.create({
     paddingVertical: SPACING.xxxl,
     backgroundColor: '#FFFEF5',
     borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 2,
+    borderColor: '#1A1612',
+  },
+  challengeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 2.5,
+    borderColor: '#1A1612',
+    borderRadius: 14,
+    backgroundColor: '#FFFEF5',
+    padding: 12,
+  },
+  challengeIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 11,
+    borderWidth: 2.5,
+    borderColor: '#1A1612',
+    backgroundColor: '#FFD93D',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  challengeIconText: { fontSize: 24 },
+  challengeMeta: { flex: 1, minWidth: 0 },
+  challengeTitle: {
+    color: '#1A1612',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  challengeSub: {
+    color: '#8B7355',
+    fontSize: 10,
+    fontWeight: '800',
+    marginTop: 2,
+  },
+  challengeProgressTrack: {
+    height: 8,
+    marginTop: 6,
+    borderWidth: 1.5,
+    borderColor: '#1A1612',
+    borderRadius: 6,
+    backgroundColor: '#E8E0D2',
+    overflow: 'hidden',
+  },
+  challengeProgressFill: {
+    width: '60%',
+    height: '100%',
+    backgroundColor: '#FF4757',
+    borderRightWidth: 1.5,
+    borderRightColor: '#1A1612',
+  },
+  challengeCount: {
+    color: '#FF4757',
+    fontSize: 14,
+    fontWeight: '900',
   },
   emptyEmoji: { fontSize: 48, marginBottom: SPACING.lg },
   emptyText: {

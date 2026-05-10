@@ -54,6 +54,11 @@ const VISIBILITY_OPTIONS: { value: MarkVisibility; label: string; icon: keyof ty
   { value: 'private', label: '나만', icon: 'lock-closed' },
 ];
 
+function imageAssetToUploadUri(asset: ImagePicker.ImagePickerAsset): string {
+  if (!asset.base64) return asset.uri;
+  return `data:${asset.mimeType ?? 'image/jpeg'};base64,${asset.base64}`;
+}
+
 export interface CreateMarkSheetHandle {
   open: () => void;
   close: () => void;
@@ -128,10 +133,11 @@ export const CreateMarkSheet = forwardRef<CreateMarkSheetHandle, Props>(
           quality: 0.8,
           allowsEditing: true,
           aspect: [4, 5],
+          base64: true,
         });
         if (!res.canceled && res.assets[0]) {
           fireImpactMedium();
-          setPhotoUri(res.assets[0].uri);
+          setPhotoUri(imageAssetToUploadUri(res.assets[0]));
         }
       } catch (err) {
         captureError(err, { tag: 'CreateMarkSheet.pickFromAlbum' });
@@ -149,10 +155,11 @@ export const CreateMarkSheet = forwardRef<CreateMarkSheetHandle, Props>(
           quality: 0.8,
           allowsEditing: true,
           aspect: [4, 5],
+          base64: true,
         });
         if (!res.canceled && res.assets[0]) {
           fireImpactMedium();
-          setPhotoUri(res.assets[0].uri);
+          setPhotoUri(imageAssetToUploadUri(res.assets[0]));
         }
       } catch (err) {
         captureError(err, { tag: 'CreateMarkSheet.pickFromCamera' });

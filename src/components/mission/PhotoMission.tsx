@@ -12,6 +12,11 @@ interface PhotoMissionProps {
   isCompleted: boolean;
 }
 
+function imageAssetToUploadUri(asset: ImagePicker.ImagePickerAsset): string {
+  if (!asset.base64) return asset.uri;
+  return `data:${asset.mimeType ?? 'image/jpeg'};base64,${asset.base64}`;
+}
+
 export function PhotoMission({ description, onComplete, isActive, isCompleted }: PhotoMissionProps) {
   const [busy, setBusy] = useState(false);
 
@@ -42,6 +47,7 @@ export function PhotoMission({ description, onComplete, isActive, isCompleted }:
         allowsEditing: false,
         quality: 0.85,
         exif: false,
+        base64: true,
       };
       const result =
         source === 'camera'
@@ -52,16 +58,15 @@ export function PhotoMission({ description, onComplete, isActive, isCompleted }:
         return;
       }
 
-      const uri = result.assets[0]?.uri;
-      if (!uri) {
+      const asset = result.assets[0];
+      if (!asset?.uri) {
         Alert.alert('오류', '이미지 파일을 불러오지 못했습니다.');
         return;
       }
 
-      await Promise.resolve(onComplete(uri));
+      await Promise.resolve(onComplete(imageAssetToUploadUri(asset)));
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    } catch (error) {
-      console.error('Photo capture error:', error);
+    } catch {
       Alert.alert('오류', '사진 선택 또는 업로드 중 문제가 발생했습니다.');
     } finally {
       setBusy(false);
