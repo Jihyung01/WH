@@ -112,7 +112,7 @@ function looksLikeJwtAuthFailure(message: string, rawText: string): boolean {
  * RN/Expo에서 `supabase.functions.invoke` + 내부 fetch 헤더 병합이 꼬이면 `Invalid JWT`가 날 수 있어
  * 동일 URL로 `fetch`에 apikey·Authorization을 명시해 호출합니다.
  */
-async function invokeEdgeFunction<T>(name: string, body: Record<string, unknown>): Promise<T> {
+async function invokeEdgeFunction<T>(name: string, body: unknown): Promise<T> {
   const fnUrl = `${SUPABASE_URL.replace(/\/$/, '')}/functions/v1/${encodeURIComponent(name)}`;
 
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -485,7 +485,7 @@ export interface BatchGenerateResult {
 export async function generateEventsBatch(
   params: BatchGenerateRequest,
 ): Promise<BatchGenerateResult> {
-  return invokeEdgeFunction<BatchGenerateResult>('generate-events-batch', params as Record<string, unknown>);
+  return invokeEdgeFunction<BatchGenerateResult>('generate-events-batch', params);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2192,6 +2192,52 @@ export interface SendMessageParams {
   payload?: Record<string, unknown> | null;
 }
 
+async function sendChatMessagePush(roomId: string, messageId: string, content: string | null, messageType: MessageType): Promise<void> {
+  try {
+    const user = await getCurrentUser();
+    const [{ data: senderProfile }, { data: members }] = await Promise.all([
+      supabase
+        .from('profiles')
+        .select('username')
+        .eq('id', user.id)
+        .maybeSingle(),
+      supabase
+        .from('chat_room_members')
+        .select('user_id')
+        .eq('room_id', roomId)
+        .neq('user_id', user.id),
+    ]);
+
+    const targetIds = (members ?? [])
+      .map((row) => row.user_id)
+      .filter((id): id is string => typeof id === 'string' && id.length > 0);
+
+    if (targetIds.length === 0) return;
+
+    const senderName =
+      typeof senderProfile?.username === 'string' && senderProfile.username.trim()
+        ? senderProfile.username.trim()
+        : '친구';
+    const body = messageType === 'image'
+      ? '사진을 보냈어요.'
+      : content?.trim() || '새 메시지가 도착했어요.';
+
+    await invokeEdgeFunction<{ success?: boolean }>('send-notification', targetIds.map((userId) => ({
+      user_id: userId,
+      title: `${senderName}님의 메시지`,
+      body,
+      data: {
+        type: 'chat_message',
+        roomId,
+        messageId,
+        deepLink: `wherehere://chat/${roomId}`,
+      },
+    })));
+  } catch {
+    /* 채팅 저장은 성공했으므로 푸시 실패는 화면 흐름을 막지 않는다. */
+  }
+}
+
 export async function sendMessage(params: SendMessageParams): Promise<string> {
   const { data, error } = await supabase.rpc('send_message', {
     p_room_id: params.roomId,
@@ -2200,7 +2246,14 @@ export async function sendMessage(params: SendMessageParams): Promise<string> {
     p_payload: params.payload ?? null,
   });
   if (error) throw new AppError(error.message, 'SEND_MESSAGE_FAILED');
-  return String(data);
+  const messageId = String(data);
+  await sendChatMessagePush(
+    params.roomId,
+    messageId,
+    params.content ?? null,
+    params.messageType ?? 'text',
+  );
+  return messageId;
 }
 
 export async function markRoomRead(roomId: string): Promise<void> {
