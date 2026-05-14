@@ -733,7 +733,7 @@ function decodeBase64ToBytes(base64: string): Uint8Array {
   return new Uint8Array(bytes);
 }
 
-async function uriToUploadBody(imageUri: string): Promise<{ body: Blob; ext: string; mime: string }> {
+async function uriToUploadBody(imageUri: string): Promise<{ body: ArrayBuffer; ext: string; mime: string }> {
   const { mime, ext } = detectMime(imageUri);
   if (imageUri.startsWith('data:')) {
     const commaIndex = imageUri.indexOf(',');
@@ -745,12 +745,35 @@ async function uriToUploadBody(imageUri: string): Promise<{ body: Blob; ext: str
       : new TextEncoder().encode(decodeURIComponent(payload));
     const arrayBuffer = new ArrayBuffer(bytes.byteLength);
     new Uint8Array(arrayBuffer).set(bytes);
-    return { body: new Blob([arrayBuffer], { type: mime }), ext, mime };
+    return { body: arrayBuffer, ext, mime };
   }
 
   const response = await fetch(imageUri);
-  const body = await response.blob();
+  const body = await response.arrayBuffer();
   return { body, ext, mime };
+}
+
+async function uploadPublicImage(
+  bucket: string,
+  fileName: string,
+  imageUri: string,
+  failureMessage = '사진 업로드에 실패했습니다.',
+): Promise<string> {
+  const { body, mime } = await uriToUploadBody(imageUri);
+  const { error } = await supabase.storage.from(bucket).upload(fileName, body, {
+    contentType: mime,
+    upsert: false,
+  });
+
+  if (error) {
+    throw new AppError(failureMessage, 'UPLOAD_ERROR', 500);
+  }
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from(bucket).getPublicUrl(fileName);
+
+  return publicUrl;
 }
 
 export async function uploadMissionPhoto(
@@ -1863,98 +1886,23 @@ function parseMarksPayload(raw: unknown, fallbackUserId?: string | null): Mark[]
 /** 흔적 사진 업로드. `mission-photos` 버킷의 `marks/<user_id>/...` 경로에 저장. */
 export async function uploadMarkPhoto(imageUri: string): Promise<string> {
   const user = await getCurrentUser();
-  const { body, ext, mime } = await uriToUploadBody(imageUri);
+  const { ext } = detectMime(imageUri);
   const fileName = `marks/${user.id}/${Date.now()}.${ext}`;
-
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  const token = session?.access_token ?? '';
-
-  const uploadUrl = `${SUPABASE_URL}/storage/v1/object/mission-photos/${fileName}`;
-  const res = await fetch(uploadUrl, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      apikey: SUPABASE_ANON_KEY,
-      'Content-Type': mime,
-    },
-    body,
-  });
-
-  if (!res.ok) {
-    throw new AppError('사진 업로드에 실패했습니다.', 'UPLOAD_ERROR', 500);
-  }
-
-  const {
-    data: { publicUrl },
-  } = supabase.storage.from('mission-photos').getPublicUrl(fileName);
-
-  return publicUrl;
+  return uploadPublicImage('mission-photos', fileName, imageUri);
 }
 
 export async function uploadChatPhoto(roomId: string, imageUri: string): Promise<string> {
   const user = await getCurrentUser();
-  const { body, ext, mime } = await uriToUploadBody(imageUri);
+  const { ext } = detectMime(imageUri);
   const fileName = `chat/${user.id}/${roomId}/${Date.now()}.${ext}`;
-
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  const token = session?.access_token ?? '';
-
-  const uploadUrl = `${SUPABASE_URL}/storage/v1/object/mission-photos/${fileName}`;
-  const res = await fetch(uploadUrl, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      apikey: SUPABASE_ANON_KEY,
-      'Content-Type': mime,
-    },
-    body,
-  });
-
-  if (!res.ok) {
-    throw new AppError('사진 업로드에 실패했습니다.', 'UPLOAD_ERROR', 500);
-  }
-
-  const {
-    data: { publicUrl },
-  } = supabase.storage.from('mission-photos').getPublicUrl(fileName);
-
-  return publicUrl;
+  return uploadPublicImage('mission-photos', fileName, imageUri);
 }
 
 export async function uploadSocialStoryPhoto(imageUri: string): Promise<string> {
   const user = await getCurrentUser();
-  const { body, ext, mime } = await uriToUploadBody(imageUri);
+  const { ext } = detectMime(imageUri);
   const fileName = `stories/${user.id}/${Date.now()}.${ext}`;
-
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  const token = session?.access_token ?? '';
-
-  const uploadUrl = `${SUPABASE_URL}/storage/v1/object/mission-photos/${fileName}`;
-  const res = await fetch(uploadUrl, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      apikey: SUPABASE_ANON_KEY,
-      'Content-Type': mime,
-    },
-    body,
-  });
-
-  if (!res.ok) {
-    throw new AppError('사진 업로드에 실패했습니다.', 'UPLOAD_ERROR', 500);
-  }
-
-  const {
-    data: { publicUrl },
-  } = supabase.storage.from('mission-photos').getPublicUrl(fileName);
-
-  return publicUrl;
+  return uploadPublicImage('mission-photos', fileName, imageUri);
 }
 
 export type SocialStoryVisibility = 'public' | 'friends';
