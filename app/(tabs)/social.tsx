@@ -237,7 +237,7 @@ function StoryCreateModal({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [9, 16],
-      quality: 0.86,
+      quality: 0.62,
       base64: true,
     });
     if (result.canceled || !result.assets[0]) return;
