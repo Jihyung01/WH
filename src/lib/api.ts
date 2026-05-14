@@ -1925,6 +1925,96 @@ export async function uploadChatPhoto(roomId: string, imageUri: string): Promise
   return publicUrl;
 }
 
+export async function uploadSocialStoryPhoto(imageUri: string): Promise<string> {
+  const user = await getCurrentUser();
+  const { body, ext, mime } = await uriToUploadBody(imageUri);
+  const fileName = `stories/${user.id}/${Date.now()}.${ext}`;
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const token = session?.access_token ?? '';
+
+  const uploadUrl = `${SUPABASE_URL}/storage/v1/object/mission-photos/${fileName}`;
+  const res = await fetch(uploadUrl, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      apikey: SUPABASE_ANON_KEY,
+      'Content-Type': mime,
+    },
+    body,
+  });
+
+  if (!res.ok) {
+    throw new AppError('사진 업로드에 실패했습니다.', 'UPLOAD_ERROR', 500);
+  }
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from('mission-photos').getPublicUrl(fileName);
+
+  return publicUrl;
+}
+
+export type SocialStoryVisibility = 'public' | 'friends';
+
+export interface SocialStory {
+  id: string;
+  user_id: string;
+  photo_url: string;
+  caption: string | null;
+  visibility: SocialStoryVisibility;
+  created_at: string;
+  expires_at: string;
+  username: string | null;
+  avatar_url: string | null;
+}
+
+function rowToSocialStory(row: unknown): SocialStory | null {
+  if (!row || typeof row !== 'object') return null;
+  const r = row as Record<string, unknown>;
+  const id = typeof r.id === 'string' ? r.id : null;
+  const userId = typeof r.user_id === 'string' ? r.user_id : null;
+  const photoUrl = typeof r.photo_url === 'string' ? r.photo_url : null;
+  if (!id || !userId || !photoUrl) return null;
+  const visibility: SocialStoryVisibility = r.visibility === 'public' ? 'public' : 'friends';
+  return {
+    id,
+    user_id: userId,
+    photo_url: photoUrl,
+    caption: typeof r.caption === 'string' ? r.caption : null,
+    visibility,
+    created_at: typeof r.created_at === 'string' ? r.created_at : new Date().toISOString(),
+    expires_at: typeof r.expires_at === 'string' ? r.expires_at : new Date(Date.now() + 86_400_000).toISOString(),
+    username: typeof r.username === 'string' ? r.username : null,
+    avatar_url: typeof r.avatar_url === 'string' ? r.avatar_url : null,
+  };
+}
+
+export async function listSocialStories(limit = 60): Promise<SocialStory[]> {
+  const { data, error } = await supabase.rpc('list_social_stories', { p_limit: limit });
+  if (error) throw new AppError(error.message, 'LIST_SOCIAL_STORIES_FAILED');
+  if (!Array.isArray(data)) return [];
+  return data.map(rowToSocialStory).filter((story): story is SocialStory => story !== null);
+}
+
+export async function createSocialStory(params: {
+  photoUrl: string;
+  caption?: string | null;
+  visibility?: SocialStoryVisibility;
+}): Promise<SocialStory> {
+  const { data, error } = await supabase.rpc('create_social_story', {
+    p_photo_url: params.photoUrl,
+    p_caption: params.caption ?? null,
+    p_visibility: params.visibility ?? 'friends',
+  });
+  if (error) throw new AppError(error.message, 'CREATE_SOCIAL_STORY_FAILED');
+  const story = rowToSocialStory(data);
+  if (!story) throw new AppError('스토리 생성 응답이 유효하지 않습니다.', 'CREATE_SOCIAL_STORY_INVALID_RESPONSE');
+  return story;
+}
+
 export async function getNearbyMarks(
   lat: number,
   lng: number,

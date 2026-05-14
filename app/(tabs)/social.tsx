@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import * as Location from 'expo-location';
+import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -33,6 +34,9 @@ import {
   createCrew,
   joinCrew,
   leaveCrew,
+  listSocialStories,
+  uploadSocialStoryPhoto,
+  createSocialStory,
 } from '../../src/lib/api';
 import {
   startLocationSharing,
@@ -52,7 +56,7 @@ import {
 } from '../../src/services/kakaoShare';
 import { pickKakaoFriends } from '../../src/services/kakaoFriends';
 import { captureError } from '../../src/utils/errorReporting';
-import type { FriendsResult, FriendInfo, MyCrewResult, CrewMember } from '../../src/lib/api';
+import type { FriendsResult, FriendInfo, MyCrewResult, CrewMember, SocialStory, SocialStoryVisibility } from '../../src/lib/api';
 import {
   COLORS,
   SPACING,
@@ -82,6 +86,11 @@ const SEOUL_DISTRICTS = [
   '노원구', '도봉구', '동대문구', '동작구', '마포구', '서대문구', '서초구', '성동구',
   '성북구', '송파구', '양천구', '영등포구', '용산구', '은평구', '종로구', '중구', '중랑구',
 ];
+
+function imageAssetToUploadUri(asset: ImagePicker.ImagePickerAsset): string {
+  if (!asset.base64) return asset.uri;
+  return `data:${asset.mimeType ?? 'image/jpeg'};base64,${asset.base64}`;
+}
 
 function Toast({ message, type, visible }: { message: string; type: 'success' | 'error'; visible: boolean }) {
   if (!visible) return null;
@@ -143,34 +152,219 @@ const avatarStyles = StyleSheet.create({
   letter: { color: '#FFF', fontWeight: FONT_WEIGHT.bold },
 });
 
-function StoryRail({ friends }: { friends: FriendInfo[] }) {
-  const storyFriends = friends.slice(0, 5);
+function StoryRail({
+  stories,
+  viewerId,
+  onCreate,
+  onOpen,
+}: {
+  stories: SocialStory[];
+  viewerId: string | null;
+  onCreate: () => void;
+  onOpen: (story: SocialStory) => void;
+}) {
+  const storyByUser = new Map<string, SocialStory>();
+  for (const story of stories) {
+    if (!storyByUser.has(story.user_id)) storyByUser.set(story.user_id, story);
+  }
+  const latestStories = Array.from(storyByUser.values()).sort((a, b) => {
+    if (a.user_id === viewerId) return -1;
+    if (b.user_id === viewerId) return 1;
+    return Date.parse(b.created_at) - Date.parse(a.created_at);
+  });
   return (
     <View style={s.storySection}>
       <View style={s.sectionHeaderRow}>
         <Text style={s.socialSectionTitle}>스토리 🎬</Text>
-        <Text style={s.sectionMore}>전체 →</Text>
+        <Text style={s.sectionMore}>24시간</Text>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.storyRail}>
         <Pressable
           style={s.storyItem}
-          onPress={() => Alert.alert('스토리', '스토리 올리기는 피드 사진 공유와 함께 이어집니다.')}
+          onPress={onCreate}
         >
           <View style={[s.storyRing, s.storyAdd]}>
             <Text style={s.storyAddText}>+</Text>
           </View>
           <Text style={s.storyName} numberOfLines={1}>스토리</Text>
         </Pressable>
-        {storyFriends.map((friend, index) => (
-          <Pressable key={friend.user_id} style={s.storyItem}>
-            <View style={[s.storyRing, index > 2 && s.storyViewed]}>
-              <AvatarCircle username={friend.username} avatarUrl={friend.avatar_url} size={42} />
+        {latestStories.map((story, index) => (
+          <Pressable key={story.id} style={s.storyItem} onPress={() => onOpen(story)}>
+            <View style={[s.storyRing, index > 5 && s.storyViewed]}>
+              <Image source={{ uri: story.photo_url }} style={s.storyThumb} contentFit="cover" />
             </View>
-            <Text style={s.storyName} numberOfLines={1}>{friend.username}</Text>
+            <Text style={s.storyName} numberOfLines={1}>
+              {story.user_id === viewerId ? '내 스토리' : story.username ?? '친구'}
+            </Text>
           </Pressable>
         ))}
       </ScrollView>
     </View>
+  );
+}
+
+function StoryCreateModal({
+  visible,
+  onClose,
+  onCreated,
+  onShowToast,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onCreated: (story: SocialStory) => void;
+  onShowToast: (msg: string, type: 'success' | 'error') => void;
+}) {
+  const insets = useSafeAreaInsets();
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [caption, setCaption] = useState('');
+  const [visibility, setVisibility] = useState<SocialStoryVisibility>('friends');
+  const [submitting, setSubmitting] = useState(false);
+
+  const reset = useCallback(() => {
+    setPhotoUri(null);
+    setCaption('');
+    setVisibility('friends');
+  }, []);
+
+  const pickPhoto = useCallback(async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('권한 필요', '스토리에 사진을 올리려면 사진 권한이 필요해요.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [9, 16],
+      quality: 0.86,
+      base64: true,
+    });
+    if (result.canceled || !result.assets[0]) return;
+    setPhotoUri(imageAssetToUploadUri(result.assets[0]));
+  }, []);
+
+  const submit = useCallback(async () => {
+    if (!photoUri || submitting) return;
+    setSubmitting(true);
+    try {
+      const photoUrl = await uploadSocialStoryPhoto(photoUri);
+      const story = await createSocialStory({
+        photoUrl,
+        caption: caption.trim() || null,
+        visibility,
+      });
+      onCreated(story);
+      reset();
+      onClose();
+      onShowToast('스토리를 올렸어요.', 'success');
+    } catch {
+      onShowToast('스토리 업로드에 실패했어요.', 'error');
+    } finally {
+      setSubmitting(false);
+    }
+  }, [caption, onClose, onCreated, onShowToast, photoUri, reset, submitting, visibility]);
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent>
+      <View style={storyModalStyles.overlay}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={storyModalStyles.kav}>
+          <View style={[storyModalStyles.sheet, { paddingBottom: insets.bottom + 18 }]}>
+            <View style={storyModalStyles.header}>
+              <Text style={storyModalStyles.title} allowFontScaling={false}>새 스토리</Text>
+              <Pressable onPress={() => { reset(); onClose(); }} hitSlop={12}>
+                <Ionicons name="close" size={24} color="#1A1612" />
+              </Pressable>
+            </View>
+
+            <Pressable style={storyModalStyles.photoBox} onPress={pickPhoto}>
+              {photoUri ? (
+                <Image source={{ uri: photoUri }} style={storyModalStyles.photo} contentFit="cover" />
+              ) : (
+                <View style={storyModalStyles.photoEmpty}>
+                  <Ionicons name="camera" size={34} color="#1A1612" />
+                  <Text style={storyModalStyles.photoHint} allowFontScaling={false}>사진 선택</Text>
+                </View>
+              )}
+            </Pressable>
+
+            <TextInput
+              value={caption}
+              onChangeText={setCaption}
+              placeholder="오늘의 한 장을 짧게 남겨보세요"
+              placeholderTextColor="rgba(26,22,18,0.45)"
+              style={storyModalStyles.captionInput}
+              maxLength={80}
+              allowFontScaling={false}
+            />
+
+            <View style={storyModalStyles.visibilityRow}>
+              {[
+                { value: 'friends' as const, label: '친구만' },
+                { value: 'public' as const, label: '전체공개' },
+              ].map((option) => (
+                <Pressable
+                  key={option.value}
+                  style={[storyModalStyles.visibilityButton, visibility === option.value && storyModalStyles.visibilityButtonActive]}
+                  onPress={() => setVisibility(option.value)}
+                >
+                  <Text style={[storyModalStyles.visibilityText, visibility === option.value && storyModalStyles.visibilityTextActive]}>
+                    {option.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <Pressable
+              style={[storyModalStyles.submitButton, (!photoUri || submitting) && storyModalStyles.submitButtonDisabled]}
+              onPress={submit}
+              disabled={!photoUri || submitting}
+            >
+              {submitting ? (
+                <ActivityIndicator color="#1A1612" />
+              ) : (
+                <Text style={storyModalStyles.submitText} allowFontScaling={false}>24시간 스토리 올리기</Text>
+              )}
+            </Pressable>
+          </View>
+        </KeyboardAvoidingView>
+      </View>
+    </Modal>
+  );
+}
+
+function StoryViewerModal({
+  story,
+  onClose,
+}: {
+  story: SocialStory | null;
+  onClose: () => void;
+}) {
+  return (
+    <Modal visible={story !== null} animationType="fade" transparent>
+      <View style={storyViewerStyles.overlay}>
+        <Pressable style={storyViewerStyles.closeButton} onPress={onClose} hitSlop={12}>
+          <Ionicons name="close" size={26} color="#FFFEF5" />
+        </Pressable>
+        {story ? (
+          <View style={storyViewerStyles.card}>
+            <Image source={{ uri: story.photo_url }} style={storyViewerStyles.image} contentFit="cover" />
+            <View style={storyViewerStyles.meta}>
+              <AvatarCircle username={story.username ?? '친구'} avatarUrl={story.avatar_url} size={34} />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={storyViewerStyles.name} allowFontScaling={false} numberOfLines={1}>
+                  {story.username ?? '친구'}
+                </Text>
+                {story.caption ? (
+                  <Text style={storyViewerStyles.caption} allowFontScaling={false} numberOfLines={2}>
+                    {story.caption}
+                  </Text>
+                ) : null}
+              </View>
+            </View>
+          </View>
+        ) : null}
+      </View>
+    </Modal>
   );
 }
 
@@ -262,6 +456,10 @@ function FriendsTab({
   friendLocations,
   districtByUserId,
   onOpenFriendProfile,
+  stories,
+  viewerId,
+  onCreateStory,
+  onOpenStory,
 }: {
   data: FriendsResult | null;
   loading: boolean;
@@ -271,6 +469,10 @@ function FriendsTab({
   friendLocations: FriendLocation[];
   districtByUserId: Map<string, string>;
   onOpenFriendProfile: (userId: string) => void;
+  stories: SocialStory[];
+  viewerId: string | null;
+  onCreateStory: () => void;
+  onOpenStory: (story: SocialStory) => void;
 }) {
   const [searchText, setSearchText] = useState('');
   const [sending, setSending] = useState(false);
@@ -395,7 +597,12 @@ function FriendsTab({
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={'#FF4757'} colors={['#FF4757']} />}
       keyboardShouldPersistTaps="handled"
     >
-      <StoryRail friends={friends} />
+      <StoryRail
+        stories={stories}
+        viewerId={viewerId}
+        onCreate={onCreateStory}
+        onOpen={onOpenStory}
+      />
       <RadarPanel
         friends={friends}
         friendLocations={friendLocations}
@@ -907,6 +1114,121 @@ const modalStyles = StyleSheet.create({
   createBtnText: { fontSize: FONT_SIZE.lg, fontWeight: FONT_WEIGHT.bold, color: '#FFF' },
 });
 
+const storyModalStyles = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(26,22,18,0.55)', justifyContent: 'flex-end' },
+  kav: { justifyContent: 'flex-end' },
+  sheet: {
+    backgroundColor: '#FFFEF5',
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    borderWidth: 2.5,
+    borderColor: '#1A1612',
+    padding: 16,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  title: { color: '#1A1612', fontSize: 19, fontWeight: '900' },
+  photoBox: {
+    height: 360,
+    borderWidth: 2.5,
+    borderColor: '#1A1612',
+    borderRadius: 18,
+    backgroundColor: '#FFF5DC',
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photo: { width: '100%', height: '100%' },
+  photoEmpty: { alignItems: 'center', gap: 8 },
+  photoHint: { color: '#1A1612', fontSize: 14, fontWeight: '900' },
+  captionInput: {
+    marginTop: 12,
+    borderWidth: 2,
+    borderColor: '#1A1612',
+    borderRadius: 12,
+    backgroundColor: '#FFFEF5',
+    color: '#1A1612',
+    fontSize: 14,
+    fontWeight: '700',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  visibilityRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+  },
+  visibilityButton: {
+    flex: 1,
+    borderWidth: 2,
+    borderColor: '#1A1612',
+    borderRadius: 12,
+    backgroundColor: '#FFFEF5',
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  visibilityButtonActive: { backgroundColor: '#FFD93D' },
+  visibilityText: { color: '#1A1612', fontSize: 13, fontWeight: '900' },
+  visibilityTextActive: { color: '#1A1612' },
+  submitButton: {
+    marginTop: 12,
+    height: 52,
+    borderWidth: 2.5,
+    borderColor: '#1A1612',
+    borderRadius: 13,
+    backgroundColor: '#3DDC97',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  submitButtonDisabled: { opacity: 0.45 },
+  submitText: { color: '#1A1612', fontSize: 15, fontWeight: '900' },
+});
+
+const storyViewerStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.88)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 18,
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 54,
+    right: 20,
+    zIndex: 2,
+  },
+  card: {
+    width: '100%',
+    maxWidth: 390,
+    aspectRatio: 9 / 16,
+    borderRadius: 22,
+    overflow: 'hidden',
+    borderWidth: 2.5,
+    borderColor: '#FFFEF5',
+    backgroundColor: '#1A1612',
+  },
+  image: { width: '100%', height: '100%' },
+  meta: {
+    position: 'absolute',
+    left: 14,
+    right: 14,
+    bottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderRadius: 14,
+    backgroundColor: 'rgba(26,22,18,0.72)',
+    padding: 10,
+  },
+  name: { color: '#FFFEF5', fontSize: 13, fontWeight: '900' },
+  caption: { color: 'rgba(255,254,245,0.9)', fontSize: 12, fontWeight: '700', marginTop: 2 },
+});
+
 function HasCrewView({
   data,
   refreshing,
@@ -1171,6 +1493,9 @@ export default function SocialScreen() {
   const [crewData, setCrewData] = useState<MyCrewResult | null>(null);
   const [loadingFriends, setLoadingFriends] = useState(true);
   const [loadingCrew, setLoadingCrew] = useState(true);
+  const [stories, setStories] = useState<SocialStory[]>([]);
+  const [storyCreateOpen, setStoryCreateOpen] = useState(false);
+  const [activeStory, setActiveStory] = useState<SocialStory | null>(null);
   const [refreshingFriends, setRefreshingFriends] = useState(false);
   const [refreshingCrew, setRefreshingCrew] = useState(false);
 
@@ -1214,10 +1539,20 @@ export default function SocialScreen() {
     }
   }, []);
 
+  const loadStories = useCallback(async () => {
+    try {
+      const next = await listSocialStories();
+      setStories(next);
+    } catch {
+      /* stories are optional; pull-to-refresh can retry */
+    }
+  }, []);
+
   useEffect(() => {
     loadFriends();
     loadCrew();
-  }, [loadFriends, loadCrew]);
+    loadStories();
+  }, [loadFriends, loadCrew, loadStories]);
 
   const friendIdsKey =
     friendsData?.friends
@@ -1332,11 +1667,18 @@ export default function SocialScreen() {
           data={friendsData}
           loading={loadingFriends}
           refreshing={refreshingFriends}
-          onRefresh={() => loadFriends(true)}
+          onRefresh={() => {
+            void loadStories();
+            void loadFriends(true);
+          }}
           onShowToast={showToast}
           friendLocations={friendLocations}
           districtByUserId={districtByUserId}
           onOpenFriendProfile={(uid) => router.push(`/user/${uid}` as any)}
+          stories={stories}
+          viewerId={viewerId}
+          onCreateStory={() => setStoryCreateOpen(true)}
+          onOpenStory={setActiveStory}
         />
       ) : (
         <CrewTab
@@ -1347,6 +1689,14 @@ export default function SocialScreen() {
           onShowToast={showToast}
         />
       )}
+
+      <StoryCreateModal
+        visible={storyCreateOpen}
+        onClose={() => setStoryCreateOpen(false)}
+        onCreated={(story) => setStories((prev) => [story, ...prev.filter((item) => item.id !== story.id)])}
+        onShowToast={showToast}
+      />
+      <StoryViewerModal story={activeStory} onClose={() => setActiveStory(null)} />
     </KeyboardAvoidingView>
   );
 }
@@ -1497,6 +1847,12 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#FF4757',
     padding: 3,
+    overflow: 'hidden',
+  },
+  storyThumb: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 23,
   },
   storyViewed: {
     backgroundColor: '#E8E0D2',
