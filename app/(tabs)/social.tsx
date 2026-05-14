@@ -36,6 +36,7 @@ import {
   leaveCrew,
   listSocialStories,
   uploadSocialStoryPhoto,
+  uploadMarkPhoto,
   createSocialStory,
 } from '../../src/lib/api';
 import {
@@ -247,7 +248,12 @@ function StoryCreateModal({
     if (!photoUri || submitting) return;
     setSubmitting(true);
     try {
-      const photoUrl = await uploadSocialStoryPhoto(photoUri);
+      let photoUrl: string;
+      try {
+        photoUrl = await uploadSocialStoryPhoto(photoUri);
+      } catch {
+        photoUrl = await uploadMarkPhoto(photoUri);
+      }
       const story = await createSocialStory({
         photoUrl,
         caption: caption.trim() || null,
@@ -257,7 +263,8 @@ function StoryCreateModal({
       reset();
       onClose();
       onShowToast('스토리를 올렸어요.', 'success');
-    } catch {
+    } catch (error) {
+      captureError(error, { tag: 'SocialStory.upload' });
       onShowToast('스토리 업로드에 실패했어요.', 'error');
     } finally {
       setSubmitting(false);
