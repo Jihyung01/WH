@@ -38,6 +38,9 @@ import {
   uploadSocialStoryPhoto,
   uploadMarkPhoto,
   createSocialStory,
+  getCommunityFeed,
+  toggleFeedLike,
+  sendPushToUser,
 } from '../../src/lib/api';
 import {
   startLocationSharing,
@@ -54,10 +57,14 @@ import { useAuthStore } from '../../src/stores/authStore';
 import {
   sendKakaoTextToFriends,
   shareKakaoText,
+  shareKakaoFeedCard,
 } from '../../src/services/kakaoShare';
 import { pickKakaoFriends } from '../../src/services/kakaoFriends';
 import { captureError } from '../../src/utils/errorReporting';
-import type { FriendsResult, FriendInfo, MyCrewResult, CrewMember, SocialStory, SocialStoryVisibility } from '../../src/lib/api';
+import type { FriendsResult, FriendInfo, MyCrewResult, CrewMember, SocialStory, SocialStoryVisibility, CommunityFeedItem } from '../../src/lib/api';
+import { MangaFeedCard } from '../../src/components/feed/MangaFeedCard';
+import { CommentModal } from './explore';
+import { useTheme } from '../../src/providers/ThemeProvider';
 import {
   COLORS,
   SPACING,
@@ -235,9 +242,8 @@ function StoryCreateModal({
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [9, 16],
-      quality: 0.62,
+      allowsEditing: false,
+      quality: 0.7,
       base64: true,
     });
     if (result.canceled || !result.assets[0]) return;
@@ -285,7 +291,7 @@ function StoryCreateModal({
 
             <Pressable style={storyModalStyles.photoBox} onPress={pickPhoto}>
               {photoUri ? (
-                <Image source={{ uri: photoUri }} style={storyModalStyles.photo} contentFit="cover" />
+                <Image source={{ uri: photoUri }} style={storyModalStyles.photo} contentFit="contain" />
               ) : (
                 <View style={storyModalStyles.photoEmpty}>
                   <Ionicons name="camera" size={34} color="#1A1612" />
@@ -354,7 +360,7 @@ function StoryViewerModal({
         </Pressable>
         {story ? (
           <View style={storyViewerStyles.card}>
-            <Image source={{ uri: story.photo_url }} style={storyViewerStyles.image} contentFit="cover" />
+            <Image source={{ uri: story.photo_url }} style={storyViewerStyles.image} contentFit="contain" />
             <View style={storyViewerStyles.meta}>
               <AvatarCircle username={story.username ?? '친구'} avatarUrl={story.avatar_url} size={34} />
               <View style={{ flex: 1, minWidth: 0 }}>
@@ -467,6 +473,10 @@ function FriendsTab({
   viewerId,
   onCreateStory,
   onOpenStory,
+  feedItems,
+  onToggleLike,
+  onOpenComments,
+  onShareFeedItem,
 }: {
   data: FriendsResult | null;
   loading: boolean;
@@ -480,7 +490,12 @@ function FriendsTab({
   viewerId: string | null;
   onCreateStory: () => void;
   onOpenStory: (story: SocialStory) => void;
+  feedItems: CommunityFeedItem[];
+  onToggleLike: (item: CommunityFeedItem) => void;
+  onOpenComments: (item: CommunityFeedItem) => void;
+  onShareFeedItem: (item: CommunityFeedItem) => void;
 }) {
+  const router = useRouter();
   const [searchText, setSearchText] = useState('');
   const [sending, setSending] = useState(false);
   const [respondingIds, setRespondingIds] = useState<Set<string>>(new Set());
@@ -616,6 +631,26 @@ function FriendsTab({
         districtByUserId={districtByUserId}
         onOpenFriendProfile={onOpenFriendProfile}
       />
+
+      {feedItems.length > 0 ? (
+        <View style={s.feedSection}>
+          <View style={s.sectionHeaderRow}>
+            <Text style={s.socialSectionTitle}>소셜 피드</Text>
+            <Text style={s.sectionMore}>좋아요 · 댓글</Text>
+          </View>
+          {feedItems.slice(0, 10).map((item) => (
+            <MangaFeedCard
+              key={item.id}
+              item={item}
+              onOpenEvent={(eventId) => router.push(`/event/${eventId}` as never)}
+              onToggleLike={onToggleLike}
+              onOpenComments={onOpenComments}
+              onShare={onShareFeedItem}
+              onPressAuthor={onOpenFriendProfile}
+            />
+          ))}
+        </View>
+      ) : null}
 
       {/* Location sharing toggle */}
       <Animated.View entering={FadeInUp.duration(300)} style={s.locationShareRow}>
@@ -1149,7 +1184,7 @@ const storyModalStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  photo: { width: '100%', height: '100%' },
+  photo: { width: '100%', height: '100%', backgroundColor: '#FFF5DC' },
   photoEmpty: { alignItems: 'center', gap: 8 },
   photoHint: { color: '#1A1612', fontSize: 14, fontWeight: '900' },
   captionInput: {
@@ -1219,7 +1254,7 @@ const storyViewerStyles = StyleSheet.create({
     borderColor: '#FFFEF5',
     backgroundColor: '#1A1612',
   },
-  image: { width: '100%', height: '100%' },
+  image: { width: '100%', height: '100%', backgroundColor: '#1A1612' },
   meta: {
     position: 'absolute',
     left: 14,
@@ -1491,6 +1526,7 @@ function MemberRow({ member }: { member: CrewMember }) {
 export default function SocialScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
   const viewerId = useAuthStore((s) => s.user?.id ?? null);
 
   const [activeTab, setActiveTab] = useState<TabKey>('friends');
@@ -1501,6 +1537,8 @@ export default function SocialScreen() {
   const [loadingFriends, setLoadingFriends] = useState(true);
   const [loadingCrew, setLoadingCrew] = useState(true);
   const [stories, setStories] = useState<SocialStory[]>([]);
+  const [feedItems, setFeedItems] = useState<CommunityFeedItem[]>([]);
+  const [commentTarget, setCommentTarget] = useState<string | null>(null);
   const [storyCreateOpen, setStoryCreateOpen] = useState(false);
   const [activeStory, setActiveStory] = useState<SocialStory | null>(null);
   const [refreshingFriends, setRefreshingFriends] = useState(false);
@@ -1555,11 +1593,87 @@ export default function SocialScreen() {
     }
   }, []);
 
+  const loadFeed = useCallback(async () => {
+    try {
+      const next = await getCommunityFeed(30);
+      setFeedItems(next);
+    } catch {
+      setFeedItems([]);
+    }
+  }, []);
+
   useEffect(() => {
     loadFriends();
     loadCrew();
     loadStories();
-  }, [loadFriends, loadCrew, loadStories]);
+    loadFeed();
+  }, [loadFriends, loadCrew, loadStories, loadFeed]);
+
+  const handleToggleLike = useCallback(async (item: CommunityFeedItem) => {
+    const prevLiked = item.liked_by_me;
+    const prevCount = item.like_count;
+    setFeedItems((prev) =>
+      prev.map((it) =>
+        it.id === item.id
+          ? { ...it, liked_by_me: !prevLiked, like_count: Math.max(0, prevCount + (prevLiked ? -1 : 1)) }
+          : it,
+      ),
+    );
+    try {
+      const result = await toggleFeedLike(item.id);
+      setFeedItems((prev) =>
+        prev.map((it) =>
+          it.id === item.id
+            ? { ...it, liked_by_me: result.liked, like_count: result.like_count }
+            : it,
+        ),
+      );
+      if (result.liked && item.user_id !== viewerId) {
+        void sendPushToUser(item.user_id, '새 좋아요', '게시물에 반응이 왔어요.');
+      }
+    } catch {
+      setFeedItems((prev) =>
+        prev.map((it) =>
+          it.id === item.id ? { ...it, liked_by_me: prevLiked, like_count: prevCount } : it,
+        ),
+      );
+    }
+  }, [viewerId]);
+
+  const handleCommentAdded = useCallback((submissionId: string) => {
+    const item = feedItems.find((it) => it.id === submissionId);
+    setFeedItems((prev) =>
+      prev.map((it) =>
+        it.id === submissionId ? { ...it, comment_count: it.comment_count + 1 } : it,
+      ),
+    );
+    if (item && item.user_id !== viewerId) {
+      void sendPushToUser(item.user_id, '새 댓글', '게시물에 댓글이 달렸어요.');
+    }
+  }, [feedItems, viewerId]);
+
+  const handleShareFeedItem = useCallback(async (item: CommunityFeedItem) => {
+    const typeLabel = item.submission_type === 'ugc_event_cover' ? '이벤트 커버' : '미션 인증';
+    const title = item.event_title ? `${item.event_title} · ${typeLabel}` : `WhereHere ${typeLabel}`;
+    const description = [
+      item.username ? `${item.username}님의 ${typeLabel}` : typeLabel,
+      item.event_district ?? '',
+    ].filter(Boolean).join(' · ');
+    try {
+      await shareKakaoFeedCard({
+        imageUrl: item.image_url,
+        title,
+        description,
+        buttonTitle: item.event_id ? '이벤트 보기' : '앱 열기',
+        linkParams: {
+          iosExecutionParams: item.event_id ? { screen: 'event', id: item.event_id } : undefined,
+          androidExecutionParams: item.event_id ? { screen: 'event', id: item.event_id } : undefined,
+        },
+      });
+    } catch {
+      /* user cancelled */
+    }
+  }, []);
 
   const friendIdsKey =
     friendsData?.friends
@@ -1676,6 +1790,7 @@ export default function SocialScreen() {
           refreshing={refreshingFriends}
           onRefresh={() => {
             void loadStories();
+            void loadFeed();
             void loadFriends(true);
           }}
           onShowToast={showToast}
@@ -1686,6 +1801,10 @@ export default function SocialScreen() {
           viewerId={viewerId}
           onCreateStory={() => setStoryCreateOpen(true)}
           onOpenStory={setActiveStory}
+          feedItems={feedItems}
+          onToggleLike={handleToggleLike}
+          onOpenComments={(item) => setCommentTarget(item.id)}
+          onShareFeedItem={handleShareFeedItem}
         />
       ) : (
         <CrewTab
@@ -1704,6 +1823,14 @@ export default function SocialScreen() {
         onShowToast={showToast}
       />
       <StoryViewerModal story={activeStory} onClose={() => setActiveStory(null)} />
+      <CommentModal
+        visible={commentTarget !== null}
+        submissionId={commentTarget}
+        colors={colors}
+        insets={{ bottom: insets.bottom }}
+        onClose={() => setCommentTarget(null)}
+        onCommentAdded={handleCommentAdded}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -1833,6 +1960,9 @@ const s = StyleSheet.create({
   },
   storySection: {
     marginBottom: SPACING.sm,
+  },
+  feedSection: {
+    marginBottom: SPACING.md,
   },
   storyRail: {
     gap: 10,

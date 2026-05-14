@@ -21,6 +21,7 @@ import { EvolutionCelebrationOverlay } from '../src/components/character/Evoluti
 import { MangaToastHost } from '../src/components/ui';
 import { useWeatherStore } from '../src/stores/weatherStore';
 import { useMapStore } from '../src/stores/mapStore';
+import { supabase } from '../src/config/supabase';
 
 function AppContent() {
   const router = useRouter();
@@ -125,6 +126,19 @@ function AppContent() {
 
     void bootstrap();
 
+    const {
+      data: { subscription: authSubscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        try {
+          const notificationService = require('../src/services/notificationService').notificationService;
+          void notificationService.registerPushToken().catch(() => {});
+        } catch {
+          // notification module optional in some clients
+        }
+      }
+    });
+
     // Dynamic import: static `expo-notifications` breaks Expo Go SDK 53+ (projectId / push side effects)
     void (async () => {
       const Notifications = await import('expo-notifications').catch(() => null);
@@ -172,6 +186,7 @@ function AppContent() {
       cancelled.current = true;
       responseListener.current?.remove();
       linkingSub.remove();
+      authSubscription.unsubscribe();
     };
   }, []);
 

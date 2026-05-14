@@ -169,7 +169,7 @@ export function FeedPost({
           <Image
             source={{ uri: item.image_url }}
             style={{ width: SCREEN_W, height: SCREEN_W / POST_IMAGE_RATIO }}
-            contentFit="cover"
+            contentFit="contain"
             transition={220}
             cachePolicy="memory-disk"
             onError={() => setImgErr(true)}

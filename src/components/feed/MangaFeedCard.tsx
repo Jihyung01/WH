@@ -182,7 +182,7 @@ function MangaFeedCardInner({
             <Image
               source={{ uri: item.image_url }}
               style={styles.image}
-              contentFit="cover"
+              contentFit="contain"
               transition={220}
               cachePolicy="memory-disk"
               onError={() => setImgErr(true)}
@@ -349,6 +349,7 @@ const styles = StyleSheet.create({
   image: {
     width: '100%',
     height: '100%',
+    backgroundColor: MANGA.paper2,
   },
   imageEmpty: {
     flex: 1,

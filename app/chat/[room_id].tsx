@@ -276,7 +276,7 @@ function Bubble({ msg, mine, showSender }: { msg: RoomMessage; mine: boolean; sh
         ) : null}
         <View style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleOther]}>
           {msg.message_type === 'image' && typeof msg.payload?.url === 'string' ? (
-            <Image source={{ uri: msg.payload.url }} style={styles.bubbleImage} contentFit="cover" />
+            <Image source={{ uri: msg.payload.url }} style={styles.bubbleImage} contentFit="contain" />
           ) : (
             <Text style={[styles.bubbleText, mine ? styles.bubbleTextMine : null]} allowFontScaling={false}>
               {msg.content}
@@ -315,7 +315,7 @@ const styles = StyleSheet.create({
   bubbleMine: { backgroundColor: MANGA.y, borderTopRightRadius: 4 },
   bubbleText: { color: MANGA.ink, fontSize: 14, fontFamily: FONT_FAMILY.primary, lineHeight: 20 },
   bubbleTextMine: {},
-  bubbleImage: { width: 190, height: 190, borderRadius: 10 },
+  bubbleImage: { width: 220, height: 220, borderRadius: 10, backgroundColor: MANGA.paper2 },
   // input
   inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, paddingHorizontal: 12, paddingTop: 8, borderTopWidth: 2, borderTopColor: MANGA.ink, backgroundColor: MANGA.paper },
   attachBtn: { width: 38, height: 38, borderRadius: 19, borderWidth: 2, borderColor: MANGA.ink, backgroundColor: MANGA.paper2, alignItems: 'center', justifyContent: 'center' },
