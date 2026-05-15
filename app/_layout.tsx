@@ -210,6 +210,10 @@ function AppContent() {
         <Stack.Screen name="mission/ar-photo" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
         <Stack.Screen name="reward/[id]" options={{ presentation: 'fullScreenModal' }} />
         <Stack.Screen name="chat" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="chat/[room_id]" options={{ headerShown: false, animation: 'slide_from_right' }} />
+        <Stack.Screen name="chat/new-group" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="chat/group-call/[room_id]" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
+        <Stack.Screen name="meetup/create" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
         <Stack.Screen name="create-event" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
         <Stack.Screen name="journal" options={{ headerShown: false, animation: 'slide_from_right' }} />
         <Stack.Screen name="season" options={{ headerShown: false, animation: 'slide_from_bottom' }} />

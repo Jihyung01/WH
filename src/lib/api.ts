@@ -2285,7 +2285,7 @@ export async function sendMessage(params: SendMessageParams): Promise<string> {
   });
   if (error) throw new AppError(error.message, 'SEND_MESSAGE_FAILED');
   const messageId = String(data);
-  await sendChatMessagePush(
+  void sendChatMessagePush(
     params.roomId,
     messageId,
     params.content ?? null,

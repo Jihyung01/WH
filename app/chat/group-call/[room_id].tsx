@@ -85,7 +85,7 @@ export default function GroupCallScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 18 }]}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.headerButton} hitSlop={8}>
+        <Pressable onPress={leave} style={styles.headerButton} hitSlop={8}>
           <Ionicons name="chevron-back" size={24} color={MANGA.ink} />
         </Pressable>
         <View style={styles.headerTitleWrap}>

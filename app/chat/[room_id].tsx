@@ -59,6 +59,15 @@ export default function ChatRoomScreen() {
   const [sending, setSending] = useState(false);
   const [attaching, setAttaching] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+
+  const appendMessage = useCallback((message: RoomMessage) => {
+    setMessages((prev) => {
+      if (prev.some((item) => item.id === message.id)) return prev;
+      return [...prev, message].sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));
+    });
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50);
+  }, []);
 
   // 메시지 로드
   const load = useCallback(async () => {
@@ -81,7 +90,15 @@ export default function ChatRoomScreen() {
   useEffect(() => {
     if (!roomId) return;
     const channel = supabase
-      .channel(`room:${roomId}`)
+      .channel(`room:${roomId}`, { config: { broadcast: { self: false } } })
+      .on<{ message: RoomMessage }>(
+        'broadcast',
+        { event: 'chat-message' },
+        (payload) => {
+          if (payload.payload?.message) appendMessage(payload.payload.message);
+          void markRoomRead(roomId).catch(() => {});
+        },
+      )
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages', filter: `room_id=eq.${roomId}` },
@@ -98,24 +115,42 @@ export default function ChatRoomScreen() {
             payload: (m.payload as Record<string, unknown> | null) ?? null,
             created_at: String(m.created_at),
           };
-          setMessages((prev) => [...prev, next]);
+          appendMessage(next);
           void markRoomRead(roomId).catch(() => {});
-          // 자동 스크롤
-          setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50);
         },
       )
       .subscribe();
+    channelRef.current = channel;
     return () => {
+      channelRef.current = null;
       void supabase.removeChannel(channel);
     };
-  }, [roomId]);
+  }, [appendMessage, roomId]);
+
+  const publishLocalMessage = useCallback((message: RoomMessage) => {
+    appendMessage(message);
+    void channelRef.current?.send({
+      type: 'broadcast',
+      event: 'chat-message',
+      payload: { message },
+    });
+  }, [appendMessage]);
 
   const onSend = useCallback(async () => {
     const text = input.trim();
     if (!text || !roomId) return;
     setSending(true);
     try {
-      await sendMessage({ roomId, content: text });
+      const messageId = await sendMessage({ roomId, content: text });
+      publishLocalMessage({
+        id: messageId,
+        sender_id: me ?? '',
+        sender_name: null,
+        content: text,
+        message_type: 'text',
+        payload: null,
+        created_at: new Date().toISOString(),
+      });
       setInput('');
       if (Platform.OS === 'ios') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     } catch (e) {
@@ -123,7 +158,7 @@ export default function ChatRoomScreen() {
     } finally {
       setSending(false);
     }
-  }, [input, roomId]);
+  }, [input, me, publishLocalMessage, roomId]);
 
   const openGroupCall = useCallback(async () => {
     if (!roomId) return;
@@ -153,11 +188,20 @@ export default function ChatRoomScreen() {
     setAttaching(true);
     try {
       const url = await uploadChatPhoto(roomId, imageAssetToUploadUri(picked.assets[0]));
-      await sendMessage({
+      const messageId = await sendMessage({
         roomId,
         content: '사진',
         messageType: 'image',
         payload: { url },
+      });
+      publishLocalMessage({
+        id: messageId,
+        sender_id: me ?? '',
+        sender_name: null,
+        content: '사진',
+        message_type: 'image',
+        payload: { url },
+        created_at: new Date().toISOString(),
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
@@ -165,7 +209,7 @@ export default function ChatRoomScreen() {
     } finally {
       setAttaching(false);
     }
-  }, [attaching, roomId]);
+  }, [attaching, me, publishLocalMessage, roomId]);
 
   return (
     <KeyboardAvoidingView
