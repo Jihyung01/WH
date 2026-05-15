@@ -2264,6 +2264,7 @@ async function sendChatMessagePush(roomId: string, messageId: string, content: s
       user_id: userId,
       title: `${senderName}님의 메시지`,
       body,
+      channelId: 'chat-messages',
       data: {
         type: 'chat_message',
         roomId,

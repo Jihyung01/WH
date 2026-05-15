@@ -20,6 +20,7 @@ interface PushPayload {
   user_id: string;
   title: string;
   body: string;
+  channelId?: string;
   data?: Record<string, unknown>;
 }
 
@@ -28,6 +29,8 @@ interface ExpoPushMessage {
   title: string;
   body: string;
   sound: string;
+  channelId?: string;
+  priority?: "default" | "normal" | "high";
   data?: Record<string, unknown>;
 }
 
@@ -131,6 +134,8 @@ Deno.serve(async (req) => {
         title: p.title,
         body: p.body,
         sound: "default",
+        channelId: p.channelId ?? "default",
+        priority: "high",
         ...(p.data ? { data: p.data } : {}),
       });
     }

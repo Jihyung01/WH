@@ -6,6 +6,7 @@ import { useNotificationStore } from '../stores/notificationStore';
 
 const DAILY_REMINDER_ID = 'daily-reminder';
 const STREAK_WARNING_ID = 'streak-warning';
+const CHAT_MESSAGES_CHANNEL_ID = 'chat-messages';
 
 export const notificationService = {
   /**
@@ -50,6 +51,14 @@ export const notificationService = {
           importance: Notifications.AndroidImportance.HIGH,
           vibrationPattern: [0, 250, 250, 250],
           lightColor: '#2DD4A8',
+        });
+        await Notifications.setNotificationChannelAsync(CHAT_MESSAGES_CHANNEL_ID, {
+          name: '채팅 메시지',
+          importance: Notifications.AndroidImportance.MAX,
+          vibrationPattern: [0, 180, 120, 180],
+          lightColor: '#2DD4A8',
+          sound: 'default',
+          lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
         });
       }
 

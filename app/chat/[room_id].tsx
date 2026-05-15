@@ -21,6 +21,7 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
+  Keyboard,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -85,6 +86,15 @@ export default function ChatRoomScreen() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener('keyboardDidShow', () => {
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 80);
+    });
+    return () => {
+      showSub.remove();
+    };
+  }, []);
 
   // Realtime 구독
   useEffect(() => {
@@ -214,7 +224,7 @@ export default function ChatRoomScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={0}
     >
       {/* 헤더 */}
@@ -237,6 +247,8 @@ export default function ChatRoomScreen() {
         ref={scrollRef}
         style={{ flex: 1 }}
         contentContainerStyle={[styles.listPad, { paddingBottom: 16 }]}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
         onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: false })}
       >
         {messages.length === 0 ? (
