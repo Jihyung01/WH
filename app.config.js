@@ -30,6 +30,13 @@ module.exports = () => {
             android: { forwardKakaoLinkIntentFilterToMainActivity: true },
           },
         ],
+        [
+          '@config-plugins/react-native-webrtc',
+          {
+            cameraPermission: 'WhereHere needs camera access for in-app video calls.',
+            microphonePermission: 'WhereHere needs microphone access for in-app video calls.',
+          },
+        ],
         ...basePlugins,
       ],
     },

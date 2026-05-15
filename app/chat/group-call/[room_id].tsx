@@ -1,81 +1,86 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import * as Clipboard from 'expo-clipboard';
-import * as WebBrowser from 'expo-web-browser';
+import { RTCView } from 'react-native-webrtc';
 
-import { endGroupCall, startGroupCall } from '../../../src/lib/api';
 import { MANGA, MANGA_BORDER, MANGA_RADIUS, FONT_FAMILY, SPACING } from '../../../src/config/theme';
 import { MangaAvatar } from '../../../src/components/ui';
+import { useGroupWebRTCCall, type PeerState } from '../../../src/hooks/useGroupWebRTCCall';
+import { streamUrl } from '../../../src/utils/webrtcSignal';
+
+function RemoteTile({ peer }: { peer: PeerState }) {
+  const remoteUrl = streamUrl(peer.stream);
+  return (
+    <View style={styles.videoTile}>
+      {remoteUrl ? (
+        <RTCView streamURL={remoteUrl} style={styles.video} objectFit="cover" zOrder={0} />
+      ) : (
+        <View style={styles.videoEmpty}>
+          <MangaAvatar name="친구" size={58} />
+          <Text style={styles.videoEmptyText} allowFontScaling={false}>
+            {peer.connected ? '영상 대기 중' : '연결 중'}
+          </Text>
+        </View>
+      )}
+      <View style={styles.nameBadge}>
+        <Text style={styles.nameBadgeText} allowFontScaling={false}>친구</Text>
+      </View>
+    </View>
+  );
+}
 
 export default function GroupCallScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ room_id: string }>();
-  const roomId = params.room_id;
-  const [active, setActive] = useState(true);
-  const [busy, setBusy] = useState(false);
-  const names = useMemo(() => ['나', '친구', '크루', '탐험'], []);
-  const callUrl = useMemo(() => {
-    const safeRoomId = String(roomId ?? 'room').replace(/[^a-zA-Z0-9]/g, '');
-    return `https://meet.jit.si/wherehere-${safeRoomId}`;
-  }, [roomId]);
+  const roomId = typeof params.room_id === 'string' ? params.room_id : '';
+  const [ending, setEnding] = useState(false);
 
-  const start = useCallback(async () => {
-    if (!roomId || busy) return;
-    setBusy(true);
-    try {
-      await startGroupCall(roomId);
-      setActive(true);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (error) {
-      Alert.alert('오류', error instanceof Error ? error.message : '영상 방을 열지 못했어요.');
-    } finally {
-      setBusy(false);
-    }
-  }, [busy, roomId]);
+  const {
+    localStream,
+    peers,
+    micOn,
+    cameraOn,
+    ready,
+    callError,
+    participantCount,
+    toggleMic,
+    toggleCamera,
+    switchCamera,
+    endCall,
+  } = useGroupWebRTCCall(roomId);
 
-  const end = useCallback(async () => {
-    if (!roomId || busy) return;
-    setBusy(true);
+  const localUrl = useMemo(() => streamUrl(localStream), [localStream]);
+
+  const handleToggleMic = useCallback(() => {
+    toggleMic();
+    void Haptics.selectionAsync();
+  }, [toggleMic]);
+
+  const handleToggleCamera = useCallback(() => {
+    toggleCamera();
+    void Haptics.selectionAsync();
+  }, [toggleCamera]);
+
+  const handleSwitchCamera = useCallback(() => {
+    switchCamera();
+    void Haptics.selectionAsync();
+  }, [switchCamera]);
+
+  const leave = useCallback(async () => {
+    if (ending) return;
+    setEnding(true);
     try {
-      await endGroupCall(roomId);
-      setActive(false);
+      await endCall();
       router.back();
     } catch (error) {
       Alert.alert('오류', error instanceof Error ? error.message : '영상 방을 종료하지 못했어요.');
-    } finally {
-      setBusy(false);
+      setEnding(false);
     }
-  }, [busy, roomId, router]);
-
-  const openVideoRoom = useCallback(async () => {
-    if (!roomId || busy) return;
-    setBusy(true);
-    try {
-      await startGroupCall(roomId);
-      setActive(true);
-      await WebBrowser.openBrowserAsync(callUrl);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (error) {
-      Alert.alert('오류', error instanceof Error ? error.message : '영상 방을 열지 못했어요.');
-    } finally {
-      setBusy(false);
-    }
-  }, [busy, callUrl, roomId]);
-
-  const copyInviteLink = useCallback(async () => {
-    try {
-      await Clipboard.setStringAsync(callUrl);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert('복사 완료', '영상 초대 링크를 복사했어요.');
-    } catch {
-      Alert.alert('오류', '초대 링크를 복사하지 못했어요.');
-    }
-  }, [callUrl]);
+  }, [endCall, ending, router]);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 18 }]}>
@@ -83,45 +88,69 @@ export default function GroupCallScreen() {
         <Pressable onPress={() => router.back()} style={styles.headerButton} hitSlop={8}>
           <Ionicons name="chevron-back" size={24} color={MANGA.ink} />
         </Pressable>
-        <Text style={styles.headerTitle} allowFontScaling={false}>단체 영상</Text>
-        <View style={styles.headerButton} />
+        <View style={styles.headerTitleWrap}>
+          <Text style={styles.headerTitle} allowFontScaling={false}>단체 영상</Text>
+          <Text style={styles.headerSub} allowFontScaling={false}>
+            {participantCount > 0 ? `${participantCount}명 참여 중` : '연결 준비 중'}
+          </Text>
+        </View>
+        <Pressable onPress={handleSwitchCamera} style={styles.headerButton} hitSlop={8}>
+          <Ionicons name="camera-reverse-outline" size={22} color={MANGA.ink} />
+        </Pressable>
       </View>
 
       <View style={styles.stage}>
-        {names.map((name, index) => (
-          <View key={name} style={styles.tile}>
-            <MangaAvatar name={name} size={64} />
-            <Text style={styles.tileName} allowFontScaling={false}>{index === 0 ? '나' : name}</Text>
-            <Text style={styles.tileState} allowFontScaling={false}>마이크 꺼짐</Text>
+        <View style={[styles.videoTile, styles.localTile]}>
+          {localUrl && cameraOn ? (
+            <RTCView streamURL={localUrl} style={styles.video} mirror objectFit="cover" zOrder={1} />
+          ) : (
+            <View style={styles.videoEmpty}>
+              <MangaAvatar name="나" size={64} />
+              <Text style={styles.videoEmptyText} allowFontScaling={false}>카메라 꺼짐</Text>
+            </View>
+          )}
+          <View style={styles.nameBadge}>
+            <Text style={styles.nameBadgeText} allowFontScaling={false}>나</Text>
           </View>
-        ))}
+        </View>
+
+        {peers.map((peer) => <RemoteTile key={peer.id} peer={peer} />)}
+
+        {!ready ? (
+          <View style={styles.loadingOverlay}>
+            <ActivityIndicator color={MANGA.ink} />
+            <Text style={styles.loadingText} allowFontScaling={false}>통화방을 여는 중이에요</Text>
+          </View>
+        ) : null}
       </View>
 
       <View style={styles.notice}>
-        <Text style={styles.noticeTitle} allowFontScaling={false}>그룹 통화 방</Text>
+        <Text style={styles.noticeTitle} allowFontScaling={false}>
+          {callError ? '연결 오류' : '앱 안에서 연결 중'}
+        </Text>
         <Text style={styles.noticeText} allowFontScaling={false}>
-          영상 연결은 안전한 웹 통화방으로 열려요. 앱에서는 방 상태와 초대 링크를 관리하고, 통화는 브라우저에서 바로 이어집니다.
+          {callError ?? '카메라와 마이크는 기기에서 직접 처리되고, 방 연결 신호만 WhereHere 채팅방으로 주고받아요.'}
         </Text>
       </View>
 
       <View style={styles.controls}>
-        <Pressable style={styles.controlButton} onPress={openVideoRoom} disabled={busy}>
-          <Ionicons name="videocam" size={22} color={MANGA.ink} />
-          <Text style={styles.controlText} allowFontScaling={false}>영상 연결</Text>
+        <Pressable style={[styles.controlButton, !micOn && styles.controlOff]} onPress={handleToggleMic}>
+          <Ionicons name={micOn ? 'mic' : 'mic-off'} size={22} color={MANGA.ink} />
+          <Text style={styles.controlText} allowFontScaling={false}>마이크</Text>
         </Pressable>
-        <Pressable style={styles.controlButton} onPress={copyInviteLink} disabled={busy}>
-          <Ionicons name="link" size={22} color={MANGA.ink} />
-          <Text style={styles.controlText} allowFontScaling={false}>초대 링크</Text>
+        <Pressable style={[styles.controlButton, !cameraOn && styles.controlOff]} onPress={handleToggleCamera}>
+          <Ionicons name={cameraOn ? 'videocam' : 'videocam-off'} size={22} color={MANGA.ink} />
+          <Text style={styles.controlText} allowFontScaling={false}>카메라</Text>
         </Pressable>
-        <Pressable
-          onPress={active ? end : start}
-          disabled={busy}
-          style={[styles.endButton, !active && styles.startButton, busy && styles.disabled]}
-        >
-          <Ionicons name={active ? 'call' : 'videocam'} size={22} color={active ? MANGA.paper : MANGA.ink} />
-          <Text style={[styles.endText, !active && styles.startText]} allowFontScaling={false}>
-            {active ? '종료' : '다시 열기'}
-          </Text>
+        <Pressable onPress={leave} disabled={ending} style={[styles.endButton, ending && styles.disabled]}>
+          {ending ? (
+            <ActivityIndicator color={MANGA.paper} />
+          ) : (
+            <>
+              <Ionicons name="call" size={22} color={MANGA.paper} />
+              <Text style={styles.endText} allowFontScaling={false}>종료</Text>
+            </>
+          )}
         </Pressable>
       </View>
     </View>
@@ -140,27 +169,50 @@ const styles = StyleSheet.create({
     backgroundColor: MANGA.paper,
   },
   headerButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { flex: 1, textAlign: 'center', color: MANGA.ink, fontSize: 18, fontFamily: FONT_FAMILY.primaryBold },
-  stage: {
-    flex: 1,
-    padding: SPACING.lg,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING.md,
-  },
-  tile: {
-    width: '47%',
-    minHeight: 180,
+  headerTitleWrap: { flex: 1, alignItems: 'center' },
+  headerTitle: { color: MANGA.ink, fontSize: 18, fontFamily: FONT_FAMILY.primaryBold },
+  headerSub: { color: MANGA.ink, opacity: 0.55, fontSize: 11, fontFamily: FONT_FAMILY.primaryBold, marginTop: 2 },
+  stage: { flex: 1, padding: SPACING.md, flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },
+  videoTile: {
+    width: '48%',
+    minHeight: 210,
     borderWidth: MANGA_BORDER.width,
     borderColor: MANGA.ink,
     borderRadius: MANGA_RADIUS.cardLg,
-    backgroundColor: MANGA.paper,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: SPACING.sm,
+    backgroundColor: MANGA.ink,
+    overflow: 'hidden',
+    position: 'relative',
   },
-  tileName: { color: MANGA.ink, fontSize: 15, fontFamily: FONT_FAMILY.primaryBold },
-  tileState: { color: MANGA.ink, opacity: 0.55, fontSize: 12, fontFamily: FONT_FAMILY.primary },
+  localTile: { backgroundColor: MANGA.paper },
+  video: { width: '100%', height: '100%' },
+  videoEmpty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: SPACING.sm, backgroundColor: MANGA.paper },
+  videoEmptyText: { color: MANGA.ink, opacity: 0.58, fontSize: 12, fontFamily: FONT_FAMILY.primaryBold },
+  nameBadge: {
+    position: 'absolute',
+    left: 10,
+    bottom: 10,
+    borderWidth: 2,
+    borderColor: MANGA.ink,
+    borderRadius: 999,
+    backgroundColor: MANGA.y,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  nameBadgeText: { color: MANGA.ink, fontSize: 11, fontFamily: FONT_FAMILY.primaryBold },
+  loadingOverlay: {
+    position: 'absolute',
+    left: SPACING.lg,
+    right: SPACING.lg,
+    top: SPACING.lg,
+    borderWidth: 2,
+    borderColor: MANGA.ink,
+    borderRadius: MANGA_RADIUS.card,
+    backgroundColor: MANGA.y,
+    padding: SPACING.md,
+    alignItems: 'center',
+    gap: SPACING.xs,
+  },
+  loadingText: { color: MANGA.ink, fontSize: 12, fontFamily: FONT_FAMILY.primaryBold },
   notice: {
     marginHorizontal: SPACING.lg,
     borderWidth: 2,
@@ -171,12 +223,7 @@ const styles = StyleSheet.create({
   },
   noticeTitle: { color: MANGA.ink, fontSize: 15, fontFamily: FONT_FAMILY.primaryBold },
   noticeText: { color: MANGA.ink, opacity: 0.72, fontSize: 12, fontFamily: FONT_FAMILY.primary, lineHeight: 18, marginTop: 4 },
-  controls: {
-    flexDirection: 'row',
-    gap: SPACING.sm,
-    paddingHorizontal: SPACING.lg,
-    paddingTop: SPACING.md,
-  },
+  controls: { flexDirection: 'row', gap: SPACING.sm, paddingHorizontal: SPACING.lg, paddingTop: SPACING.md },
   controlButton: {
     flex: 1,
     height: 54,
@@ -187,6 +234,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  controlOff: { backgroundColor: MANGA.paper2, opacity: 0.74 },
   controlText: { color: MANGA.ink, fontSize: 11, fontFamily: FONT_FAMILY.primaryBold, marginTop: 2 },
   endButton: {
     flex: 1,
@@ -198,8 +246,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  startButton: { backgroundColor: MANGA.g },
   disabled: { opacity: 0.55 },
   endText: { color: MANGA.paper, fontSize: 11, fontFamily: FONT_FAMILY.primaryBold, marginTop: 2 },
-  startText: { color: MANGA.ink },
 });

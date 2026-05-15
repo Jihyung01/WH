@@ -2,7 +2,7 @@
   "expo": {
     "name": "WhereHere",
     "slug": "wherehere-app",
-    "version": "1.2.0",
+    "version": "1.3.0",
     "runtimeVersion": {
       "policy": "appVersion"
     },
@@ -37,6 +37,7 @@
         "NSLocationWhenInUseUsageDescription": "WhereHere needs your location to discover nearby events and verify check-ins.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "WhereHere uses background location to (1) share your live position with friends on the map when you enable it, and (2) alert you when you enter regions around map events. You can turn friend sharing off in Social.",
         "NSCameraUsageDescription": "WhereHere needs camera access to complete mission photos.",
+        "NSMicrophoneUsageDescription": "WhereHere needs microphone access for in-app video calls.",
         "NSUserTrackingUsageDescription": "WhereHere uses this to measure product interactions and improve the app. You can tap Ask App Not to Track and still use all features.",
         "NSPhotoLibraryUsageDescription": "WhereHere needs photo library access to set your profile picture.",
         "NSHealthShareUsageDescription": "WhereHere uses Health data to read your step count and give exploration rewards.",
