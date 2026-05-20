@@ -97,7 +97,7 @@ export default function MessagesScreen() {
     }
     setCallStarting(true);
     try {
-      await startGroupCall(room.room_id);
+      await startGroupCall(room.room_id, { notify: true, roomTitle: room.title });
       await load();
       router.push(`/chat/group-call/${room.room_id}` as never);
     } catch {

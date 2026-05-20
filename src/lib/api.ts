@@ -2314,9 +2314,59 @@ export async function createGroupChatRoom(params: {
   return String(data);
 }
 
-export async function startGroupCall(roomId: string): Promise<void> {
+async function sendGroupCallPush(roomId: string, roomTitle?: string | null): Promise<void> {
+  try {
+    const user = await getCurrentUser();
+    const [{ data: senderProfile }, { data: members }] = await Promise.all([
+      supabase
+        .from('profiles')
+        .select('username')
+        .eq('id', user.id)
+        .maybeSingle(),
+      supabase
+        .from('chat_room_members')
+        .select('user_id')
+        .eq('room_id', roomId)
+        .neq('user_id', user.id),
+    ]);
+
+    const targetIds = (members ?? [])
+      .map((row) => row.user_id)
+      .filter((id): id is string => typeof id === 'string' && id.length > 0);
+
+    if (targetIds.length === 0) return;
+
+    const senderName =
+      typeof senderProfile?.username === 'string' && senderProfile.username.trim()
+        ? senderProfile.username.trim()
+        : '친구';
+    const title = roomTitle?.trim() ? roomTitle.trim() : '그룹 통화';
+
+    await invokeEdgeFunction<{ success?: boolean }>('send-notification', targetIds.map((userId) => ({
+      user_id: userId,
+      title: `${senderName}님의 영상통화`,
+      body: `${title}에서 영상통화를 시작했어요.`,
+      channelId: 'chat-messages',
+      data: {
+        type: 'video_call',
+        roomId,
+        deepLink: `wherehere://chat/group-call/${roomId}`,
+      },
+    })));
+  } catch {
+    /* 통화 시작은 성공했으므로 초대 푸시 실패는 화면 흐름을 막지 않는다. */
+  }
+}
+
+export async function startGroupCall(
+  roomId: string,
+  opts?: { notify?: boolean; roomTitle?: string | null },
+): Promise<void> {
   const { error } = await supabase.rpc('start_group_call', { p_room_id: roomId });
   if (error) throw new AppError(error.message, 'START_GROUP_CALL_FAILED');
+  if (opts?.notify) {
+    void sendGroupCallPush(roomId, opts.roomTitle);
+  }
 }
 
 export async function endGroupCall(roomId: string): Promise<void> {

@@ -173,7 +173,7 @@ export default function ChatRoomScreen() {
   const openGroupCall = useCallback(async () => {
     if (!roomId) return;
     try {
-      await startGroupCall(roomId);
+      await startGroupCall(roomId, { notify: true, roomTitle: '채팅방' });
       router.push(`/chat/group-call/${roomId}` as never);
     } catch (error) {
       Alert.alert('오류', error instanceof Error ? error.message : '영상 방을 열지 못했어요.');
